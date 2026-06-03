@@ -1,0 +1,8 @@
+.local/
+.env
+apps/api/bin/
+apps/api/.gocache/
+apps/api/.gomodcache/
+apps/client/node_modules/
+apps/client/.svelte-kit/
+apps/client/build/
