@@ -31,12 +31,7 @@ func Load() (Config, error) {
 		Port:        valueOrDefault("PORT", "4000"),
 		LogLevel:    valueOrDefault("LOG_LEVEL", "info"),
 		StorageDir:  valueOrDefault("STORAGE_DIR", "./data"),
-		CORSAllowedOrigins: csvOrDefault("DOMAINS", []string{
-			"http://localhost:3000",
-			"http://127.0.0.1:3000",
-			"http://localhost:5173",
-			"http://127.0.0.1:5173",
-		}),
+		CORSAllowedOrigins: csvOrDefault("DOMAINS", []string{}),
 	}
 
 	port, err := strconv.Atoi(env.Port)
@@ -103,10 +98,6 @@ func csvOrDefault(key string, fallback []string) []string {
 }
 
 func validateOrigins(origins []string) error {
-	if len(origins) == 0 {
-		return fmt.Errorf("DOMAINS must contain at least one origin")
-	}
-
 	for _, origin := range origins {
 		if origin == "*" {
 			continue

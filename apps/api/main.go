@@ -16,6 +16,7 @@ import (
 	"api/internal/httpjson"
 	"api/internal/logger"
 	"api/internal/middleware"
+	"api/internal/spa"
 	"api/modules/accounts"
 	"api/modules/auth"
 	"api/modules/settings"
@@ -90,6 +91,15 @@ func main() {
 	accounts.RegisterRoutes(router, accountService, authService)
 	users.RegisterRoutes(router, userService, authService)
 	settings.RegisterRoutes(router, settingsService, authService)
+
+	clientDir := os.Getenv("CLIENT_DIR")
+	if clientDir == "" {
+		clientDir = "./client"
+	}
+	if info, err := os.Stat(clientDir); err == nil && info.IsDir() {
+		router.Handle("/*", middleware.Gzip(spa.Handler(clientDir)))
+		appLogger.Info("serving client", slog.String("dir", clientDir))
+	}
 
 	addr := ":" + appEnv.Port
 	server := &http.Server{

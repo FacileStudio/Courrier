@@ -12,6 +12,11 @@ var corsAllowedHeaders = []string{"Accept", "Authorization", "Content-Type"}
 func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+			if len(allowedOrigins) == 0 {
+				next.ServeHTTP(w, request)
+				return
+			}
+
 			origin := request.Header.Get("Origin")
 			if origin == "" {
 				next.ServeHTTP(w, request)

@@ -15,19 +15,17 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    expose:
-      - "4000"
+  courrier:
+    build: .
+    ports:
+      - "${PORT:-4000}:4000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@db:5432/courrier?sslmode=disable}
-      PORT: ${PORT:-4000}
+      PORT: "4000"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       STORAGE_DIR: ${STORAGE_DIR:-/data}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      DOMAINS: ${DOMAINS:-http://localhost:3000,http://127.0.0.1:3000}
+      CLIENT_DIR: /client
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
@@ -39,18 +37,6 @@ services:
         condition: service_healthy
     volumes:
       - api_data:/data
-
-  client:
-    build:
-      context: apps/client
-      dockerfile: Dockerfile
-      args:
-        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:4000}
-      network: host
-    expose:
-      - "80"
-    depends_on:
-      - api
 
 volumes:
   db_data:
