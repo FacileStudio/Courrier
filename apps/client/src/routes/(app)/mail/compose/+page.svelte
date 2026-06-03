@@ -1,0 +1,62 @@
+<script lang="ts">
+	import { goto } from '$app/navigation';
+	import { getContext } from 'svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+
+	const app = getContext<{ token: string }>('app');
+
+	let to = $state('');
+	let subject = $state('');
+	let body = $state('');
+	let sending = $state(false);
+</script>
+
+<svelte:head>
+	<title>Compose — Courrier</title>
+</svelte:head>
+
+<div class="flex h-full flex-col">
+	<div class="flex items-center justify-between border-b px-6 py-3">
+		<h2 class="text-lg font-semibold">New message</h2>
+		<div class="flex items-center gap-2">
+			<Button variant="ghost" size="sm" onclick={() => goto('/mail')}>
+				Cancel
+			</Button>
+			<Button size="sm" disabled={sending || !to}>
+				Send
+			</Button>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-0 border-b">
+		<div class="flex items-center border-b px-6">
+			<Label for="to" class="w-16 shrink-0 text-sm text-muted-foreground">To</Label>
+			<Input
+				id="to"
+				type="email"
+				bind:value={to}
+				placeholder="recipient@example.com"
+				class="border-0 shadow-none focus-visible:ring-0 rounded-none"
+			/>
+		</div>
+		<div class="flex items-center px-6">
+			<Label for="subject" class="w-16 shrink-0 text-sm text-muted-foreground">Subject</Label>
+			<Input
+				id="subject"
+				bind:value={subject}
+				placeholder="Subject"
+				class="border-0 shadow-none focus-visible:ring-0 rounded-none"
+			/>
+		</div>
+	</div>
+
+	<div class="flex-1 overflow-auto p-6">
+		<textarea
+			bind:value={body}
+			placeholder="Write your message..."
+			class="h-full w-full resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
+		></textarea>
+	</div>
+</div>
