@@ -16,7 +16,9 @@ services:
       retries: 10
 
   courrier:
-    build: .
+    build:
+      context: .
+      network: host
     ports:
       - "${PORT:-4000}:4000"
     environment:
