@@ -1,15 +1,11 @@
 package settings
 
 type Settings struct {
-	NookPoolURL     string `json:"nook_pool_url"`
-	NookPoolSecret  string `json:"nook_pool_secret"`
-	NookPoolEnabled bool   `json:"nook_pool_enabled"`
+	EncryptionKeySet bool `json:"encryption_key_set"`
 }
 
 type UpdateRequest struct {
-	NookPoolURL     string `json:"nook_pool_url"`
-	NookPoolSecret  string `json:"nook_pool_secret"`
-	NookPoolEnabled bool   `json:"nook_pool_enabled"`
+	EncryptionKey *string `json:"encryption_key"`
 }
 
 type SettingsResponse struct {

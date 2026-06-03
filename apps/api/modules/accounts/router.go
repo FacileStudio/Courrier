@@ -22,6 +22,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
 			var body CreateAccountRequest
 			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
+				httpjson.WriteError(w, err)
 				return
 			}
 			account, err := service.Create(req.Context(), uid, body)
@@ -65,6 +66,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			id, _ := strconv.ParseInt(chi.URLParam(req, "id"), 10, 64)
 			var body UpdateAccountRequest
 			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
+				httpjson.WriteError(w, err)
 				return
 			}
 			account, err := service.Update(req.Context(), uid, id, body)

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import DOMPurify from 'dompurify';
 	import type { EmailMessage } from '$lib/backend';
 
 	const app = getContext<{ token: string }>('app');
@@ -85,7 +86,7 @@
 			</div>
 			<div class="flex-1 overflow-auto px-6 py-4">
 				{#if selected.body_html}
-					{@html selected.body_html}
+					{@html DOMPurify.sanitize(selected.body_html)}
 				{:else}
 					<pre class="whitespace-pre-wrap text-sm">{selected.body_text}</pre>
 				{/if}

@@ -35,28 +35,41 @@ func (service *Service) getSettings(ctx context.Context) (*Settings, error) {
 		return nil, errors.Internal("failed to get settings", err)
 	}
 	return &Settings{
-		NookPoolURL:     record.NookPoolURL,
-		NookPoolSecret:  record.NookPoolSecret,
-		NookPoolEnabled: record.NookPoolEnabled,
+		EncryptionKeySet: record.EncryptionKey != "",
 	}, nil
 }
 
 func (service *Service) updateSettings(ctx context.Context, req *UpdateRequest) (*Settings, error) {
-	record := schemas.AppSetting{
-		ID:              appSettingID,
-		NookPoolURL:     strings.TrimSpace(req.NookPoolURL),
-		NookPoolSecret:  strings.TrimSpace(req.NookPoolSecret),
-		NookPoolEnabled: req.NookPoolEnabled,
+	updates := map[string]any{}
+	if req.EncryptionKey != nil {
+		updates["encryption_key"] = strings.TrimSpace(*req.EncryptionKey)
 	}
+
+	if len(updates) == 0 {
+		return service.getSettings(ctx)
+	}
+
+	record := schemas.AppSetting{ID: appSettingID}
+	if req.EncryptionKey != nil {
+		record.EncryptionKey = strings.TrimSpace(*req.EncryptionKey)
+	}
+
 	if err := service.orm.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"nook_pool_url", "nook_pool_secret", "nook_pool_enabled"}),
+		DoUpdates: clause.AssignmentColumns(keysOf(updates)),
 	}).Create(&record).Error; err != nil {
 		return nil, errors.Internal("failed to update settings", err)
 	}
+
 	return &Settings{
-		NookPoolURL:     record.NookPoolURL,
-		NookPoolSecret:  record.NookPoolSecret,
-		NookPoolEnabled: record.NookPoolEnabled,
+		EncryptionKeySet: record.EncryptionKey != "",
 	}, nil
+}
+
+func keysOf(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

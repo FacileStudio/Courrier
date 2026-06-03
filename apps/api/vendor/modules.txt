@@ -1,9 +1,3 @@
-# github.com/FacileStudio/enveloppe/go v0.0.0-20260527224511-f8474e3d7e69
-## explicit; go 1.24.0
-github.com/FacileStudio/enveloppe/go
-# github.com/FacileStudio/pool/go v0.0.0-20260527212554-94142d46e0f5
-## explicit; go 1.24.0
-github.com/FacileStudio/pool/go
 # github.com/coreos/go-oidc/v3 v3.11.0
 ## explicit; go 1.21
 github.com/coreos/go-oidc/v3/oidc
@@ -16,9 +10,6 @@ github.com/go-chi/chi/v5/middleware
 github.com/go-jose/go-jose/v4
 github.com/go-jose/go-jose/v4/cipher
 github.com/go-jose/go-jose/v4/json
-# github.com/gorilla/websocket v1.5.3
-## explicit; go 1.12
-github.com/gorilla/websocket
 # github.com/jackc/pgpassfile v1.0.0
 ## explicit; go 1.12
 github.com/jackc/pgpassfile

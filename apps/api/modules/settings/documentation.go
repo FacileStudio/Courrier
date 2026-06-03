@@ -4,7 +4,7 @@ import documentation "api/internal/documentation"
 
 var Documentation = documentation.Module{
 	Name:        "settings",
-	Description: "User settings management including webhook configuration.",
+	Description: "Application settings management.",
 	Routes: []documentation.Route{
 		{
 			Method:       "GET",
