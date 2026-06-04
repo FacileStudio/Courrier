@@ -156,5 +156,43 @@ export const backend = {
 
 	syncProfile(token: string) {
 		return apiFetch<{ synced: boolean }>('/auth/sync-profile', { method: 'POST' }, token);
+	},
+
+	syncAccount(token: string, accountId: number) {
+		return apiFetch<{ synced: boolean }>(`/accounts/${accountId}/mail/sync`, { method: 'POST' }, token);
+	},
+	syncFolder(token: string, accountId: number, folderId: number) {
+		return apiFetch<{ synced: boolean }>(`/accounts/${accountId}/mail/folders/${folderId}/sync`, { method: 'POST' }, token);
+	},
+	getFolders(token: string, accountId: number) {
+		return apiFetch<{ folders: Folder[] }>(`/accounts/${accountId}/mail/folders`, {}, token);
+	},
+	getEmailsByFolder(token: string, accountId: number, folderType: string, page = 1, limit = 50) {
+		return apiFetch<{ emails: EmailMessage[]; total: number; page: number; limit: number }>(
+			`/accounts/${accountId}/mail/folders/${folderType}/emails?page=${page}&limit=${limit}`,
+			{},
+			token
+		);
+	},
+	getEmail(token: string, accountId: number, emailId: number) {
+		return apiFetch<EmailMessage>(`/accounts/${accountId}/mail/emails/${emailId}`, {}, token);
+	},
+	updateEmail(token: string, accountId: number, emailId: number, data: { is_read?: boolean; is_starred?: boolean }) {
+		return apiFetch<EmailMessage>(`/accounts/${accountId}/mail/emails/${emailId}`, {
+			method: 'PATCH',
+			body: JSON.stringify(data)
+		}, token);
+	},
+	sendEmail(token: string, accountId: number, data: { to: string[]; cc?: string[]; subject: string; body: string }) {
+		return apiFetch<{ sent: boolean }>(`/accounts/${accountId}/mail/send`, {
+			method: 'POST',
+			body: JSON.stringify(data)
+		}, token);
+	},
+	testConnection(data: { imap_host: string; imap_port: number; imap_user: string; imap_password: string; smtp_host: string; smtp_port: number; smtp_user: string; smtp_password: string }) {
+		return apiFetch<{ ok: boolean }>('/mail/test-connection', {
+			method: 'POST',
+			body: JSON.stringify(data)
+		});
 	}
 };

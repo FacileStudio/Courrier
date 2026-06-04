@@ -91,6 +91,8 @@ Client dev only (in `apps/client/.env`):
 - `GET /files/*` -- Static file serving (avatars)
 - Auth: `/auth/register`, `/auth/login`, `/auth/config`, `/auth/oidc/*`
 - Accounts: `/accounts` (CRUD for IMAP/SMTP mail accounts)
+- Mail: `/accounts/{id}/mail/sync`, `/accounts/{id}/mail/folders`, `/accounts/{id}/mail/folders/{type}/emails`, `/accounts/{id}/mail/emails/{id}`, `/accounts/{id}/mail/send`
+- Connection test: `POST /mail/test-connection`
 - Users: `/users/me`, `/users`
 - Settings: `/settings/`
 

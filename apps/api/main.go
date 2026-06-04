@@ -19,6 +19,7 @@ import (
 	"api/internal/spa"
 	"api/modules/accounts"
 	"api/modules/auth"
+	"api/modules/mail"
 	"api/modules/settings"
 	"api/modules/users"
 	"api/schemas"
@@ -63,6 +64,7 @@ func main() {
 
 	authService := auth.NewService(db, appEnv.StorageDir, appLogger)
 	accountService := accounts.NewService(db)
+	mailService := mail.NewService(db)
 	userService := users.NewService(db, appEnv.StorageDir)
 	settingsService := settings.NewService(db)
 
@@ -89,6 +91,7 @@ func main() {
 
 	auth.RegisterRoutes(router, authService, appEnv)
 	accounts.RegisterRoutes(router, accountService, authService)
+	mail.RegisterRoutes(router, mailService, authService)
 	users.RegisterRoutes(router, userService, authService)
 	settings.RegisterRoutes(router, settingsService, authService)
 

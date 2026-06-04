@@ -1,0 +1,458 @@
+package mail
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"github.com/emersion/go-imap/v2"
+
+	"api/internal/errors"
+	"api/schemas"
+
+	"gorm.io/gorm"
+)
+
+type Service struct {
+	orm *gorm.DB
+}
+
+func NewService(orm *gorm.DB) *Service {
+	return &Service{orm: orm}
+}
+
+func (s *Service) getAccount(ctx context.Context, userID, accountID int64) (schemas.Account, error) {
+	var account schemas.Account
+	if err := s.orm.WithContext(ctx).Where("id = ? AND user_id = ?", accountID, userID).First(&account).Error; err != nil {
+		return schemas.Account{}, errors.NotFound("account not found")
+	}
+	return account, nil
+}
+
+func (s *Service) SyncAccount(ctx context.Context, userID, accountID int64) error {
+	account, err := s.getAccount(ctx, userID, accountID)
+	if err != nil {
+		return err
+	}
+
+	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+	if err != nil {
+		return errors.Failed(err.Error())
+	}
+	defer func() {
+		client.Logout().Wait()
+		client.Close()
+	}()
+
+	mailboxes, err := listMailboxes(client)
+	if err != nil {
+		return errors.Internal("failed to list folders", err)
+	}
+
+	for _, mbox := range mailboxes {
+		if isNoSelect(mbox) {
+			continue
+		}
+
+		folderType := detectFolderType(mbox)
+		name := folderDisplayName(mbox)
+
+		var folder schemas.Folder
+		result := s.orm.WithContext(ctx).Where("account_id = ? AND path = ?", accountID, mbox.Mailbox).First(&folder)
+		if result.Error != nil {
+			folder = schemas.Folder{
+				AccountID: accountID,
+				Path:      mbox.Mailbox,
+				Name:      name,
+				Type:      folderType,
+			}
+			s.orm.WithContext(ctx).Create(&folder)
+		} else {
+			s.orm.WithContext(ctx).Model(&folder).Updates(map[string]any{
+				"name": name,
+				"type": folderType,
+			})
+		}
+
+		selectData, err := client.Select(mbox.Mailbox, &imap.SelectOptions{ReadOnly: true}).Wait()
+		if err != nil {
+			continue
+		}
+
+		s.orm.WithContext(ctx).Model(&folder).Updates(map[string]any{
+			"total_count":  selectData.NumMessages,
+			"uid_validity": selectData.UIDValidity,
+		})
+	}
+
+	return nil
+}
+
+func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folderID int64) error {
+	account, err := s.getAccount(ctx, userID, accountID)
+	if err != nil {
+		return err
+	}
+
+	var folder schemas.Folder
+	if err := s.orm.WithContext(ctx).Where("id = ? AND account_id = ?", folderID, accountID).First(&folder).Error; err != nil {
+		return errors.NotFound("folder not found")
+	}
+
+	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+	if err != nil {
+		return errors.Failed(err.Error())
+	}
+	defer func() {
+		client.Logout().Wait()
+		client.Close()
+	}()
+
+	msgs, selectData, err := fetchEnvelopes(client, folder.Path, 100)
+	if err != nil {
+		return errors.Internal("failed to fetch emails", err)
+	}
+
+	if selectData != nil && selectData.UIDValidity != folder.UIDValidity && folder.UIDValidity != 0 {
+		s.orm.WithContext(ctx).Where("folder_id = ?", folderID).Delete(&schemas.Email{})
+	}
+
+	if selectData != nil {
+		s.orm.WithContext(ctx).Model(&folder).Updates(map[string]any{
+			"total_count":  selectData.NumMessages,
+			"uid_validity": selectData.UIDValidity,
+		})
+	}
+
+	for _, msg := range msgs {
+		if msg.Envelope == nil {
+			continue
+		}
+
+		var existing schemas.Email
+		if s.orm.WithContext(ctx).Where("folder_id = ? AND imap_uid = ?", folderID, msg.UID).First(&existing).Error == nil {
+			isRead := containsFlag(msg.Flags, imap.FlagSeen)
+			isStarred := containsFlag(msg.Flags, imap.FlagFlagged)
+			if existing.IsRead != isRead || existing.IsStarred != isStarred {
+				s.orm.WithContext(ctx).Model(&existing).Updates(map[string]any{
+					"is_read":    isRead,
+					"is_starred": isStarred,
+				})
+			}
+			continue
+		}
+
+		env := msg.Envelope
+		email := schemas.Email{
+			AccountID:      accountID,
+			FolderID:       folderID,
+			MessageID:      env.MessageID,
+			Subject:        env.Subject,
+			FromAddress:    firstAddr(env.From),
+			FromName:       firstName(env.From),
+			ToAddresses:    imapAddressesToJSON(env.To),
+			CcAddresses:    imapAddressesToJSON(env.Cc),
+			Date:           env.Date,
+			IsRead:         containsFlag(msg.Flags, imap.FlagSeen),
+			IsStarred:      containsFlag(msg.Flags, imap.FlagFlagged),
+			HasAttachments: hasAttachments(msg.BodyStructure),
+			InReplyTo:      strings.Join(env.InReplyTo, " "),
+			IMAPUID:        uint32(msg.UID),
+		}
+
+		s.orm.WithContext(ctx).Create(&email)
+	}
+
+	var unreadCount int64
+	s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("folder_id = ? AND is_read = false", folderID).Count(&unreadCount)
+	s.orm.WithContext(ctx).Model(&folder).Update("unread_count", unreadCount)
+
+	return nil
+}
+
+func (s *Service) GetFolders(ctx context.Context, userID, accountID int64) ([]schemas.Folder, error) {
+	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
+		return nil, err
+	}
+
+	var folders []schemas.Folder
+	if err := s.orm.WithContext(ctx).Where("account_id = ?", accountID).Order("type ASC, name ASC").Find(&folders).Error; err != nil {
+		return nil, errors.Internal("failed to list folders", err)
+	}
+	return folders, nil
+}
+
+func (s *Service) GetEmailsByFolderType(ctx context.Context, userID, accountID int64, folderType string, page, limit int) ([]schemas.Email, int64, error) {
+	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
+		return nil, 0, err
+	}
+
+	var folder schemas.Folder
+	if err := s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, folderType).First(&folder).Error; err != nil {
+		return nil, 0, errors.NotFound(fmt.Sprintf("folder type %q not found", folderType))
+	}
+
+	return s.GetEmails(ctx, userID, accountID, folder.ID, page, limit)
+}
+
+func (s *Service) GetEmails(ctx context.Context, userID, accountID, folderID int64, page, limit int) ([]schemas.Email, int64, error) {
+	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+
+	var total int64
+	s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("account_id = ? AND folder_id = ?", accountID, folderID).Count(&total)
+
+	var emails []schemas.Email
+	if err := s.orm.WithContext(ctx).
+		Where("account_id = ? AND folder_id = ?", accountID, folderID).
+		Order("date DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&emails).Error; err != nil {
+		return nil, 0, errors.Internal("failed to list emails", err)
+	}
+	return emails, total, nil
+}
+
+func (s *Service) GetEmail(ctx context.Context, userID, accountID, emailID int64) (schemas.Email, error) {
+	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
+		return schemas.Email{}, err
+	}
+
+	var email schemas.Email
+	if err := s.orm.WithContext(ctx).Where("id = ? AND account_id = ?", emailID, accountID).First(&email).Error; err != nil {
+		return schemas.Email{}, errors.NotFound("email not found")
+	}
+
+	if email.BodyText == "" && email.BodyHTML == "" {
+		account, err := s.getAccount(ctx, userID, accountID)
+		if err != nil {
+			return email, nil
+		}
+		var folder schemas.Folder
+		if s.orm.WithContext(ctx).Where("id = ?", email.FolderID).First(&folder).Error == nil {
+			client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+			if err == nil {
+				defer func() {
+					client.Logout().Wait()
+					client.Close()
+				}()
+				textBody, htmlBody, err := fetchMessageBody(client, folder.Path, imap.UID(email.IMAPUID))
+				if err == nil {
+					email.BodyText = textBody
+					email.BodyHTML = htmlBody
+					s.orm.WithContext(ctx).Model(&email).Updates(map[string]any{
+						"body_text": textBody,
+						"body_html": htmlBody,
+					})
+				}
+			}
+		}
+	}
+
+	return email, nil
+}
+
+func (s *Service) UpdateEmail(ctx context.Context, userID, accountID, emailID int64, req UpdateEmailRequest) (schemas.Email, error) {
+	account, err := s.getAccount(ctx, userID, accountID)
+	if err != nil {
+		return schemas.Email{}, err
+	}
+
+	var email schemas.Email
+	if err := s.orm.WithContext(ctx).Where("id = ? AND account_id = ?", emailID, accountID).First(&email).Error; err != nil {
+		return schemas.Email{}, errors.NotFound("email not found")
+	}
+
+	updates := map[string]any{}
+	if req.IsRead != nil {
+		updates["is_read"] = *req.IsRead
+	}
+	if req.IsStarred != nil {
+		updates["is_starred"] = *req.IsStarred
+	}
+
+	if len(updates) > 0 {
+		s.orm.WithContext(ctx).Model(&email).Updates(updates)
+		if req.IsRead != nil {
+			email.IsRead = *req.IsRead
+		}
+		if req.IsStarred != nil {
+			email.IsStarred = *req.IsStarred
+		}
+	}
+
+	go func() {
+		var folder schemas.Folder
+		if s.orm.WithContext(context.Background()).Where("id = ?", email.FolderID).First(&folder).Error != nil {
+			return
+		}
+		client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+		if err != nil {
+			return
+		}
+		defer func() {
+			client.Logout().Wait()
+			client.Close()
+		}()
+
+		if req.IsRead != nil {
+			op := imap.StoreFlagsAdd
+			if !*req.IsRead {
+				op = imap.StoreFlagsDel
+			}
+			storeFlags(client, folder.Path, imap.UID(email.IMAPUID), op, []imap.Flag{imap.FlagSeen})
+		}
+		if req.IsStarred != nil {
+			op := imap.StoreFlagsAdd
+			if !*req.IsStarred {
+				op = imap.StoreFlagsDel
+			}
+			storeFlags(client, folder.Path, imap.UID(email.IMAPUID), op, []imap.Flag{imap.FlagFlagged})
+		}
+	}()
+
+	return email, nil
+}
+
+func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendRequest) error {
+	account, err := s.getAccount(ctx, userID, accountID)
+	if err != nil {
+		return err
+	}
+
+	if len(req.To) == 0 {
+		return errors.Invalid("at least one recipient is required")
+	}
+	if req.Body == "" {
+		return errors.Invalid("body is required")
+	}
+
+	if err := sendSMTP(
+		account.SMTPHost,
+		account.SMTPPort,
+		account.SMTPUser,
+		account.SMTPPassword,
+		account.Email,
+		account.Name,
+		req.To,
+		req.Cc,
+		req.Subject,
+		req.Body,
+		"",
+		nil,
+	); err != nil {
+		return errors.Failed(fmt.Sprintf("failed to send: %s", err))
+	}
+
+	return nil
+}
+
+func (s *Service) TestConnection(ctx context.Context, req TestConnectionRequest) error {
+	if req.IMAPHost != "" {
+		port := req.IMAPPort
+		if port == 0 {
+			port = 993
+		}
+		client, err := connectIMAP(req.IMAPHost, port, req.IMAPUser, req.IMAPPassword)
+		if err != nil {
+			return errors.Failed(fmt.Sprintf("IMAP: %s", err))
+		}
+		client.Logout().Wait()
+		client.Close()
+	}
+
+	if req.SMTPHost != "" {
+		port := req.SMTPPort
+		if port == 0 {
+			port = 587
+		}
+		if err := testSMTP(req.SMTPHost, port, req.SMTPUser, req.SMTPPassword); err != nil {
+			return errors.Failed(fmt.Sprintf("SMTP: %s", err))
+		}
+	}
+
+	return nil
+}
+
+func isNoSelect(mbox *imap.ListData) bool {
+	for _, attr := range mbox.Attrs {
+		if attr == imap.MailboxAttrNoSelect {
+			return true
+		}
+	}
+	return false
+}
+
+func containsFlag(flags []imap.Flag, target imap.Flag) bool {
+	for _, f := range flags {
+		if f == target {
+			return true
+		}
+	}
+	return false
+}
+
+func firstAddr(addrs []imap.Address) string {
+	if len(addrs) == 0 {
+		return ""
+	}
+	return addrs[0].Addr()
+}
+
+func firstName(addrs []imap.Address) string {
+	if len(addrs) == 0 {
+		return ""
+	}
+	return addrs[0].Name
+}
+
+func emailToResponse(e schemas.Email) EmailResponse {
+	resp := EmailResponse{
+		ID:             e.ID,
+		AccountID:      e.AccountID,
+		FolderID:       e.FolderID,
+		MessageID:      e.MessageID,
+		Subject:        e.Subject,
+		FromAddress:    e.FromAddress,
+		FromName:       e.FromName,
+		Date:           e.Date.Format("2006-01-02T15:04:05Z"),
+		BodyText:       e.BodyText,
+		BodyHTML:       e.BodyHTML,
+		IsRead:         e.IsRead,
+		IsStarred:      e.IsStarred,
+		HasAttachments: e.HasAttachments,
+	}
+
+	resp.ToAddresses = parseAddressJSON(e.ToAddresses)
+	resp.CcAddresses = parseAddressJSON(e.CcAddresses)
+
+	return resp
+}
+
+func parseAddressJSON(raw string) []AddressResponse {
+	if raw == "" || raw == "[]" {
+		return []AddressResponse{}
+	}
+	var addrs []AddressResponse
+	if err := json.Unmarshal([]byte(raw), &addrs); err != nil {
+		return []AddressResponse{}
+	}
+	return addrs
+}
+
+func folderToResponse(f schemas.Folder) FolderResponse {
+	return FolderResponse{
+		ID:          f.ID,
+		AccountID:   f.AccountID,
+		Path:        f.Path,
+		Name:        f.Name,
+		Type:        f.Type,
+		UnreadCount: f.UnreadCount,
+		TotalCount:  f.TotalCount,
+	}
+}

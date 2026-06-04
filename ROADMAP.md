@@ -12,26 +12,26 @@ Core infrastructure. Register, log in, add IMAP/SMTP accounts, see folders.
 - [x] Auth system (registration, login, OIDC SSO)
 - [x] Account CRUD (IMAP/SMTP credentials, encrypted at rest)
 - [x] Database schemas (accounts, folders, emails, attachments)
-- [ ] IMAP connection manager (go-imap/v2, per-account connection pooling)
-- [ ] Folder sync (list IMAP folders, detect type, cache metadata)
-- [ ] IMAP credential validation on account creation (test connection before saving)
+- [x] IMAP connection manager (go-imap/v2, per-account connections)
+- [x] Folder sync (list IMAP folders, detect type via SPECIAL-USE + name fallback, cache metadata)
+- [x] IMAP/SMTP credential validation (test connection endpoint)
 
 ## Phase 2 — Read Mail
 
 Fetch, cache, and display emails. The core email reading experience.
 
-- [ ] Email envelope fetch (subjects, senders, dates — without full bodies)
-- [ ] Email body fetch on demand (lazy-load text/html, cache in PostgreSQL)
-- [ ] Email list view (grouped by folder, unread indicator, date formatting)
-- [ ] Email detail view (safe HTML rendering via sanitized iframe/shadow DOM)
-- [ ] Plain text fallback when no HTML body
+- [x] Email envelope fetch (subjects, senders, dates — without full bodies)
+- [x] Email body fetch on demand (lazy-load text/html, cache in PostgreSQL)
+- [x] Email list view (grouped by folder, unread indicator, date formatting)
+- [x] Email detail view (safe HTML rendering via DOMPurify sanitization)
+- [x] Plain text fallback when no HTML body
 - [ ] Inline image resolution (CID → fetched content)
 - [ ] Attachment list display (filename, size, type icon)
 - [ ] Attachment download (lazy-fetch from IMAP by part ID)
-- [ ] Read/unread toggle (sync back to IMAP via \Seen flag)
-- [ ] Star/flag toggle (sync via \Flagged)
+- [x] Read/unread toggle (sync back to IMAP via \Seen flag)
+- [x] Star/flag toggle (sync via \Flagged)
 - [ ] Pagination / infinite scroll for large folders
-- [ ] Email caching strategy (IMAP UID validity, incremental sync)
+- [x] Email caching strategy (IMAP UID validity, incremental sync)
 
 ## Phase 3 — Compose & Send
 
@@ -46,7 +46,7 @@ Write and send emails. Reply, forward, drafts.
 - [ ] File attachments (upload → attach to outgoing MIME)
 - [ ] Signature per account (auto-append on compose)
 - [ ] Draft auto-save to IMAP Drafts folder
-- [ ] SMTP send via nodemailer-equivalent (go-smtp or net/smtp)
+- [x] SMTP send via net/smtp (STARTTLS + implicit TLS)
 - [ ] Sent mail copy to IMAP Sent folder
 - [ ] Address autocomplete from recent contacts / address book
 

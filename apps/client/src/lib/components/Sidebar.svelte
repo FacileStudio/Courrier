@@ -4,9 +4,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Inbox, Send, FileEdit, Trash2, Archive, AlertCircle, Settings, LogOut, PenLine } from 'lucide-svelte';
-	import type { UserProfile } from '$lib/backend';
+	import type { UserProfile, Folder } from '$lib/backend';
 
-	let { user }: { user: UserProfile | null } = $props();
+	let { user, folders = [] }: { user: UserProfile | null; folders?: Folder[] } = $props();
 
 	function getInitials(value: string) {
 		const parts = value.trim().split(/\s+/).filter(Boolean);
@@ -24,13 +24,18 @@
 		goto('/login');
 	}
 
-	const folders = [
-		{ href: '/mail', label: 'Inbox', icon: Inbox, badge: 0 },
-		{ href: '/mail/sent', label: 'Sent', icon: Send },
-		{ href: '/mail/drafts', label: 'Drafts', icon: FileEdit },
-		{ href: '/mail/archive', label: 'Archive', icon: Archive },
-		{ href: '/mail/junk', label: 'Junk', icon: AlertCircle },
-		{ href: '/mail/trash', label: 'Trash', icon: Trash2 }
+	function folderUnread(type: string): number {
+		const f = folders.find((f) => f.type === type);
+		return f?.unread_count ?? 0;
+	}
+
+	const navFolders = [
+		{ href: '/mail', label: 'Inbox', icon: Inbox, type: 'inbox' },
+		{ href: '/mail/sent', label: 'Sent', icon: Send, type: 'sent' },
+		{ href: '/mail/drafts', label: 'Drafts', icon: FileEdit, type: 'drafts' },
+		{ href: '/mail/archive', label: 'Archive', icon: Archive, type: 'archive' },
+		{ href: '/mail/junk', label: 'Junk', icon: AlertCircle, type: 'junk' },
+		{ href: '/mail/trash', label: 'Trash', icon: Trash2, type: 'trash' }
 	];
 </script>
 
@@ -48,8 +53,9 @@
 	</div>
 
 	<nav class="flex flex-1 flex-col gap-1 px-3">
-		{#each folders as folder}
+		{#each navFolders as folder}
 			{@const active = page.url.pathname === folder.href}
+			{@const unread = folderUnread(folder.type)}
 			<a
 				href={folder.href}
 				class="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors {active
@@ -58,8 +64,8 @@
 			>
 				<folder.icon class="h-4 w-4 shrink-0" />
 				<span class="flex-1">{folder.label}</span>
-				{#if folder.badge}
-					<span class="text-xs font-medium">{folder.badge}</span>
+				{#if unread > 0}
+					<span class="text-xs font-medium">{unread}</span>
 				{/if}
 			</a>
 		{/each}

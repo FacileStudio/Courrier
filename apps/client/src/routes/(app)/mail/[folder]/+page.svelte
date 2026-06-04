@@ -1,11 +1,18 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { getContext } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import DOMPurify from 'dompurify';
-	import type { EmailMessage } from '$lib/backend';
+	import { backend, type EmailMessage, type MailAccount } from '$lib/backend';
+	import { Button } from '$lib/components/ui/button';
+	import { RefreshCw } from 'lucide-svelte';
 
-	const app = getContext<{ token: string }>('app');
+	const app = getContext<{
+		token: string;
+		defaultAccountId: number | null;
+		accounts: MailAccount[];
+		refreshAccounts: () => Promise<void>;
+	}>('app');
 
 	const folderLabels: Record<string, string> = {
 		sent: 'Sent',
@@ -15,12 +22,14 @@
 		trash: 'Trash'
 	};
 
-	const folderSlug = $derived(page.params.folder);
+	const folderSlug = $derived(page.params.folder ?? '');
 	const folderLabel = $derived(folderLabels[folderSlug] ?? folderSlug);
-	const validFolder = $derived(folderSlug in folderLabels);
+	const validFolder = $derived(folderSlug !== '' && folderSlug in folderLabels);
 
 	let emails = $state<EmailMessage[]>([]);
 	let selectedId = $state<number | null>(null);
+	let loading = $state(false);
+	let syncing = $state(false);
 
 	const selected = $derived(emails.find((e) => e.id === selectedId) ?? null);
 
@@ -29,6 +38,49 @@
 			goto('/mail');
 		}
 	});
+
+	async function loadEmails() {
+		if (!app.defaultAccountId || !validFolder) return;
+		loading = true;
+		try {
+			const result = await backend.getEmailsByFolder(app.token, app.defaultAccountId, folderSlug);
+			emails = result.emails;
+		} catch {
+			emails = [];
+		}
+		loading = false;
+	}
+
+	async function syncAndLoad() {
+		if (!app.defaultAccountId) return;
+		syncing = true;
+		try {
+			await backend.syncAccount(app.token, app.defaultAccountId);
+			await app.refreshAccounts();
+			await loadEmails();
+		} catch {
+		}
+		syncing = false;
+	}
+
+	async function openEmail(email: EmailMessage) {
+		selectedId = email.id;
+		if (!app.defaultAccountId) return;
+
+		if (!email.body_text && !email.body_html) {
+			try {
+				const full = await backend.getEmail(app.token, app.defaultAccountId, email.id);
+				emails = emails.map((e) => (e.id === email.id ? full : e));
+			} catch {}
+		}
+
+		if (!email.is_read) {
+			try {
+				await backend.updateEmail(app.token, app.defaultAccountId, email.id, { is_read: true });
+				emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: true } : e));
+			} catch {}
+		}
+	}
 
 	function formatDate(dateStr: string) {
 		const date = new Date(dateStr);
@@ -51,6 +103,10 @@
 		if (parts.length === 1) return parts[0][0].toUpperCase();
 		return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 	}
+
+	onMount(() => {
+		loadEmails();
+	});
 </script>
 
 <svelte:head>
@@ -61,10 +117,17 @@
 	<div class="w-80 flex-shrink-0 border-r flex flex-col">
 		<div class="flex items-center justify-between border-b px-4 py-3">
 			<h2 class="text-lg font-semibold">{folderLabel}</h2>
+			<Button variant="ghost" size="icon" class="h-8 w-8" onclick={syncAndLoad} disabled={syncing}>
+				<RefreshCw class="h-4 w-4 {syncing ? 'animate-spin' : ''}" />
+			</Button>
 		</div>
 
 		<div class="flex-1 overflow-auto">
-			{#if emails.length === 0}
+			{#if loading}
+				<div class="flex items-center justify-center h-full text-muted-foreground">
+					<p class="text-sm">Loading...</p>
+				</div>
+			{:else if emails.length === 0}
 				<div class="flex flex-col items-center justify-center h-full text-muted-foreground">
 					<p class="text-sm">No emails in {folderLabel}</p>
 				</div>
@@ -74,7 +137,7 @@
 						class="w-full text-left px-4 py-3 border-b transition-colors hover:bg-muted/50
 							{selectedId === email.id ? 'bg-muted' : ''}
 							{!email.is_read ? 'font-medium' : ''}"
-						onclick={() => (selectedId = email.id)}
+						onclick={() => openEmail(email)}
 					>
 						<div class="flex items-center gap-3">
 							<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
@@ -110,8 +173,10 @@
 			<div class="flex-1 overflow-auto px-6 py-4">
 				{#if selected.body_html}
 					{@html DOMPurify.sanitize(selected.body_html)}
-				{:else}
+				{:else if selected.body_text}
 					<pre class="whitespace-pre-wrap text-sm">{selected.body_text}</pre>
+				{:else}
+					<p class="text-sm text-muted-foreground">Loading message body...</p>
 				{/if}
 			</div>
 		{:else}
