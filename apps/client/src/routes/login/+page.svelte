@@ -8,8 +8,6 @@
 	import { Label } from '$lib/components/ui/label';
 	import { LogIn, UserPlus, ExternalLink } from 'lucide-svelte';
 
-	const TOKEN_KEY = 'courrier.token';
-
 	let tab = $state<'login' | 'register'>('login');
 	let email = $state('');
 	let password = $state('');
@@ -20,15 +18,17 @@
 	let configLoaded = $state(false);
 
 	onMount(async () => {
-		if (localStorage.getItem(TOKEN_KEY)) {
+		try {
+			await backend.me();
 			goto('/mail');
 			return;
-		}
+		} catch {}
+
 		const raw = $page.url.searchParams.get('tab');
 		if (raw === 'register') tab = 'register';
 
 		try {
-			const cfg = await fetch(`${backend.baseUrl}/auth/config`).then(r => r.json());
+			const cfg = await fetch(`${backend.baseUrl}/auth/config`, { credentials: 'include' }).then(r => r.json());
 			ssoOnly = cfg.sso_only ?? false;
 			oidcEnabled = cfg.oidc_enabled ?? false;
 			if (ssoOnly) tab = 'login';
@@ -40,11 +40,11 @@
 		busy = true;
 		message = '';
 		try {
-			const resp =
-				tab === 'register'
-					? await backend.register(email, password)
-					: await backend.login(email, password);
-			localStorage.setItem(TOKEN_KEY, resp.token);
+			if (tab === 'register') {
+				await backend.register(email, password);
+			} else {
+				await backend.login(email, password);
+			}
 			goto('/mail');
 		} catch (err) {
 			message = err instanceof Error ? err.message : 'Something went wrong';

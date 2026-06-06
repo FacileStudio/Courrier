@@ -1,24 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import { backend } from '$lib/backend';
 	import { Button } from '$lib/components/ui/button';
-
-	const TOKEN_KEY = 'courrier.token';
 
 	let ready = $state(false);
 
-	onMount(() => {
-		const token = $page.url.searchParams.get('token');
-		if (token) {
-			localStorage.setItem(TOKEN_KEY, token);
+	onMount(async () => {
+		try {
+			await backend.me();
 			goto('/mail');
 			return;
-		}
-		if (localStorage.getItem(TOKEN_KEY)) {
-			goto('/mail');
-			return;
-		}
+		} catch {}
 		ready = true;
 	});
 </script>

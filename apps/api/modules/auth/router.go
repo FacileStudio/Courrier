@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"api/internal/authcontext"
@@ -15,6 +16,39 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
+
+const sessionCookieName = "session"
+
+func isSecure(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	return strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+}
+
+func setSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    token,
+		Path:     "/",
+		MaxAge:   int(SessionTTL.Seconds()),
+		HttpOnly: true,
+		Secure:   isSecure(r),
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func clearSessionCookie(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   isSecure(r),
+		SameSite: http.SameSiteLaxMode,
+	})
+}
 
 func RegisterRoutes(router chi.Router, service *Service, appEnv env.Config) {
 	oidcEnabled := appEnv.OIDC != nil
@@ -39,6 +73,7 @@ func RegisterRoutes(router chi.Router, service *Service, appEnv env.Config) {
 					httpjson.WriteError(w, err)
 					return
 				}
+				setSessionCookie(w, request, resp.Token)
 				httpjson.WriteJSON(w, http.StatusCreated, resp)
 			})
 
@@ -53,6 +88,7 @@ func RegisterRoutes(router chi.Router, service *Service, appEnv env.Config) {
 					httpjson.WriteError(w, err)
 					return
 				}
+				setSessionCookie(w, request, resp.Token)
 				httpjson.WriteJSON(w, http.StatusOK, resp)
 			})
 		}
@@ -68,6 +104,15 @@ func RegisterRoutes(router chi.Router, service *Service, appEnv env.Config) {
 				httpjson.WriteError(w, errors.Internal("resource tokens not configured (ENCRYPTION_KEY missing)", nil))
 			})
 		}
+
+		router.Post("/logout", func(w http.ResponseWriter, r *http.Request) {
+			cookie, err := r.Cookie(sessionCookieName)
+			if err == nil && cookie.Value != "" {
+				_ = service.deleteSession(r.Context(), cookie.Value)
+			}
+			clearSessionCookie(w, r)
+			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		})
 
 		if oidcEnabled {
 			oidc, err := newOIDCHandler(context.Background(), appEnv.OIDC, service)

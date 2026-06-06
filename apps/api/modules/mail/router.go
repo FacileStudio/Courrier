@@ -104,16 +104,20 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		}
 
 		if userID == "" {
-			authHeader := req.Header.Get("Authorization")
-			if authHeader == "" {
-				token := req.URL.Query().Get("token")
-				if token == "" {
-					httpjson.WriteError(w, errors.Unauthorized("missing token"))
-					return
-				}
-				authHeader = "Bearer " + token
+			token := ""
+			if c, err := req.Cookie("session"); err == nil && c.Value != "" {
+				token = c.Value
+			} else if h := req.Header.Get("Authorization"); h != "" {
+				token = h
+			} else if q := req.URL.Query().Get("token"); q != "" {
+				token = q
 			}
-			uid, _, err := authService.Authenticate(req.Context(), authHeader)
+
+			if token == "" {
+				httpjson.WriteError(w, errors.Unauthorized("missing token"))
+				return
+			}
+			uid, _, err := authService.Authenticate(req.Context(), token)
 			if err != nil {
 				httpjson.WriteError(w, err)
 				return
