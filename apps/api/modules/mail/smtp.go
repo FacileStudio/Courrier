@@ -191,17 +191,23 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 		}
 	}
 
-	for _, att := range attachments {
+	for i := range attachments {
 		var attHeader gomail.AttachmentHeader
-		attHeader.SetContentType(att.MimeType, nil)
-		attHeader.SetFilename(att.Filename)
+		attHeader.SetContentType(attachments[i].MimeType, nil)
+		attHeader.SetFilename(attachments[i].Filename)
 		aw, err := mw.CreateAttachment(attHeader)
 		if err != nil {
 			return nil, err
 		}
-		if _, err := aw.Write(att.Data); err != nil {
+		reader, err := attachments[i].Reader()
+		if err != nil {
 			return nil, err
 		}
+		if _, err := io.Copy(aw, reader); err != nil {
+			reader.Close()
+			return nil, err
+		}
+		reader.Close()
 		if err := aw.Close(); err != nil {
 			return nil, err
 		}

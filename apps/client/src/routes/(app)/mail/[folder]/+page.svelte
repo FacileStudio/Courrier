@@ -36,6 +36,7 @@
 	let loadingMore = $state(false);
 	let listContainer = $state<HTMLDivElement | null>(null);
 	let sentinel = $state<HTMLDivElement | null>(null);
+	let resourceToken = $state<string | null>(null);
 
 	const selected = $derived(emails.find((e) => e.id === selectedId) ?? null);
 	const hasMore = $derived(emails.length < totalEmails);
@@ -47,6 +48,14 @@
 		}
 	});
 
+	async function ensureResourceToken(): Promise<string> {
+		if (!resourceToken) {
+			const res = await backend.getResourceToken(app.token);
+			resourceToken = res.token;
+		}
+		return resourceToken;
+	}
+
 	function resolveCIDImages(html: string, accountId: number, emailId: number, token: string): string {
 		return html.replace(/src=["']cid:([^"']+)["']/gi, (_match, cid) => {
 			return `src="${backend.getCIDImageUrl(token, accountId, emailId, cid)}"`;
@@ -54,8 +63,8 @@
 	}
 
 	function sanitizeHTML(html: string): string {
-		if (!html || !app.defaultAccountId || !selectedId) return html;
-		const resolved = resolveCIDImages(html, app.defaultAccountId, selectedId, app.token);
+		if (!html || !app.defaultAccountId || !selectedId || !resourceToken) return html;
+		const resolved = resolveCIDImages(html, app.defaultAccountId, selectedId, resourceToken);
 		return DOMPurify.sanitize(resolved);
 	}
 
@@ -106,6 +115,10 @@
 	async function openEmail(email: EmailMessage) {
 		selectedId = email.id;
 		if (!app.defaultAccountId) return;
+
+		try {
+			await ensureResourceToken();
+		} catch {}
 
 		if (!email.body_text && !email.body_html) {
 			try {

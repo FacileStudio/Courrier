@@ -91,7 +91,7 @@ func main() {
 
 	auth.RegisterRoutes(router, authService, appEnv)
 	accounts.RegisterRoutes(router, accountService, authService)
-	mail.RegisterRoutes(router, mailService, authService)
+	mail.RegisterRoutes(router, mailService, authService, appEnv.ResourceTokenSecret)
 	users.RegisterRoutes(router, userService, authService)
 	settings.RegisterRoutes(router, settingsService, authService)
 

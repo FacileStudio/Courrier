@@ -3,6 +3,8 @@ package middleware
 import (
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -45,7 +47,7 @@ func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				slog.String("request_id", chimiddleware.GetReqID(request.Context())),
 				slog.String("method", request.Method),
 				slog.String("path", request.URL.Path),
-				slog.String("query", request.URL.RawQuery),
+				slog.String("query", redactQuery(request.URL.RawQuery)),
 				slog.String("remote_addr", request.RemoteAddr),
 				slog.Int("status", writer.status),
 				slog.Int("bytes", writer.bytes),
@@ -53,4 +55,18 @@ func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			)
 		})
 	}
+}
+
+func redactQuery(rawQuery string) string {
+	if rawQuery == "" || !strings.Contains(rawQuery, "token=") {
+		return rawQuery
+	}
+	parsed, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return rawQuery
+	}
+	if parsed.Get("token") != "" {
+		parsed.Set("token", "[REDACTED]")
+	}
+	return parsed.Encode()
 }

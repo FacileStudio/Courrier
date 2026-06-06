@@ -198,6 +198,10 @@ export const backend = {
 		});
 	},
 
+	getResourceToken(token: string) {
+		return apiFetch<{ token: string }>('/auth/resource-token', {}, token);
+	},
+
 	getAttachmentUrl(token: string, accountId: number, emailId: number, attachmentId: number): string {
 		return `${backendBaseUrl}/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download?token=${encodeURIComponent(token)}`;
 	},

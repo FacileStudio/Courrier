@@ -4,10 +4,14 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
+	"api/internal/authcontext"
 	"api/internal/env"
+	"api/internal/errors"
 	"api/internal/httpjson"
 	"api/internal/middleware"
+	"api/internal/resourcetoken"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -24,7 +28,7 @@ func RegisterRoutes(router chi.Router, service *Service, appEnv env.Config) {
 		})
 
 		if !appEnv.SSOOnly {
-			router.Post("/register", func(w http.ResponseWriter, request *http.Request) {
+			router.With(middleware.RateLimit(3, time.Minute)).Post("/register", func(w http.ResponseWriter, request *http.Request) {
 				var req RegisterRequest
 				if err := httpjson.DecodeJSON(w, request, &req); err != nil {
 					httpjson.WriteError(w, err)
@@ -38,7 +42,7 @@ func RegisterRoutes(router chi.Router, service *Service, appEnv env.Config) {
 				httpjson.WriteJSON(w, http.StatusCreated, resp)
 			})
 
-			router.Post("/login", func(w http.ResponseWriter, request *http.Request) {
+			router.With(middleware.RateLimit(10, time.Minute)).Post("/login", func(w http.ResponseWriter, request *http.Request) {
 				var req LoginRequest
 				if err := httpjson.DecodeJSON(w, request, &req); err != nil {
 					httpjson.WriteError(w, err)
@@ -50,6 +54,18 @@ func RegisterRoutes(router chi.Router, service *Service, appEnv env.Config) {
 					return
 				}
 				httpjson.WriteJSON(w, http.StatusOK, resp)
+			})
+		}
+
+		if len(appEnv.ResourceTokenSecret) > 0 {
+			router.With(middleware.RequireAuth(service)).Get("/resource-token", func(w http.ResponseWriter, r *http.Request) {
+				identity := authcontext.MustIdentity(r.Context())
+				token := resourcetoken.Sign(appEnv.ResourceTokenSecret, identity.UserID, 5*time.Minute)
+				httpjson.WriteJSON(w, http.StatusOK, map[string]string{"token": token})
+			})
+		} else {
+			router.With(middleware.RequireAuth(service)).Get("/resource-token", func(w http.ResponseWriter, r *http.Request) {
+				httpjson.WriteError(w, errors.Internal("resource tokens not configured (ENCRYPTION_KEY missing)", nil))
 			})
 		}
 

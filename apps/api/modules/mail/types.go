@@ -1,9 +1,29 @@
 package mail
 
+import (
+	"bytes"
+	"io"
+	"os"
+)
+
 type AttachmentUpload struct {
 	Filename string
 	MimeType string
 	Data     []byte
+	FilePath string
+}
+
+func (a *AttachmentUpload) Reader() (io.ReadCloser, error) {
+	if a.Data != nil {
+		return io.NopCloser(bytes.NewReader(a.Data)), nil
+	}
+	return os.Open(a.FilePath)
+}
+
+func (a *AttachmentUpload) Cleanup() {
+	if a.FilePath != "" {
+		os.Remove(a.FilePath)
+	}
 }
 
 type SendRequest struct {

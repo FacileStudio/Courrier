@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"api/internal/resourcetoken"
 )
 
 type OIDCConfig struct {
@@ -22,7 +24,8 @@ type Config struct {
 	LogLevel           string
 	StorageDir         string
 	OIDC               *OIDCConfig
-	SSOOnly            bool
+	SSOOnly              bool
+	ResourceTokenSecret  []byte
 }
 
 func Load() (Config, error) {
@@ -65,6 +68,10 @@ func Load() (Config, error) {
 			RedirectURL:  redirectURL,
 			SuccessURL:   successURL,
 		}
+	}
+
+	if ek := os.Getenv("ENCRYPTION_KEY"); ek != "" {
+		env.ResourceTokenSecret = resourcetoken.DeriveSecret(ek)
 	}
 
 	return env, nil

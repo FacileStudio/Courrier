@@ -4,13 +4,16 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"api/internal/authcontext"
 	"api/internal/errors"
 	"api/internal/httpjson"
 	"api/internal/middleware"
+	"api/internal/resourcetoken"
 	"api/modules/auth"
 
 	"github.com/go-chi/chi/v5"
@@ -51,9 +54,16 @@ func parseSendMultipart(req *http.Request) (SendRequest, error) {
 			if err != nil {
 				continue
 			}
-			data, err := io.ReadAll(f)
+			tmpFile, err := os.CreateTemp("", "courrier-attachment-*")
+			if err != nil {
+				f.Close()
+				continue
+			}
+			_, err = io.Copy(tmpFile, f)
+			tmpFile.Close()
 			f.Close()
 			if err != nil {
+				os.Remove(tmpFile.Name())
 				continue
 			}
 			mimeType := headers.Header.Get("Content-Type")
@@ -66,7 +76,7 @@ func parseSendMultipart(req *http.Request) (SendRequest, error) {
 			sr.Attachments = append(sr.Attachments, AttachmentUpload{
 				Filename: headers.Filename,
 				MimeType: mimeType,
-				Data:     data,
+				FilePath: tmpFile.Name(),
 			})
 		}
 	}
@@ -82,22 +92,35 @@ func extensionFromFilename(name string) string {
 	return name[idx+1:]
 }
 
-func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service) {
+func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service, rtSecret []byte) {
 	router.Get("/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}", func(w http.ResponseWriter, req *http.Request) {
-		authHeader := req.Header.Get("Authorization")
-		if authHeader == "" {
-			token := req.URL.Query().Get("token")
-			if token == "" {
-				httpjson.WriteError(w, errors.Unauthorized("missing token"))
+		var userID string
+
+		if token := req.URL.Query().Get("token"); token != "" && len(rtSecret) > 0 {
+			uid, err := resourcetoken.Verify(rtSecret, token)
+			if err == nil {
+				userID = uid
+			}
+		}
+
+		if userID == "" {
+			authHeader := req.Header.Get("Authorization")
+			if authHeader == "" {
+				token := req.URL.Query().Get("token")
+				if token == "" {
+					httpjson.WriteError(w, errors.Unauthorized("missing token"))
+					return
+				}
+				authHeader = "Bearer " + token
+			}
+			uid, _, err := authService.Authenticate(req.Context(), authHeader)
+			if err != nil {
+				httpjson.WriteError(w, err)
 				return
 			}
-			authHeader = "Bearer " + token
+			userID = uid
 		}
-		userID, _, err := authService.Authenticate(req.Context(), authHeader)
-		if err != nil {
-			httpjson.WriteError(w, err)
-			return
-		}
+
 		uid, _ := strconv.ParseInt(userID, 10, 64)
 		accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 		emailID, _ := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
@@ -109,7 +132,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 	router.Route("/accounts/{accountId}/mail", func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
 
-		r.Post("/sync", func(w http.ResponseWriter, req *http.Request) {
+		r.With(middleware.RateLimit(5, time.Minute)).Post("/sync", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
 			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
 			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
@@ -138,7 +161,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			httpjson.WriteJSON(w, http.StatusOK, map[string]any{"folders": resp})
 		})
 
-		r.Post("/folders/{folderId}/sync", func(w http.ResponseWriter, req *http.Request) {
+		r.With(middleware.RateLimit(10, time.Minute)).Post("/folders/{folderId}/sync", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
 			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
 			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
@@ -245,7 +268,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			httpjson.WriteJSON(w, http.StatusOK, map[string]any{"contacts": contacts})
 		})
 
-		r.Post("/send", func(w http.ResponseWriter, req *http.Request) {
+		r.With(middleware.RateLimit(10, time.Minute)).Post("/send", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
 			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
 			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
@@ -257,6 +280,9 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 				req.Body = http.MaxBytesReader(w, req.Body, 25<<20)
 				parsed, err := parseSendMultipart(req)
 				if err != nil {
+					for i := range parsed.Attachments {
+						parsed.Attachments[i].Cleanup()
+					}
 					httpjson.WriteError(w, err)
 					return
 				}
@@ -267,6 +293,12 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 					return
 				}
 			}
+
+			defer func() {
+				for i := range body.Attachments {
+					body.Attachments[i].Cleanup()
+				}
+			}()
 
 			if err := service.Send(req.Context(), uid, accountID, body); err != nil {
 				httpjson.WriteError(w, err)
@@ -310,7 +342,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
-		r.Post("/mail/test-connection", func(w http.ResponseWriter, req *http.Request) {
+		r.With(middleware.RateLimit(5, time.Minute)).Post("/mail/test-connection", func(w http.ResponseWriter, req *http.Request) {
 			var body TestConnectionRequest
 			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
 				httpjson.WriteError(w, err)
