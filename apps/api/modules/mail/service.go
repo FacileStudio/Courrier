@@ -10,6 +10,7 @@ import (
 
 	"github.com/emersion/go-imap/v2"
 
+	"api/internal/crypto"
 	"api/internal/errors"
 	"api/internal/httpjson"
 	"api/schemas"
@@ -18,11 +19,19 @@ import (
 )
 
 type Service struct {
-	orm *gorm.DB
+	orm           *gorm.DB
+	encryptionKey []byte
 }
 
-func NewService(orm *gorm.DB) *Service {
-	return &Service{orm: orm}
+func NewService(orm *gorm.DB, encryptionKey []byte) *Service {
+	return &Service{orm: orm, encryptionKey: encryptionKey}
+}
+
+func (s *Service) decryptPassword(cipher string) (string, error) {
+	if len(s.encryptionKey) == 0 || cipher == "" {
+		return cipher, nil
+	}
+	return crypto.Decrypt(cipher, s.encryptionKey)
 }
 
 func (s *Service) getAccount(ctx context.Context, userID, accountID int64) (schemas.Account, error) {
@@ -33,8 +42,24 @@ func (s *Service) getAccount(ctx context.Context, userID, accountID int64) (sche
 	return account, nil
 }
 
-func (s *Service) SyncAccount(ctx context.Context, userID, accountID int64) error {
+func (s *Service) getAccountDecrypted(ctx context.Context, userID, accountID int64) (schemas.Account, error) {
 	account, err := s.getAccount(ctx, userID, accountID)
+	if err != nil {
+		return account, err
+	}
+	account.IMAPPassword, err = s.decryptPassword(account.IMAPPassword)
+	if err != nil {
+		return schemas.Account{}, errors.Internal("failed to decrypt IMAP password", err)
+	}
+	account.SMTPPassword, err = s.decryptPassword(account.SMTPPassword)
+	if err != nil {
+		return schemas.Account{}, errors.Internal("failed to decrypt SMTP password", err)
+	}
+	return account, nil
+}
+
+func (s *Service) SyncAccount(ctx context.Context, userID, accountID int64) error {
+	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {
 		return err
 	}
@@ -93,7 +118,7 @@ func (s *Service) SyncAccount(ctx context.Context, userID, accountID int64) erro
 }
 
 func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folderID int64) error {
-	account, err := s.getAccount(ctx, userID, accountID)
+	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {
 		return err
 	}
@@ -239,7 +264,7 @@ func (s *Service) GetEmail(ctx context.Context, userID, accountID, emailID int64
 	}
 
 	if email.BodyText == "" && email.BodyHTML == "" {
-		account, err := s.getAccount(ctx, userID, accountID)
+		account, err := s.getAccountDecrypted(ctx, userID, accountID)
 		if err != nil {
 			return email, nil
 		}
@@ -282,7 +307,7 @@ func (s *Service) GetEmailWithAttachments(ctx context.Context, userID, accountID
 func (s *Service) DownloadAttachment(w http.ResponseWriter, req *http.Request, userID, accountID, emailID, attachmentID int64) {
 	ctx := req.Context()
 
-	account, err := s.getAccount(ctx, userID, accountID)
+	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {
 		httpjson.WriteError(w, err)
 		return
@@ -338,7 +363,7 @@ func (s *Service) DownloadAttachment(w http.ResponseWriter, req *http.Request, u
 func (s *Service) ServeCIDImage(w http.ResponseWriter, req *http.Request, userID, accountID, emailID int64, cid string) {
 	ctx := req.Context()
 
-	account, err := s.getAccount(ctx, userID, accountID)
+	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {
 		httpjson.WriteError(w, err)
 		return
@@ -392,7 +417,7 @@ func (s *Service) ServeCIDImage(w http.ResponseWriter, req *http.Request, userID
 }
 
 func (s *Service) UpdateEmail(ctx context.Context, userID, accountID, emailID int64, req UpdateEmailRequest) (schemas.Email, error) {
-	account, err := s.getAccount(ctx, userID, accountID)
+	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {
 		return schemas.Email{}, err
 	}
@@ -454,7 +479,7 @@ func (s *Service) UpdateEmail(ctx context.Context, userID, accountID, emailID in
 }
 
 func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendRequest) error {
-	account, err := s.getAccount(ctx, userID, accountID)
+	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {
 		return err
 	}
@@ -523,7 +548,7 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 }
 
 func (s *Service) SaveDraft(ctx context.Context, userID, accountID int64, req SendRequest) (schemas.Email, error) {
-	account, err := s.getAccount(ctx, userID, accountID)
+	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {
 		return schemas.Email{}, err
 	}
@@ -593,7 +618,7 @@ func (s *Service) DeleteDraft(ctx context.Context, userID, accountID, emailID in
 }
 
 func (s *Service) MoveEmails(ctx context.Context, userID, accountID int64, emailIDs []int64, destFolderType string) error {
-	account, err := s.getAccount(ctx, userID, accountID)
+	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {
 		return err
 	}

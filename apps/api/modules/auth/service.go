@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"api/internal/authcrypto"
+	"api/internal/crypto"
 	"api/internal/errors"
 	"api/internal/oidcavatar"
 	"api/schemas"
@@ -19,16 +20,40 @@ import (
 )
 
 type Service struct {
-	orm        *gorm.DB
-	storageDir string
-	logger     *slog.Logger
-	controller *Controller
+	orm           *gorm.DB
+	storageDir    string
+	logger        *slog.Logger
+	controller    *Controller
+	encryptionKey []byte
 }
 
-func NewService(orm *gorm.DB, storageDir string, logger *slog.Logger) *Service {
-	service := &Service{orm: orm, storageDir: storageDir, logger: logger}
+func NewService(orm *gorm.DB, storageDir string, logger *slog.Logger, encryptionKey []byte) *Service {
+	service := &Service{orm: orm, storageDir: storageDir, logger: logger, encryptionKey: encryptionKey}
 	service.controller = newController(service)
 	return service
+}
+
+func (service *Service) encryptToken(plain string) string {
+	if len(service.encryptionKey) == 0 || plain == "" {
+		return plain
+	}
+	enc, err := crypto.Encrypt(plain, service.encryptionKey)
+	if err != nil {
+		service.logger.Warn("failed to encrypt token", slog.Any("error", err))
+		return plain
+	}
+	return enc
+}
+
+func (service *Service) decryptToken(cipher string) string {
+	if len(service.encryptionKey) == 0 || cipher == "" {
+		return cipher
+	}
+	dec, err := crypto.Decrypt(cipher, service.encryptionKey)
+	if err != nil {
+		return cipher
+	}
+	return dec
 }
 
 func (service *Service) registerUser(context context.Context, email string, password string) (userID string, token string, err error) {
@@ -171,8 +196,8 @@ func (service *Service) upsertOIDCUser(ctx context.Context, email string, profil
 		if err := service.orm.WithContext(ctx).Create(&record).Error; err != nil {
 			return "", "", errors.Internal("failed to create user", err)
 		}
-		record.OIDCAccessToken = oauth2Token.AccessToken
-		record.OIDCRefreshToken = oauth2Token.RefreshToken
+		record.OIDCAccessToken = service.encryptToken(oauth2Token.AccessToken)
+		record.OIDCRefreshToken = service.encryptToken(oauth2Token.RefreshToken)
 		record.OIDCTokenExpiry = oauth2Token.Expiry
 		record.ProfileSyncedAt = time.Now()
 		if profile.Picture != "" {
@@ -202,8 +227,8 @@ func (service *Service) upsertOIDCUser(ctx context.Context, email string, profil
 			}
 			record.OIDCPictureURL = profile.Picture
 		}
-		record.OIDCAccessToken = oauth2Token.AccessToken
-		record.OIDCRefreshToken = oauth2Token.RefreshToken
+		record.OIDCAccessToken = service.encryptToken(oauth2Token.AccessToken)
+		record.OIDCRefreshToken = service.encryptToken(oauth2Token.RefreshToken)
 		record.OIDCTokenExpiry = oauth2Token.Expiry
 		record.ProfileSyncedAt = time.Now()
 		service.orm.WithContext(ctx).Save(&record)
@@ -225,7 +250,8 @@ func (service *Service) SyncOIDCProfile(ctx context.Context, userID string, prov
 		return false, errors.Internal("failed to load user", err)
 	}
 
-	if record.OIDCAccessToken == "" {
+	decAccess := service.decryptToken(record.OIDCAccessToken)
+	if decAccess == "" {
 		return false, nil
 	}
 
@@ -234,8 +260,8 @@ func (service *Service) SyncOIDCProfile(ctx context.Context, userID string, prov
 	}
 
 	storedToken := &oauth2.Token{
-		AccessToken:  record.OIDCAccessToken,
-		RefreshToken: record.OIDCRefreshToken,
+		AccessToken:  decAccess,
+		RefreshToken: service.decryptToken(record.OIDCRefreshToken),
 		Expiry:       record.OIDCTokenExpiry,
 	}
 
@@ -290,8 +316,8 @@ func (service *Service) SyncOIDCProfile(ctx context.Context, userID string, prov
 
 	newToken, tokenErr := tokenSource.Token()
 	if tokenErr == nil {
-		record.OIDCAccessToken = newToken.AccessToken
-		record.OIDCRefreshToken = newToken.RefreshToken
+		record.OIDCAccessToken = service.encryptToken(newToken.AccessToken)
+		record.OIDCRefreshToken = service.encryptToken(newToken.RefreshToken)
 		record.OIDCTokenExpiry = newToken.Expiry
 	}
 

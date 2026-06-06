@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"api/internal/crypto"
 	"api/internal/database"
 	"api/internal/env"
 	"api/internal/httpjson"
@@ -47,6 +48,15 @@ func main() {
 		appLogger.Error("failed to run migrations", slog.Any("error", err))
 		return
 	}
+	if len(appEnv.EncryptionKey) > 0 {
+		if err := crypto.MigrateAccountPasswords(db, appEnv.EncryptionKey, appLogger); err != nil {
+			appLogger.Warn("credential migration failed", slog.Any("error", err))
+		}
+		if err := crypto.MigrateOIDCTokens(db, appEnv.EncryptionKey, appLogger); err != nil {
+			appLogger.Warn("OIDC token migration failed", slog.Any("error", err))
+		}
+	}
+
 	if err := os.MkdirAll(filepath.Join(appEnv.StorageDir, "avatars"), 0o755); err != nil {
 		appLogger.Error("failed to prepare storage", slog.Any("error", err))
 		return
@@ -62,9 +72,9 @@ func main() {
 		}
 	}()
 
-	authService := auth.NewService(db, appEnv.StorageDir, appLogger)
-	accountService := accounts.NewService(db)
-	mailService := mail.NewService(db)
+	authService := auth.NewService(db, appEnv.StorageDir, appLogger, appEnv.EncryptionKey)
+	accountService := accounts.NewService(db, appEnv.EncryptionKey)
+	mailService := mail.NewService(db, appEnv.EncryptionKey)
 	userService := users.NewService(db, appEnv.StorageDir)
 	settingsService := settings.NewService(db)
 

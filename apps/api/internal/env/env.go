@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"api/internal/crypto"
 	"api/internal/resourcetoken"
 )
 
@@ -26,6 +27,7 @@ type Config struct {
 	OIDC               *OIDCConfig
 	SSOOnly              bool
 	ResourceTokenSecret  []byte
+	EncryptionKey        []byte
 }
 
 func Load() (Config, error) {
@@ -72,6 +74,7 @@ func Load() (Config, error) {
 
 	if ek := os.Getenv("ENCRYPTION_KEY"); ek != "" {
 		env.ResourceTokenSecret = resourcetoken.DeriveSecret(ek)
+		env.EncryptionKey = crypto.DeriveKey(ek)
 	}
 
 	return env, nil

@@ -3,6 +3,7 @@ package accounts
 import (
 	"context"
 
+	"api/internal/crypto"
 	"api/internal/errors"
 	"api/schemas"
 
@@ -10,11 +11,26 @@ import (
 )
 
 type Service struct {
-	orm *gorm.DB
+	orm           *gorm.DB
+	encryptionKey []byte
 }
 
-func NewService(orm *gorm.DB) *Service {
-	return &Service{orm: orm}
+func NewService(orm *gorm.DB, encryptionKey []byte) *Service {
+	return &Service{orm: orm, encryptionKey: encryptionKey}
+}
+
+func (s *Service) encryptPassword(plain string) (string, error) {
+	if len(s.encryptionKey) == 0 || plain == "" {
+		return plain, nil
+	}
+	return crypto.Encrypt(plain, s.encryptionKey)
+}
+
+func (s *Service) DecryptPassword(cipher string) (string, error) {
+	if len(s.encryptionKey) == 0 || cipher == "" {
+		return cipher, nil
+	}
+	return crypto.Decrypt(cipher, s.encryptionKey)
 }
 
 func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountRequest) (schemas.Account, error) {
@@ -38,6 +54,15 @@ func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountReq
 		req.SMTPPort = 587
 	}
 
+	encIMAPPw, err := s.encryptPassword(req.IMAPPassword)
+	if err != nil {
+		return schemas.Account{}, errors.Internal("failed to encrypt IMAP password", err)
+	}
+	encSMTPPw, err := s.encryptPassword(req.SMTPPassword)
+	if err != nil {
+		return schemas.Account{}, errors.Internal("failed to encrypt SMTP password", err)
+	}
+
 	account := schemas.Account{
 		UserID:       userID,
 		Name:         req.Name,
@@ -45,11 +70,11 @@ func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountReq
 		IMAPHost:     req.IMAPHost,
 		IMAPPort:     req.IMAPPort,
 		IMAPUser:     req.IMAPUser,
-		IMAPPassword: req.IMAPPassword,
+		IMAPPassword: encIMAPPw,
 		SMTPHost:     req.SMTPHost,
 		SMTPPort:     req.SMTPPort,
 		SMTPUser:     req.SMTPUser,
-		SMTPPassword: req.SMTPPassword,
+		SMTPPassword: encSMTPPw,
 		Signature:    req.Signature,
 		IsDefault:    req.IsDefault,
 	}
@@ -102,7 +127,11 @@ func (s *Service) Update(ctx context.Context, userID int64, accountID int64, req
 		account.IMAPUser = *req.IMAPUser
 	}
 	if req.IMAPPassword != nil {
-		account.IMAPPassword = *req.IMAPPassword
+		enc, err := s.encryptPassword(*req.IMAPPassword)
+		if err != nil {
+			return schemas.Account{}, errors.Internal("failed to encrypt IMAP password", err)
+		}
+		account.IMAPPassword = enc
 	}
 	if req.SMTPHost != nil {
 		account.SMTPHost = *req.SMTPHost
@@ -114,7 +143,11 @@ func (s *Service) Update(ctx context.Context, userID int64, accountID int64, req
 		account.SMTPUser = *req.SMTPUser
 	}
 	if req.SMTPPassword != nil {
-		account.SMTPPassword = *req.SMTPPassword
+		enc, err := s.encryptPassword(*req.SMTPPassword)
+		if err != nil {
+			return schemas.Account{}, errors.Internal("failed to encrypt SMTP password", err)
+		}
+		account.SMTPPassword = enc
 	}
 	if req.Signature != nil {
 		account.Signature = *req.Signature
