@@ -7,6 +7,7 @@
 	import { mailCache } from '$lib/stores/mail-cache';
 	import { Button } from '$lib/components/ui/button';
 	import { Checkbox } from '$lib/components/ui/checkbox';
+	import * as Resizable from '$lib/components/ui/resizable';
 	import { toast } from 'svelte-sonner';
 	import { RefreshCw, Paperclip, Download, Reply, ReplyAll, Forward, Loader2, Trash2, Archive } from 'lucide-svelte';
 	import EmailItem from '$lib/components/EmailItem.svelte';
@@ -48,6 +49,7 @@
 	let checkedIds = $state<Set<number>>(new Set());
 	let deleteDialogOpen = $state(false);
 	let deleteTarget = $state<number[]>([]);
+	let bulkLoading = $state(false);
 
 	const selected = $derived(emails.find((e) => e.id === selectedId) ?? null);
 	const hasMore = $derived(emails.length < totalEmails);
@@ -216,23 +218,26 @@
 
 	async function confirmDelete() {
 		if (!app.defaultAccountId || deleteTarget.length === 0) return;
+		bulkLoading = true;
+		const count = deleteTarget.length;
 		try {
 			await backend.bulkAction(app.token, app.defaultAccountId, deleteTarget, 'delete');
 			emails = emails.filter((e) => !deleteTarget.includes(e.id));
-			totalEmails = Math.max(0, totalEmails - deleteTarget.length);
+			totalEmails = Math.max(0, totalEmails - count);
 			mailCache.removeEmails(deleteTarget);
 			if (selectedId && deleteTarget.includes(selectedId)) selectedId = null;
 			checkedIds = new Set();
-			const count = deleteTarget.length;
 			deleteTarget = [];
 			toast.success(isTrash ? `${count} permanently deleted` : `${count} moved to trash`);
 		} catch {
 			toast.error('Failed to delete');
 		}
+		bulkLoading = false;
 	}
 
 	async function handleBulkArchive() {
 		if (!app.defaultAccountId) return;
+		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
 			await backend.bulkAction(app.token, app.defaultAccountId, ids, 'archive');
@@ -245,10 +250,12 @@
 		} catch {
 			toast.error('Failed to archive');
 		}
+		bulkLoading = false;
 	}
 
 	async function handleBulkMarkRead() {
 		if (!app.defaultAccountId) return;
+		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
 			await backend.bulkAction(app.token, app.defaultAccountId, ids, 'mark_read');
@@ -257,10 +264,12 @@
 		} catch {
 			toast.error('Failed to mark as read');
 		}
+		bulkLoading = false;
 	}
 
 	async function handleBulkMarkUnread() {
 		if (!app.defaultAccountId) return;
+		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
 			await backend.bulkAction(app.token, app.defaultAccountId, ids, 'mark_unread');
@@ -269,6 +278,7 @@
 		} catch {
 			toast.error('Failed to mark as unread');
 		}
+		bulkLoading = false;
 	}
 
 	async function handleSingleDelete(emailId: number) {
@@ -367,8 +377,8 @@
 
 <DeleteConfirmDialog bind:open={deleteDialogOpen} count={deleteTarget.length} permanent={isTrash} onconfirm={confirmDelete} />
 
-<div class="flex h-full">
-	<div class="w-80 flex-shrink-0 border-r flex flex-col">
+<Resizable.PaneGroup direction="horizontal" class="h-full">
+	<Resizable.Pane defaultSize={30} minSize={20} maxSize={50} class="flex flex-col">
 		<div class="flex items-center justify-between border-b px-4 py-3">
 			<div class="flex items-center gap-2">
 				{#if emails.length > 0}
@@ -388,6 +398,7 @@
 
 		<BulkActionBar
 			count={checkedIds.size}
+			loading={bulkLoading}
 			ondelete={handleBulkDelete}
 			onarchive={handleBulkArchive}
 			onmarkread={handleBulkMarkRead}
@@ -444,9 +455,11 @@
 				<div bind:this={sentinel} class="h-1"></div>
 			{/if}
 		</div>
-	</div>
+	</Resizable.Pane>
 
-	<div class="flex-1 flex flex-col">
+	<Resizable.Handle />
+
+	<Resizable.Pane defaultSize={70} class="flex flex-col">
 		{#if selected}
 			<div class="border-b px-6 py-4 mail-detail-header">
 				<h1 class="text-xl font-semibold">{selected.subject || '(no subject)'}</h1>
@@ -515,8 +528,8 @@
 				<p class="text-sm">Select an email to read</p>
 			</div>
 		{/if}
-	</div>
-</div>
+	</Resizable.Pane>
+</Resizable.PaneGroup>
 
 <style>
 	@media (prefers-reduced-motion: no-preference) {

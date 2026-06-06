@@ -4,6 +4,7 @@
 
 	let {
 		count = 0,
+		loading = false,
 		ondelete,
 		onarchive,
 		onmarkread,
@@ -11,6 +12,7 @@
 		onclear
 	}: {
 		count: number;
+		loading?: boolean;
 		ondelete: () => void;
 		onarchive: () => void;
 		onmarkread: () => void;
@@ -20,28 +22,25 @@
 </script>
 
 {#if count > 0}
-	<div class="bulk-action-bar flex items-center gap-2 border-b bg-muted/50 px-4 py-2">
-		<span class="text-sm font-medium">{count} selected</span>
-		<div class="ml-auto flex items-center gap-1">
-			<Button variant="ghost" size="sm" class="gap-1.5 text-xs" onclick={onarchive}>
+	<div class="bulk-action-bar flex items-center gap-1.5 border-b bg-muted/50 px-3 py-1.5">
+		<span class="shrink-0 text-xs font-medium">{count}</span>
+		<div class="flex items-center gap-0.5 overflow-hidden">
+			<Button variant="ghost" size="icon" class="h-7 w-7 shrink-0" onclick={onarchive} disabled={loading} title="Archive">
 				<Archive class="h-3.5 w-3.5" />
-				Archive
 			</Button>
-			<Button variant="ghost" size="sm" class="gap-1.5 text-xs" onclick={onmarkread}>
+			<Button variant="ghost" size="icon" class="h-7 w-7 shrink-0" onclick={onmarkread} disabled={loading} title="Mark read">
 				<MailOpen class="h-3.5 w-3.5" />
-				Read
 			</Button>
-			<Button variant="ghost" size="sm" class="gap-1.5 text-xs" onclick={onmarkunread}>
+			<Button variant="ghost" size="icon" class="h-7 w-7 shrink-0" onclick={onmarkunread} disabled={loading} title="Mark unread">
 				<MailX class="h-3.5 w-3.5" />
-				Unread
 			</Button>
-			<Button variant="ghost" size="sm" class="gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" onclick={ondelete}>
+			<Button variant="ghost" size="icon" class="h-7 w-7 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10" onclick={ondelete} disabled={loading} title="Delete">
 				<Trash2 class="h-3.5 w-3.5" />
-				Delete
 			</Button>
-			<div class="ml-1 h-4 w-px bg-border"></div>
-			<Button variant="ghost" size="icon" class="h-7 w-7" onclick={onclear}>
-				<X class="h-3.5 w-3.5" />
+		</div>
+		<div class="ml-auto">
+			<Button variant="ghost" size="icon" class="h-6 w-6 shrink-0" onclick={onclear}>
+				<X class="h-3 w-3" />
 			</Button>
 		</div>
 	</div>
