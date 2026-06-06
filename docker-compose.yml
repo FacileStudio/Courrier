@@ -20,7 +20,7 @@ services:
     ports:
       - "${PORT:-4000}:4000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-courrier}?sslmode=disable
       PORT: "4000"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       STORAGE_DIR: ${STORAGE_DIR:-/data}
