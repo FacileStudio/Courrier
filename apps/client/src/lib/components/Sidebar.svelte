@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Inbox, Send, FileEdit, Trash2, Archive, AlertCircle, Settings, LogOut, PenLine } from 'lucide-svelte';
+	import { Inbox, Send, FileEdit, Trash2, Archive, AlertCircle, LogOut, PenLine } from 'lucide-svelte';
 	import type { UserProfile, Folder } from '$lib/backend';
 
 	let { user, folders = [] }: { user: UserProfile | null; folders?: Folder[] } = $props();
@@ -70,17 +70,6 @@
 			</a>
 		{/each}
 
-		<Separator class="my-3" />
-
-		<a
-			href="/settings"
-			class="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors {page.url.pathname === '/settings'
-				? 'bg-foreground text-background font-medium'
-				: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-		>
-			<Settings class="h-4 w-4 shrink-0" />
-			Settings
-		</a>
 	</nav>
 
 	<Separator />

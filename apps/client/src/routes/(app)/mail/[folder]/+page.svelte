@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { getContext, onMount } from 'svelte';
+	import { getContext } from 'svelte';
 	import DOMPurify from 'dompurify';
 	import { backend, type EmailMessage, type EmailAttachment, type MailAccount } from '$lib/backend';
 	import { Button } from '$lib/components/ui/button';
@@ -168,11 +168,32 @@
 		await backend.downloadAttachment(app.token, app.defaultAccountId, selected.id, attachment.id, attachment.filename);
 	}
 
-	onMount(async () => {
-		await loadEmails();
-		if (emails.length === 0 && app.defaultAccountId) {
-			await syncAndLoad();
-		}
+	$effect(() => {
+		const _folder = folderSlug;
+		if (!validFolder || !app.defaultAccountId) return;
+
+		emails = [];
+		selectedId = null;
+		currentPage = 1;
+		totalEmails = 0;
+		loading = true;
+		resourceToken = null;
+
+		(async () => {
+			try {
+				const result = await backend.getEmailsByFolder(app.token, app.defaultAccountId!, _folder, 1, LIMIT);
+				emails = result.emails;
+				totalEmails = result.total;
+			} catch {
+				emails = [];
+				totalEmails = 0;
+			}
+			loading = false;
+
+			if (emails.length === 0) {
+				await syncAndLoad();
+			}
+		})();
 	});
 
 	$effect(() => {
