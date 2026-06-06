@@ -339,7 +339,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"deleted": true})
 		})
 
-		r.Post("/emails/bulk-action", func(w http.ResponseWriter, req *http.Request) {
+		r.With(middleware.RateLimit(30, time.Minute)).Post("/emails/bulk-action", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
 			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
 			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
@@ -352,6 +352,10 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 			if len(body.EmailIDs) == 0 {
 				httpjson.WriteError(w, errors.Invalid("no email IDs provided"))
+				return
+			}
+			if len(body.EmailIDs) > 200 {
+				httpjson.WriteError(w, errors.Invalid("too many email IDs (max 200)"))
 				return
 			}
 
@@ -367,17 +371,23 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 					return
 				}
 			case "mark_read":
+				isRead := true
 				for _, emailID := range body.EmailIDs {
-					isRead := true
-					service.UpdateEmail(req.Context(), uid, accountID, emailID, UpdateEmailRequest{IsRead: &isRead})
+					if _, err := service.UpdateEmail(req.Context(), uid, accountID, emailID, UpdateEmailRequest{IsRead: &isRead}); err != nil {
+						httpjson.WriteError(w, err)
+						return
+					}
 				}
 			case "mark_unread":
+				isRead := false
 				for _, emailID := range body.EmailIDs {
-					isRead := false
-					service.UpdateEmail(req.Context(), uid, accountID, emailID, UpdateEmailRequest{IsRead: &isRead})
+					if _, err := service.UpdateEmail(req.Context(), uid, accountID, emailID, UpdateEmailRequest{IsRead: &isRead}); err != nil {
+						httpjson.WriteError(w, err)
+						return
+					}
 				}
 			default:
-				httpjson.WriteError(w, errors.Invalid("unknown action: "+body.Action))
+				httpjson.WriteError(w, errors.Invalid("unknown action"))
 				return
 			}
 
@@ -403,6 +413,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 	router.Route("/templates", func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
+		r.Use(middleware.RateLimit(30, time.Minute))
 
 		r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())

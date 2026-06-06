@@ -730,6 +730,12 @@ func (s *Service) CreateTemplate(ctx context.Context, userID int64, req EmailTem
 		return schemas.EmailTemplate{}, errors.Invalid("template name is required")
 	}
 
+	var count int64
+	s.orm.WithContext(ctx).Model(&schemas.EmailTemplate{}).Where("user_id = ?", userID).Count(&count)
+	if count >= 50 {
+		return schemas.EmailTemplate{}, errors.Invalid("template limit reached (max 50)")
+	}
+
 	tmpl := schemas.EmailTemplate{
 		UserID:   userID,
 		Name:     req.Name,
