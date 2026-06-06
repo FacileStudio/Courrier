@@ -121,9 +121,21 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			userID = uid
 		}
 
-		uid, _ := strconv.ParseInt(userID, 10, 64)
-		accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
-		emailID, _ := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+		uid, err := strconv.ParseInt(userID, 10, 64)
+		if err != nil {
+			httpjson.WriteError(w, errors.Invalid("invalid user id"))
+			return
+		}
+		accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+		if err != nil {
+			httpjson.WriteError(w, errors.Invalid("invalid account id"))
+			return
+		}
+		emailID, err := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+		if err != nil {
+			httpjson.WriteError(w, errors.Invalid("invalid email id"))
+			return
+		}
 		cid := chi.URLParam(req, "cid")
 
 		service.ServeCIDImage(w, req, uid, accountID, emailID, cid)
@@ -134,8 +146,16 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.With(middleware.RateLimit(5, time.Minute)).Post("/sync", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
 
 			if err := service.SyncAccount(req.Context(), uid, accountID); err != nil {
 				httpjson.WriteError(w, err)
@@ -146,8 +166,16 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Get("/folders", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
 
 			folders, err := service.GetFolders(req.Context(), uid, accountID)
 			if err != nil {
@@ -163,9 +191,21 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.With(middleware.RateLimit(10, time.Minute)).Post("/folders/{folderId}/sync", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
-			folderID, _ := strconv.ParseInt(chi.URLParam(req, "folderId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
+			folderID, err := strconv.ParseInt(chi.URLParam(req, "folderId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid folder id"))
+				return
+			}
 
 			if err := service.SyncFolderEmails(req.Context(), uid, accountID, folderID); err != nil {
 				httpjson.WriteError(w, err)
@@ -176,8 +216,16 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Get("/folders/{folderType}/emails", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
 			folderType := chi.URLParam(req, "folderType")
 
 			page, _ := strconv.Atoi(req.URL.Query().Get("page"))
@@ -209,9 +257,21 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Get("/emails/{emailId}", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
-			emailID, _ := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
+			emailID, err := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid email id"))
+				return
+			}
 
 			email, attachments, err := service.GetEmailWithAttachments(req.Context(), uid, accountID, emailID)
 			if err != nil {
@@ -223,19 +283,47 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Get("/emails/{emailId}/attachments/{attachmentId}/download", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
-			emailID, _ := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
-			attachmentID, _ := strconv.ParseInt(chi.URLParam(req, "attachmentId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
+			emailID, err := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid email id"))
+				return
+			}
+			attachmentID, err := strconv.ParseInt(chi.URLParam(req, "attachmentId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid attachment id"))
+				return
+			}
 
 			service.DownloadAttachment(w, req, uid, accountID, emailID, attachmentID)
 		})
 
 		r.Patch("/emails/{emailId}", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
-			emailID, _ := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
+			emailID, err := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid email id"))
+				return
+			}
 
 			var body UpdateEmailRequest
 			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
@@ -253,8 +341,16 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Get("/contacts", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
 			q := req.URL.Query().Get("q")
 			if q == "" {
 				httpjson.WriteJSON(w, http.StatusOK, map[string]any{"contacts": []ContactResult{}})
@@ -270,8 +366,16 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.With(middleware.RateLimit(10, time.Minute)).Post("/send", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
 
 			contentType := req.Header.Get("Content-Type")
 			var body SendRequest
@@ -309,8 +413,16 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Post("/drafts", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
 
 			var body SendRequest
 			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
@@ -328,9 +440,21 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Delete("/drafts/{emailId}", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
-			emailID, _ := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
+			emailID, err := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid email id"))
+				return
+			}
 
 			if err := service.DeleteDraft(req.Context(), uid, accountID, emailID); err != nil {
 				httpjson.WriteError(w, err)
@@ -341,8 +465,16 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.With(middleware.RateLimit(30, time.Minute)).Post("/emails/bulk-action", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
 
 			var body BulkActionRequest
 			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
@@ -417,7 +549,11 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
 
 			templates, err := service.ListTemplates(req.Context(), uid)
 			if err != nil {
@@ -441,7 +577,11 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Post("/", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
 
 			var body EmailTemplateRequest
 			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
@@ -467,8 +607,16 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Put("/{templateId}", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			templateID, _ := strconv.ParseInt(chi.URLParam(req, "templateId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			templateID, err := strconv.ParseInt(chi.URLParam(req, "templateId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid template id"))
+				return
+			}
 
 			var body EmailTemplateRequest
 			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
@@ -494,8 +642,16 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Delete("/{templateId}", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
-			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
-			templateID, _ := strconv.ParseInt(chi.URLParam(req, "templateId"), 10, 64)
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			templateID, err := strconv.ParseInt(chi.URLParam(req, "templateId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid template id"))
+				return
+			}
 
 			if err := service.DeleteTemplate(req.Context(), uid, templateID); err != nil {
 				httpjson.WriteError(w, err)
