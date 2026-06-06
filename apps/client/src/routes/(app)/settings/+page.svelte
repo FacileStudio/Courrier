@@ -6,7 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { toast } from 'svelte-sonner';
-	import { Plus, Trash2 } from 'lucide-svelte';
+	import { Plus, Trash2, Plug, X, Save, PenLine } from 'lucide-svelte';
 
 	const app = getContext<{
 		token: string;
@@ -18,6 +18,8 @@
 	let saving = $state(false);
 	let testing = $state(false);
 	let deleting = $state<number | null>(null);
+	let signatures = $state<Record<number, string>>({});
+	let savingSignature = $state<number | null>(null);
 
 	let name = $state('');
 	let email = $state('');
@@ -47,6 +49,23 @@
 	async function loadAccounts() {
 		const result = await backend.listAccounts(app.token);
 		accounts = result.accounts;
+		for (const account of accounts) {
+			if (!(account.id in signatures)) {
+				signatures[account.id] = account.signature || '';
+			}
+		}
+	}
+
+	async function saveSignature(accountId: number) {
+		savingSignature = accountId;
+		try {
+			await backend.updateAccount(app.token, accountId, { signature: signatures[accountId] });
+			toast.success('Signature saved');
+			await app.refreshAccounts();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to save signature');
+		}
+		savingSignature = null;
 	}
 
 	async function testConnection() {
@@ -211,11 +230,15 @@
 					</div>
 
 					<div class="flex items-center gap-2 pt-2">
-						<Button variant="outline" size="sm" onclick={testConnection} disabled={testing || !imapHost}>
+						<Button variant="outline" size="sm" class="gap-1.5" onclick={testConnection} disabled={testing || !imapHost}>
+							<Plug class="h-4 w-4" />
 							{testing ? 'Testing...' : 'Test Connection'}
 						</Button>
 						<div class="flex-1"></div>
-						<Button variant="ghost" size="sm" onclick={resetForm}>Cancel</Button>
+						<Button variant="ghost" size="sm" class="gap-1.5" onclick={resetForm}>
+							<X class="h-4 w-4" />
+							Cancel
+						</Button>
 						<Button size="sm" class="gap-1.5" onclick={addAccount} disabled={saving || !name || !email || !imapHost || !smtpHost}>
 							<Plus class="h-4 w-4" />
 							{saving ? 'Saving...' : 'Add Account'}
@@ -230,4 +253,42 @@
 			{/if}
 		</CardContent>
 	</Card>
+
+	{#if accounts.length > 0}
+		<Card>
+			<CardHeader>
+				<div class="flex items-center gap-2">
+					<PenLine class="h-5 w-5 text-muted-foreground" />
+					<CardTitle>Signatures</CardTitle>
+				</div>
+			</CardHeader>
+			<CardContent>
+				<div class="space-y-4">
+					{#each accounts as account}
+						<div class="space-y-2 border rounded-lg p-4">
+							<div class="flex items-center gap-2">
+								<p class="font-medium text-sm">{account.name}</p>
+								<span class="text-xs text-muted-foreground">{account.email}</span>
+							</div>
+							<textarea
+								bind:value={signatures[account.id]}
+								placeholder="Write your email signature..."
+								class="h-24 w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 placeholder:text-muted-foreground"
+							></textarea>
+							<Button
+								variant="outline"
+								size="sm"
+								class="gap-1.5"
+								onclick={() => saveSignature(account.id)}
+								disabled={savingSignature === account.id}
+							>
+								<Save class="h-4 w-4" />
+								{savingSignature === account.id ? 'Saving...' : 'Save'}
+							</Button>
+						</div>
+					{/each}
+				</div>
+			</CardContent>
+		</Card>
+	{/if}
 </div>

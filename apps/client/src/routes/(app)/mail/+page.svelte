@@ -118,7 +118,8 @@
 						<p class="text-xs mt-1">Add one in Settings</p>
 					{:else}
 						<p class="text-sm">No emails yet</p>
-						<Button variant="outline" size="sm" class="mt-3" onclick={syncAndLoad} disabled={syncing}>
+						<Button variant="outline" size="sm" class="mt-3 gap-1.5" onclick={syncAndLoad} disabled={syncing}>
+							<RefreshCw class="h-4 w-4 {syncing ? 'animate-spin' : ''}" />
 							{syncing ? 'Syncing...' : 'Sync now'}
 						</Button>
 					{/if}

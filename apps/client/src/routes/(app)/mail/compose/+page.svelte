@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { getContext } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import { backend, type MailAccount } from '$lib/backend';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { toast } from 'svelte-sonner';
+	import { X, SendHorizonal } from 'lucide-svelte';
 
 	const app = getContext<{
 		token: string;
@@ -18,6 +19,13 @@
 	let subject = $state('');
 	let body = $state('');
 	let sending = $state(false);
+
+	onMount(() => {
+		const account = app.accounts.find((a) => a.id === app.defaultAccountId);
+		if (account?.signature) {
+			body = `\n\n--\n${account.signature}`;
+		}
+	});
 
 	async function send() {
 		if (!to.trim() || !app.defaultAccountId) return;
@@ -48,10 +56,12 @@
 	<div class="flex items-center justify-between border-b px-6 py-3">
 		<h2 class="text-lg font-semibold">New message</h2>
 		<div class="flex items-center gap-2">
-			<Button variant="ghost" size="sm" onclick={() => goto('/mail')}>
+			<Button variant="ghost" size="sm" class="gap-1.5" onclick={() => goto('/mail')}>
+				<X class="h-4 w-4" />
 				Cancel
 			</Button>
-			<Button size="sm" disabled={sending || !to.trim() || !app.defaultAccountId} onclick={send}>
+			<Button size="sm" class="gap-1.5" disabled={sending || !to.trim() || !app.defaultAccountId} onclick={send}>
+				<SendHorizonal class="h-4 w-4" />
 				{sending ? 'Sending...' : 'Send'}
 			</Button>
 		</div>

@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { LogIn, UserPlus, ExternalLink } from 'lucide-svelte';
 
 	const TOKEN_KEY = 'courrier.token';
 
@@ -134,8 +135,14 @@
 							<p class="text-sm text-destructive">{message}</p>
 						{/if}
 
-						<Button type="submit" class="w-full" disabled={busy}>
-							{tab === 'register' ? 'Create account' : 'Log in'}
+						<Button type="submit" class="w-full gap-2" disabled={busy}>
+							{#if tab === 'register'}
+								<UserPlus class="h-4 w-4" />
+								Create account
+							{:else}
+								<LogIn class="h-4 w-4" />
+								Log in
+							{/if}
 						</Button>
 					</form>
 				{/if}
@@ -150,7 +157,8 @@
 					{/if}
 
 					<a href="{backend.baseUrl}/auth/oidc" class="block">
-						<Button variant="outline" class="w-full" type="button">
+						<Button variant="outline" class="w-full gap-2" type="button">
+							<ExternalLink class="h-4 w-4" />
 							Continue with SSO
 						</Button>
 					</a>

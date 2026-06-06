@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/emersion/go-imap/v2"
 
@@ -162,6 +163,13 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 		}
 
 		s.orm.WithContext(ctx).Create(&email)
+
+		if email.HasAttachments && msg.BodyStructure != nil {
+			attachments := extractAttachments(msg.BodyStructure, email.ID)
+			if len(attachments) > 0 {
+				s.orm.WithContext(ctx).Create(&attachments)
+			}
+		}
 	}
 
 	var unreadCount int64
@@ -360,6 +368,24 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 		return errors.Failed(fmt.Sprintf("failed to send: %s", err))
 	}
 
+	var sentFolder schemas.Folder
+	if s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeSent).First(&sentFolder).Error == nil {
+		email := schemas.Email{
+			AccountID:   accountID,
+			FolderID:    sentFolder.ID,
+			Subject:     req.Subject,
+			FromAddress: account.Email,
+			FromName:    account.Name,
+			ToAddresses: stringsToAddressJSON(req.To),
+			CcAddresses: stringsToAddressJSON(req.Cc),
+			Date:        time.Now(),
+			BodyText:    req.Body,
+			IsRead:      true,
+		}
+		s.orm.WithContext(ctx).Create(&email)
+		s.orm.WithContext(ctx).Model(&sentFolder).UpdateColumn("total_count", gorm.Expr("total_count + 1"))
+	}
+
 	go s.appendToSent(account, msgBytes)
 
 	return nil
@@ -481,6 +507,22 @@ func emailToResponse(e schemas.Email) EmailResponse {
 	resp.CcAddresses = parseAddressJSON(e.CcAddresses)
 
 	return resp
+}
+
+func stringsToAddressJSON(addrs []string) string {
+	if len(addrs) == 0 {
+		return "[]"
+	}
+	type entry struct {
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}
+	items := make([]entry, len(addrs))
+	for i, addr := range addrs {
+		items[i] = entry{Email: addr}
+	}
+	data, _ := json.Marshal(items)
+	return string(data)
 }
 
 func parseAddressJSON(raw string) []AddressResponse {
