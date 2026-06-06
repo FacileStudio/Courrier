@@ -4,8 +4,14 @@
 	import { getContext } from 'svelte';
 	import DOMPurify from 'dompurify';
 	import { backend, type EmailMessage, type EmailAttachment, type MailAccount } from '$lib/backend';
+	import { mailCache } from '$lib/stores/mail-cache';
 	import { Button } from '$lib/components/ui/button';
-	import { RefreshCw, Paperclip, Download, Reply, ReplyAll, Forward, Loader2 } from 'lucide-svelte';
+	import { Checkbox } from '$lib/components/ui/checkbox';
+	import { toast } from 'svelte-sonner';
+	import { RefreshCw, Paperclip, Download, Reply, ReplyAll, Forward, Loader2, Trash2, Archive } from 'lucide-svelte';
+	import EmailItem from '$lib/components/EmailItem.svelte';
+	import BulkActionBar from '$lib/components/BulkActionBar.svelte';
+	import DeleteConfirmDialog from '$lib/components/DeleteConfirmDialog.svelte';
 
 	const app = getContext<{
 		token: string;
@@ -26,6 +32,7 @@
 	const folderSlug = $derived(page.params.folder ?? '');
 	const folderLabel = $derived(folderLabels[folderSlug] ?? folderSlug);
 	const validFolder = $derived(folderSlug !== '' && folderSlug in folderLabels);
+	const isTrash = $derived(folderSlug === 'trash');
 
 	let emails = $state<EmailMessage[]>([]);
 	let selectedId = $state<number | null>(null);
@@ -38,9 +45,34 @@
 	let sentinel = $state<HTMLDivElement | null>(null);
 	let resourceToken = $state<string | null>(null);
 
+	let checkedIds = $state<Set<number>>(new Set());
+	let deleteDialogOpen = $state(false);
+	let deleteTarget = $state<number[]>([]);
+
 	const selected = $derived(emails.find((e) => e.id === selectedId) ?? null);
 	const hasMore = $derived(emails.length < totalEmails);
+	const selectionActive = $derived(checkedIds.size > 0);
+	const allChecked = $derived(emails.length > 0 && emails.every((e) => checkedIds.has(e.id)));
 	const LIMIT = 30;
+
+	function toggleCheck(id: number) {
+		const next = new Set(checkedIds);
+		if (next.has(id)) next.delete(id);
+		else next.add(id);
+		checkedIds = next;
+	}
+
+	function toggleAll() {
+		if (allChecked) {
+			checkedIds = new Set();
+		} else {
+			checkedIds = new Set(emails.map((e) => e.id));
+		}
+	}
+
+	function clearSelection() {
+		checkedIds = new Set();
+	}
 
 	$effect(() => {
 		if (!validFolder) {
@@ -70,15 +102,25 @@
 
 	async function loadEmails() {
 		if (!app.defaultAccountId || !validFolder) return;
-		loading = true;
+
+		const cached = mailCache.get(app.defaultAccountId, folderSlug, 1);
+		if (cached) {
+			emails = cached.emails;
+			totalEmails = cached.total;
+		}
+
+		loading = !cached;
 		currentPage = 1;
 		try {
 			const result = await backend.getEmailsByFolder(app.token, app.defaultAccountId, folderSlug, 1, LIMIT);
 			emails = result.emails;
 			totalEmails = result.total;
+			mailCache.set(app.defaultAccountId, folderSlug, 1, result.emails, result.total);
 		} catch {
-			emails = [];
-			totalEmails = 0;
+			if (!cached) {
+				emails = [];
+				totalEmails = 0;
+			}
 		}
 		loading = false;
 	}
@@ -87,11 +129,22 @@
 		if (!app.defaultAccountId || loadingMore || !hasMore || !validFolder) return;
 		loadingMore = true;
 		const nextPage = currentPage + 1;
+
+		const cached = mailCache.get(app.defaultAccountId, folderSlug, nextPage);
+		if (cached) {
+			emails = [...emails, ...cached.emails];
+			totalEmails = cached.total;
+			currentPage = nextPage;
+			loadingMore = false;
+			return;
+		}
+
 		try {
 			const result = await backend.getEmailsByFolder(app.token, app.defaultAccountId, folderSlug, nextPage, LIMIT);
 			emails = [...emails, ...result.emails];
 			totalEmails = result.total;
 			currentPage = nextPage;
+			mailCache.set(app.defaultAccountId, folderSlug, nextPage, result.emails, result.total);
 		} catch {}
 		loadingMore = false;
 	}
@@ -106,9 +159,9 @@
 			if (folder) {
 				await backend.syncFolder(app.token, app.defaultAccountId, folder.id);
 			}
+			mailCache.invalidateFolder(app.defaultAccountId, folderSlug);
 			await loadEmails();
-		} catch {
-		}
+		} catch {}
 		syncing = false;
 	}
 
@@ -140,21 +193,9 @@
 		const now = new Date();
 		const diffMs = now.getTime() - date.getTime();
 		const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-		if (diffDays < 1) {
-			return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-		}
-		if (diffDays < 7) {
-			return date.toLocaleDateString('fr-FR', { weekday: 'short' });
-		}
+		if (diffDays < 1) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+		if (diffDays < 7) return date.toLocaleDateString('fr-FR', { weekday: 'short' });
 		return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-	}
-
-	function getInitials(name: string) {
-		const parts = name.trim().split(/\s+/).filter(Boolean);
-		if (parts.length === 0) return '?';
-		if (parts.length === 1) return parts[0][0].toUpperCase();
-		return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 	}
 
 	function formatFileSize(bytes: number): string {
@@ -168,25 +209,134 @@
 		await backend.downloadAttachment(app.token, app.defaultAccountId, selected.id, attachment.id, attachment.filename);
 	}
 
+	async function handleBulkDelete() {
+		deleteTarget = [...checkedIds];
+		deleteDialogOpen = true;
+	}
+
+	async function confirmDelete() {
+		if (!app.defaultAccountId || deleteTarget.length === 0) return;
+		try {
+			await backend.bulkAction(app.token, app.defaultAccountId, deleteTarget, 'delete');
+			emails = emails.filter((e) => !deleteTarget.includes(e.id));
+			totalEmails = Math.max(0, totalEmails - deleteTarget.length);
+			mailCache.removeEmails(deleteTarget);
+			if (selectedId && deleteTarget.includes(selectedId)) selectedId = null;
+			checkedIds = new Set();
+			const count = deleteTarget.length;
+			deleteTarget = [];
+			toast.success(isTrash ? `${count} permanently deleted` : `${count} moved to trash`);
+		} catch {
+			toast.error('Failed to delete');
+		}
+	}
+
+	async function handleBulkArchive() {
+		if (!app.defaultAccountId) return;
+		const ids = [...checkedIds];
+		try {
+			await backend.bulkAction(app.token, app.defaultAccountId, ids, 'archive');
+			emails = emails.filter((e) => !ids.includes(e.id));
+			totalEmails = Math.max(0, totalEmails - ids.length);
+			mailCache.removeEmails(ids);
+			if (selectedId && ids.includes(selectedId)) selectedId = null;
+			checkedIds = new Set();
+			toast.success(`${ids.length} archived`);
+		} catch {
+			toast.error('Failed to archive');
+		}
+	}
+
+	async function handleBulkMarkRead() {
+		if (!app.defaultAccountId) return;
+		const ids = [...checkedIds];
+		try {
+			await backend.bulkAction(app.token, app.defaultAccountId, ids, 'mark_read');
+			emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: true } : e));
+			checkedIds = new Set();
+		} catch {
+			toast.error('Failed to mark as read');
+		}
+	}
+
+	async function handleBulkMarkUnread() {
+		if (!app.defaultAccountId) return;
+		const ids = [...checkedIds];
+		try {
+			await backend.bulkAction(app.token, app.defaultAccountId, ids, 'mark_unread');
+			emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: false } : e));
+			checkedIds = new Set();
+		} catch {
+			toast.error('Failed to mark as unread');
+		}
+	}
+
+	async function handleSingleDelete(emailId: number) {
+		deleteTarget = [emailId];
+		deleteDialogOpen = true;
+	}
+
+	async function handleSingleArchive(emailId: number) {
+		if (!app.defaultAccountId) return;
+		try {
+			await backend.bulkAction(app.token, app.defaultAccountId, [emailId], 'archive');
+			emails = emails.filter((e) => e.id !== emailId);
+			totalEmails = Math.max(0, totalEmails - 1);
+			mailCache.removeEmails([emailId]);
+			if (selectedId === emailId) selectedId = null;
+			toast.success('Archived');
+		} catch {
+			toast.error('Failed to archive');
+		}
+	}
+
+	async function handleToggleRead(email: EmailMessage) {
+		if (!app.defaultAccountId) return;
+		try {
+			await backend.updateEmail(app.token, app.defaultAccountId, email.id, { is_read: !email.is_read });
+			emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: !email.is_read } : e));
+		} catch {}
+	}
+
+	async function handleToggleStar(email: EmailMessage) {
+		if (!app.defaultAccountId) return;
+		try {
+			await backend.updateEmail(app.token, app.defaultAccountId, email.id, { is_starred: !email.is_starred });
+			emails = emails.map((e) => (e.id === email.id ? { ...e, is_starred: !email.is_starred } : e));
+		} catch {}
+	}
+
 	$effect(() => {
 		const _folder = folderSlug;
 		if (!validFolder || !app.defaultAccountId) return;
 
-		emails = [];
+		checkedIds = new Set();
 		selectedId = null;
 		currentPage = 1;
 		totalEmails = 0;
-		loading = true;
 		resourceToken = null;
+
+		const cached = mailCache.get(app.defaultAccountId, _folder, 1);
+		if (cached) {
+			emails = cached.emails;
+			totalEmails = cached.total;
+			loading = false;
+		} else {
+			emails = [];
+			loading = true;
+		}
 
 		(async () => {
 			try {
 				const result = await backend.getEmailsByFolder(app.token, app.defaultAccountId!, _folder, 1, LIMIT);
 				emails = result.emails;
 				totalEmails = result.total;
+				mailCache.set(app.defaultAccountId!, _folder, 1, result.emails, result.total);
 			} catch {
-				emails = [];
-				totalEmails = 0;
+				if (!cached) {
+					emails = [];
+					totalEmails = 0;
+				}
 			}
 			loading = false;
 
@@ -215,14 +365,35 @@
 	<title>{folderLabel} — Courrier</title>
 </svelte:head>
 
+<DeleteConfirmDialog bind:open={deleteDialogOpen} count={deleteTarget.length} permanent={isTrash} onconfirm={confirmDelete} />
+
 <div class="flex h-full">
 	<div class="w-80 flex-shrink-0 border-r flex flex-col">
 		<div class="flex items-center justify-between border-b px-4 py-3">
-			<h2 class="text-lg font-semibold">{folderLabel}</h2>
+			<div class="flex items-center gap-2">
+				{#if emails.length > 0}
+					<button
+						class="flex h-6 w-6 items-center justify-center rounded hover:bg-muted"
+						onclick={toggleAll}
+					>
+						<Checkbox checked={allChecked} class="h-4 w-4" />
+					</button>
+				{/if}
+				<h2 class="text-lg font-semibold">{folderLabel}</h2>
+			</div>
 			<Button variant="ghost" size="icon" class="h-8 w-8" onclick={syncAndLoad} disabled={syncing}>
 				<RefreshCw class="h-4 w-4 {syncing ? 'animate-spin' : ''}" />
 			</Button>
 		</div>
+
+		<BulkActionBar
+			count={checkedIds.size}
+			ondelete={handleBulkDelete}
+			onarchive={handleBulkArchive}
+			onmarkread={handleBulkMarkRead}
+			onmarkunread={handleBulkMarkUnread}
+			onclear={clearSelection}
+		/>
 
 		<div class="flex-1 overflow-auto" bind:this={listContainer}>
 			{#if loading}
@@ -247,30 +418,23 @@
 					<p class="text-sm">No emails in {folderLabel}</p>
 				</div>
 			{:else}
-				{#each emails as email, i}
-					<button
-						class="mail-list-item w-full text-left px-4 py-3 border-b transition-colors duration-150 hover:bg-muted/50
-							{selectedId === email.id ? 'bg-muted' : ''}
-							{!email.is_read ? 'font-medium' : ''}"
-						style="--delay: {Math.min(i, 15) * 30}ms"
-						onclick={() => openEmail(email)}
-					>
-						<div class="flex items-center gap-3">
-							<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
-								{getInitials(email.from_name || email.from_address)}
-							</div>
-							<div class="min-w-0 flex-1">
-								<div class="flex items-center justify-between gap-2">
-									<span class="truncate text-sm">{email.from_name || email.from_address}</span>
-									<span class="shrink-0 text-xs text-muted-foreground">{formatDate(email.date)}</span>
-								</div>
-								<p class="truncate text-sm text-muted-foreground">{email.subject || '(no subject)'}</p>
-							</div>
-							{#if !email.is_read}
-								<div class="h-2 w-2 shrink-0 rounded-full bg-blue-600"></div>
-							{/if}
-						</div>
-					</button>
+				{#each emails as email, i (email.id)}
+					<div style="--delay: {Math.min(i, 15) * 30}ms" class="mail-list-item">
+						<EmailItem
+							{email}
+							selected={selectedId === email.id}
+							checked={checkedIds.has(email.id)}
+							{selectionActive}
+							onopen={() => openEmail(email)}
+							ontogglecheck={() => toggleCheck(email.id)}
+							onreply={() => goto(`/mail/compose?reply=${email.id}&accountId=${app.defaultAccountId}`)}
+							onforward={() => goto(`/mail/compose?forward=${email.id}&accountId=${app.defaultAccountId}`)}
+							onarchive={folderSlug !== 'archive' ? () => handleSingleArchive(email.id) : undefined}
+							ondelete={() => handleSingleDelete(email.id)}
+							ontoggleread={() => handleToggleRead(email)}
+							ontogglestar={() => handleToggleStar(email)}
+						/>
+					</div>
 				{/each}
 				{#if loadingMore}
 					<div class="flex items-center justify-center py-4">
@@ -298,6 +462,15 @@
 						</Button>
 						<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => goto(`/mail/compose?forward=${selected!.id}&accountId=${app.defaultAccountId}`)}>
 							<Forward class="h-4 w-4" />
+						</Button>
+						<div class="mx-1 h-4 w-px bg-border"></div>
+						{#if folderSlug !== 'archive'}
+							<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => handleSingleArchive(selected!.id)}>
+								<Archive class="h-4 w-4" />
+							</Button>
+						{/if}
+						<Button variant="ghost" size="icon" class="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onclick={() => handleSingleDelete(selected!.id)}>
+							<Trash2 class="h-4 w-4" />
 						</Button>
 						<span class="ml-2 text-xs">{formatDate(selected.date)}</span>
 					</div>

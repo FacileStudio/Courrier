@@ -592,6 +592,188 @@ func (s *Service) DeleteDraft(ctx context.Context, userID, accountID, emailID in
 	return nil
 }
 
+func (s *Service) MoveEmails(ctx context.Context, userID, accountID int64, emailIDs []int64, destFolderType string) error {
+	account, err := s.getAccount(ctx, userID, accountID)
+	if err != nil {
+		return err
+	}
+
+	var destFolder schemas.Folder
+	if err := s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, destFolderType).First(&destFolder).Error; err != nil {
+		return errors.NotFound(fmt.Sprintf("destination folder %q not found", destFolderType))
+	}
+
+	var emails []schemas.Email
+	if err := s.orm.WithContext(ctx).Where("id IN ? AND account_id = ?", emailIDs, accountID).Find(&emails).Error; err != nil {
+		return errors.Internal("failed to find emails", err)
+	}
+
+	if len(emails) == 0 {
+		return errors.NotFound("no emails found")
+	}
+
+	srcFolderIDs := map[int64]bool{}
+	for _, e := range emails {
+		srcFolderIDs[e.FolderID] = true
+	}
+
+	s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("id IN ? AND account_id = ?", emailIDs, accountID).Update("folder_id", destFolder.ID)
+
+	for folderID := range srcFolderIDs {
+		var count int64
+		s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("folder_id = ? AND is_read = false", folderID).Count(&count)
+		s.orm.WithContext(ctx).Model(&schemas.Folder{}).Where("id = ?", folderID).Update("unread_count", count)
+	}
+	var destUnread int64
+	s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("folder_id = ? AND is_read = false", destFolder.ID).Count(&destUnread)
+	s.orm.WithContext(ctx).Model(&destFolder).Update("unread_count", destUnread)
+
+	go func() {
+		client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+		if err != nil {
+			return
+		}
+		defer func() {
+			client.Logout().Wait()
+			client.Close()
+		}()
+
+		mailboxes, err := listMailboxes(client)
+		if err != nil {
+			return
+		}
+		var destMailbox string
+		for _, mbox := range mailboxes {
+			if detectFolderType(mbox) == destFolderType {
+				destMailbox = mbox.Mailbox
+				break
+			}
+		}
+		if destMailbox == "" {
+			return
+		}
+
+		folderPathCache := map[int64]string{}
+		for _, e := range emails {
+			srcPath, ok := folderPathCache[e.FolderID]
+			if !ok {
+				var f schemas.Folder
+				if s.orm.WithContext(context.Background()).Where("id = ?", e.FolderID).First(&f).Error == nil {
+					srcPath = f.Path
+					folderPathCache[e.FolderID] = srcPath
+				}
+			}
+			if srcPath != "" {
+				moveMessage(client, srcPath, imap.UID(e.IMAPUID), destMailbox)
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (s *Service) DeleteEmails(ctx context.Context, userID, accountID int64, emailIDs []int64) error {
+	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
+		return err
+	}
+
+	var trashFolder schemas.Folder
+	if err := s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeTrash).First(&trashFolder).Error; err != nil {
+		return errors.NotFound("trash folder not found — sync account first")
+	}
+
+	var emails []schemas.Email
+	if err := s.orm.WithContext(ctx).Where("id IN ? AND account_id = ?", emailIDs, accountID).Find(&emails).Error; err != nil {
+		return errors.Internal("failed to find emails", err)
+	}
+
+	alreadyInTrash := []schemas.Email{}
+	notInTrash := []int64{}
+	for _, e := range emails {
+		if e.FolderID == trashFolder.ID {
+			alreadyInTrash = append(alreadyInTrash, e)
+		} else {
+			notInTrash = append(notInTrash, e.ID)
+		}
+	}
+
+	if len(alreadyInTrash) > 0 {
+		ids := make([]int64, len(alreadyInTrash))
+		for i, e := range alreadyInTrash {
+			ids[i] = e.ID
+		}
+		s.orm.WithContext(ctx).Where("id IN ?", ids).Delete(&schemas.Email{})
+		s.orm.WithContext(ctx).Where("email_id IN ?", ids).Delete(&schemas.Attachment{})
+	}
+
+	if len(notInTrash) > 0 {
+		return s.MoveEmails(ctx, userID, accountID, notInTrash, schemas.FolderTypeTrash)
+	}
+
+	return nil
+}
+
+func (s *Service) ArchiveEmails(ctx context.Context, userID, accountID int64, emailIDs []int64) error {
+	return s.MoveEmails(ctx, userID, accountID, emailIDs, schemas.FolderTypeArchive)
+}
+
+func (s *Service) ListTemplates(ctx context.Context, userID int64) ([]schemas.EmailTemplate, error) {
+	var templates []schemas.EmailTemplate
+	if err := s.orm.WithContext(ctx).Where("user_id = ?", userID).Order("updated_at DESC").Find(&templates).Error; err != nil {
+		return nil, errors.Internal("failed to list templates", err)
+	}
+	return templates, nil
+}
+
+func (s *Service) CreateTemplate(ctx context.Context, userID int64, req EmailTemplateRequest) (schemas.EmailTemplate, error) {
+	if req.Name == "" {
+		return schemas.EmailTemplate{}, errors.Invalid("template name is required")
+	}
+
+	tmpl := schemas.EmailTemplate{
+		UserID:   userID,
+		Name:     req.Name,
+		Subject:  req.Subject,
+		BodyHTML: req.BodyHTML,
+		BodyText: req.BodyText,
+	}
+	if err := s.orm.WithContext(ctx).Create(&tmpl).Error; err != nil {
+		return schemas.EmailTemplate{}, errors.Internal("failed to create template", err)
+	}
+	return tmpl, nil
+}
+
+func (s *Service) UpdateTemplate(ctx context.Context, userID, templateID int64, req EmailTemplateRequest) (schemas.EmailTemplate, error) {
+	var tmpl schemas.EmailTemplate
+	if err := s.orm.WithContext(ctx).Where("id = ? AND user_id = ?", templateID, userID).First(&tmpl).Error; err != nil {
+		return schemas.EmailTemplate{}, errors.NotFound("template not found")
+	}
+
+	updates := map[string]any{}
+	if req.Name != "" {
+		updates["name"] = req.Name
+	}
+	updates["subject"] = req.Subject
+	updates["body_html"] = req.BodyHTML
+	updates["body_text"] = req.BodyText
+
+	if err := s.orm.WithContext(ctx).Model(&tmpl).Updates(updates).Error; err != nil {
+		return schemas.EmailTemplate{}, errors.Internal("failed to update template", err)
+	}
+
+	s.orm.WithContext(ctx).Where("id = ?", templateID).First(&tmpl)
+	return tmpl, nil
+}
+
+func (s *Service) DeleteTemplate(ctx context.Context, userID, templateID int64) error {
+	var tmpl schemas.EmailTemplate
+	if err := s.orm.WithContext(ctx).Where("id = ? AND user_id = ?", templateID, userID).First(&tmpl).Error; err != nil {
+		return errors.NotFound("template not found")
+	}
+	s.orm.WithContext(ctx).Delete(&tmpl)
+	return nil
+}
+
 func (s *Service) appendToDrafts(account schemas.Account, msgBytes []byte) {
 	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
 	if err != nil {

@@ -5,7 +5,8 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { toast } from 'svelte-sonner';
-	import { User, Mail, PenLine, Plus, Trash2, Plug, X, Save } from 'lucide-svelte';
+	import { User, Mail, PenLine, Plus, Trash2, Plug, X, Save, FileText, Pencil } from 'lucide-svelte';
+	import type { EmailTemplate } from '$lib/backend';
 
 	const app = getContext<{
 		token: string;
@@ -14,12 +15,13 @@
 		refreshAccounts: () => Promise<void>;
 	}>('app');
 
-	let activeTab = $state<'profile' | 'accounts' | 'signatures'>('profile');
+	let activeTab = $state<'profile' | 'accounts' | 'signatures' | 'templates'>('profile');
 
 	const tabs = [
 		{ id: 'profile' as const, label: 'Profile', icon: User },
 		{ id: 'accounts' as const, label: 'Accounts', icon: Mail },
-		{ id: 'signatures' as const, label: 'Signatures', icon: PenLine }
+		{ id: 'signatures' as const, label: 'Signatures', icon: PenLine },
+		{ id: 'templates' as const, label: 'Templates', icon: FileText }
 	];
 
 	let accounts = $state<MailAccount[]>([]);
@@ -29,6 +31,15 @@
 	let deleting = $state<number | null>(null);
 	let signatures = $state<Record<number, string>>({});
 	let savingSignature = $state<number | null>(null);
+
+	let templates = $state<EmailTemplate[]>([]);
+	let showTemplateForm = $state(false);
+	let editingTemplate = $state<EmailTemplate | null>(null);
+	let templateName = $state('');
+	let templateSubject = $state('');
+	let templateBody = $state('');
+	let savingTemplate = $state(false);
+	let deletingTemplate = $state<number | null>(null);
 
 	let name = $state('');
 	let email = $state('');
@@ -149,7 +160,72 @@
 		return user?.name?.trim() || user?.email || '';
 	}
 
-	onMount(loadAccounts);
+	async function loadTemplates() {
+		try {
+			const result = await backend.listTemplates(app.token);
+			templates = result.templates;
+		} catch {
+			templates = [];
+		}
+	}
+
+	function resetTemplateForm() {
+		templateName = '';
+		templateSubject = '';
+		templateBody = '';
+		showTemplateForm = false;
+		editingTemplate = null;
+	}
+
+	function startEditTemplate(tmpl: EmailTemplate) {
+		editingTemplate = tmpl;
+		templateName = tmpl.name;
+		templateSubject = tmpl.subject;
+		templateBody = tmpl.body_text || tmpl.body_html;
+		showTemplateForm = true;
+	}
+
+	async function saveTemplate() {
+		if (!templateName.trim()) return;
+		savingTemplate = true;
+		try {
+			const data = {
+				name: templateName,
+				subject: templateSubject,
+				body_html: templateBody,
+				body_text: templateBody.replace(/<[^>]*>/g, '')
+			};
+			if (editingTemplate) {
+				await backend.updateTemplate(app.token, editingTemplate.id, data);
+				toast.success('Template updated');
+			} else {
+				await backend.createTemplate(app.token, data);
+				toast.success('Template created');
+			}
+			resetTemplateForm();
+			await loadTemplates();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to save template');
+		}
+		savingTemplate = false;
+	}
+
+	async function deleteTemplate(id: number) {
+		deletingTemplate = id;
+		try {
+			await backend.deleteTemplate(app.token, id);
+			toast.success('Template deleted');
+			await loadTemplates();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to delete template');
+		}
+		deletingTemplate = null;
+	}
+
+	onMount(() => {
+		loadAccounts();
+		loadTemplates();
+	});
 </script>
 
 <svelte:head>
@@ -157,7 +233,7 @@
 </svelte:head>
 
 <div class="flex flex-col gap-0 h-full">
-	<div class="border-b">
+	<div>
 		<div class="px-6 pt-6 pb-0">
 			<h1 class="text-2xl font-semibold">Settings</h1>
 			<p class="text-sm text-muted-foreground mt-1">Manage your account and mail settings.</p>
@@ -406,6 +482,92 @@
 								</Button>
 							</div>
 						{/each}
+					{/if}
+				</div>
+			{:else if activeTab === 'templates'}
+				<div class="space-y-4">
+					{#if templates.length === 0 && !showTemplateForm}
+						<p class="text-sm text-muted-foreground">No templates yet. Create one to speed up composing.</p>
+					{:else if !showTemplateForm}
+						<div class="space-y-0">
+							{#each templates as tmpl, i}
+								<div class="flex items-center justify-between py-3 {i < templates.length - 1 ? 'border-b' : ''}">
+									<div class="min-w-0">
+										<p class="font-medium text-sm">{tmpl.name}</p>
+										{#if tmpl.subject}
+											<p class="text-xs text-muted-foreground">{tmpl.subject}</p>
+										{/if}
+									</div>
+									<div class="flex items-center gap-1 shrink-0">
+										<Button
+											variant="ghost"
+											size="icon"
+											class="h-8 w-8"
+											onclick={() => startEditTemplate(tmpl)}
+										>
+											<Pencil class="h-4 w-4" />
+										</Button>
+										<Button
+											variant="ghost"
+											size="icon"
+											class="h-8 w-8 text-muted-foreground hover:text-destructive"
+											onclick={() => deleteTemplate(tmpl.id)}
+											disabled={deletingTemplate === tmpl.id}
+										>
+											<Trash2 class="h-4 w-4" />
+										</Button>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					{#if showTemplateForm}
+						<div class="space-y-4 pt-2">
+							<div class="space-y-2">
+								<Label for="tmpl-name">Template name</Label>
+								<Input id="tmpl-name" bind:value={templateName} placeholder="e.g. Welcome email" />
+							</div>
+							<div class="space-y-2">
+								<Label for="tmpl-subject">Subject line</Label>
+								<Input id="tmpl-subject" bind:value={templateSubject} placeholder="Subject" />
+							</div>
+							<div class="space-y-2">
+								<Label for="tmpl-body">Body</Label>
+								<textarea
+									id="tmpl-body"
+									bind:value={templateBody}
+									placeholder="Write your template content..."
+									class="h-40 w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 placeholder:text-muted-foreground"
+								></textarea>
+							</div>
+							<div class="flex items-center gap-2">
+								<div class="flex-1"></div>
+								<Button variant="ghost" size="sm" class="gap-1.5" onclick={resetTemplateForm}>
+									<X class="h-4 w-4" />
+									Cancel
+								</Button>
+								<Button
+									size="sm"
+									class="gap-1.5"
+									onclick={saveTemplate}
+									disabled={savingTemplate || !templateName.trim()}
+								>
+									<Save class="h-4 w-4" />
+									{savingTemplate ? 'Saving...' : editingTemplate ? 'Update' : 'Create'}
+								</Button>
+							</div>
+						</div>
+					{:else}
+						<Button
+							variant="outline"
+							size="sm"
+							class="gap-1.5"
+							onclick={() => (showTemplateForm = true)}
+						>
+							<Plus class="h-4 w-4" />
+							New Template
+						</Button>
 					{/if}
 				</div>
 			{/if}

@@ -101,3 +101,25 @@ type ContactResult struct {
 	Email string `json:"email"`
 	Count int    `json:"count"`
 }
+
+type BulkActionRequest struct {
+	EmailIDs []int64 `json:"email_ids"`
+	Action   string  `json:"action"`
+}
+
+type EmailTemplateRequest struct {
+	Name     string `json:"name"`
+	Subject  string `json:"subject"`
+	BodyHTML string `json:"body_html"`
+	BodyText string `json:"body_text"`
+}
+
+type EmailTemplateResponse struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	Subject   string `json:"subject"`
+	BodyHTML  string `json:"body_html"`
+	BodyText  string `json:"body_text"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}

@@ -8,7 +8,9 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
 	import { toast } from 'svelte-sonner';
-	import { X, SendHorizonal, Paperclip, FileText, Type } from 'lucide-svelte';
+	import { X, SendHorizonal, Paperclip, FileText, Type, LayoutTemplate } from 'lucide-svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import type { EmailTemplate } from '$lib/backend';
 	import TiptapEditor from '$lib/components/TiptapEditor.svelte';
 	import AddressInput from '$lib/components/AddressInput.svelte';
 
@@ -33,6 +35,7 @@
 	let fileInput: HTMLInputElement;
 
 	let plainTextMode = $state(false);
+	let templates = $state<EmailTemplate[]>([]);
 
 	let draftId = $state<number | null>(null);
 	let lastSaved = $state<string | null>(null);
@@ -120,7 +123,21 @@
 		savingDraft = false;
 	}
 
+	function applyTemplate(tmpl: EmailTemplate) {
+		subject = tmpl.subject;
+		if (tmpl.body_html) {
+			bodyHtml = tmpl.body_html;
+			initialContent = tmpl.body_html;
+		} else if (tmpl.body_text) {
+			const paragraphs = tmpl.body_text.split('\n').map((line: string) => `<p>${line || '<br>'}</p>`).join('');
+			bodyHtml = paragraphs;
+			initialContent = paragraphs;
+		}
+		bodyPlainText = tmpl.body_text || tmpl.body_html?.replace(/<[^>]*>/g, '') || '';
+	}
+
 	onMount(async () => {
+		backend.listTemplates(app.token).then((r) => { templates = r.templates; }).catch(() => {});
 		const params = page.url.searchParams;
 		const replyId = params.get('reply');
 		const replyAllId = params.get('replyall');
@@ -288,6 +305,34 @@
 			{/if}
 		</div>
 		<div class="flex items-center gap-1">
+			{#if templates.length > 0}
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						<Button
+							variant="ghost"
+							size="icon"
+							class="h-8 w-8"
+							title="Use template"
+						>
+							<LayoutTemplate class="h-4 w-4" />
+						</Button>
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="end" class="w-56">
+						<DropdownMenu.Label>Templates</DropdownMenu.Label>
+						<DropdownMenu.Separator />
+						{#each templates as tmpl}
+							<DropdownMenu.Item onclick={() => applyTemplate(tmpl)}>
+								<div class="flex flex-col gap-0.5">
+									<span class="text-sm">{tmpl.name}</span>
+									{#if tmpl.subject}
+										<span class="text-xs text-muted-foreground">{tmpl.subject}</span>
+									{/if}
+								</div>
+							</DropdownMenu.Item>
+						{/each}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			{/if}
 			<Button
 				variant="ghost"
 				size="icon"

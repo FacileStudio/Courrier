@@ -338,6 +338,51 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			}
 			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"deleted": true})
 		})
+
+		r.Post("/emails/bulk-action", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
+			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+
+			var body BulkActionRequest
+			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+
+			if len(body.EmailIDs) == 0 {
+				httpjson.WriteError(w, errors.Invalid("no email IDs provided"))
+				return
+			}
+
+			switch body.Action {
+			case "delete":
+				if err := service.DeleteEmails(req.Context(), uid, accountID, body.EmailIDs); err != nil {
+					httpjson.WriteError(w, err)
+					return
+				}
+			case "archive":
+				if err := service.ArchiveEmails(req.Context(), uid, accountID, body.EmailIDs); err != nil {
+					httpjson.WriteError(w, err)
+					return
+				}
+			case "mark_read":
+				for _, emailID := range body.EmailIDs {
+					isRead := true
+					service.UpdateEmail(req.Context(), uid, accountID, emailID, UpdateEmailRequest{IsRead: &isRead})
+				}
+			case "mark_unread":
+				for _, emailID := range body.EmailIDs {
+					isRead := false
+					service.UpdateEmail(req.Context(), uid, accountID, emailID, UpdateEmailRequest{IsRead: &isRead})
+				}
+			default:
+				httpjson.WriteError(w, errors.Invalid("unknown action: "+body.Action))
+				return
+			}
+
+			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		})
 	})
 
 	router.Group(func(r chi.Router) {
@@ -353,6 +398,99 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 				return
 			}
 			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		})
+	})
+
+	router.Route("/templates", func(r chi.Router) {
+		r.Use(middleware.RequireAuth(authService))
+
+		r.Get("/", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
+
+			templates, err := service.ListTemplates(req.Context(), uid)
+			if err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			resp := make([]EmailTemplateResponse, len(templates))
+			for i, t := range templates {
+				resp[i] = EmailTemplateResponse{
+					ID:        t.ID,
+					Name:      t.Name,
+					Subject:   t.Subject,
+					BodyHTML:  t.BodyHTML,
+					BodyText:  t.BodyText,
+					CreatedAt: t.CreatedAt.Format("2006-01-02T15:04:05Z"),
+					UpdatedAt: t.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+				}
+			}
+			httpjson.WriteJSON(w, http.StatusOK, map[string]any{"templates": resp})
+		})
+
+		r.Post("/", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
+
+			var body EmailTemplateRequest
+			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+
+			tmpl, err := service.CreateTemplate(req.Context(), uid, body)
+			if err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			httpjson.WriteJSON(w, http.StatusCreated, EmailTemplateResponse{
+				ID:        tmpl.ID,
+				Name:      tmpl.Name,
+				Subject:   tmpl.Subject,
+				BodyHTML:  tmpl.BodyHTML,
+				BodyText:  tmpl.BodyText,
+				CreatedAt: tmpl.CreatedAt.Format("2006-01-02T15:04:05Z"),
+				UpdatedAt: tmpl.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			})
+		})
+
+		r.Put("/{templateId}", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
+			templateID, _ := strconv.ParseInt(chi.URLParam(req, "templateId"), 10, 64)
+
+			var body EmailTemplateRequest
+			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+
+			tmpl, err := service.UpdateTemplate(req.Context(), uid, templateID, body)
+			if err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			httpjson.WriteJSON(w, http.StatusOK, EmailTemplateResponse{
+				ID:        tmpl.ID,
+				Name:      tmpl.Name,
+				Subject:   tmpl.Subject,
+				BodyHTML:  tmpl.BodyHTML,
+				BodyText:  tmpl.BodyText,
+				CreatedAt: tmpl.CreatedAt.Format("2006-01-02T15:04:05Z"),
+				UpdatedAt: tmpl.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			})
+		})
+
+		r.Delete("/{templateId}", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
+			templateID, _ := strconv.ParseInt(chi.URLParam(req, "templateId"), 10, 64)
+
+			if err := service.DeleteTemplate(req.Context(), uid, templateID); err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"deleted": true})
 		})
 	})
 }

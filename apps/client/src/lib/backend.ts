@@ -78,6 +78,16 @@ export type EmailAttachment = {
 	size: number;
 };
 
+export type EmailTemplate = {
+	id: number;
+	name: string;
+	subject: string;
+	body_html: string;
+	body_text: string;
+	created_at: string;
+	updated_at: string;
+};
+
 type ApiErrorPayload = {
 	error?: { message?: string };
 };
@@ -266,5 +276,36 @@ export const backend = {
 		a.click();
 		document.body.removeChild(a);
 		URL.revokeObjectURL(url);
+	},
+
+	bulkAction(token: string, accountId: number, emailIds: number[], action: 'delete' | 'archive' | 'mark_read' | 'mark_unread') {
+		return apiFetch<{ ok: boolean }>(`/accounts/${accountId}/mail/emails/bulk-action`, {
+			method: 'POST',
+			body: JSON.stringify({ email_ids: emailIds, action })
+		}, token);
+	},
+
+	listTemplates(token: string) {
+		return apiFetch<{ templates: EmailTemplate[] }>('/templates', {}, token);
+	},
+
+	createTemplate(token: string, data: { name: string; subject: string; body_html: string; body_text: string }) {
+		return apiFetch<EmailTemplate>('/templates', {
+			method: 'POST',
+			body: JSON.stringify(data)
+		}, token);
+	},
+
+	updateTemplate(token: string, templateId: number, data: { name: string; subject: string; body_html: string; body_text: string }) {
+		return apiFetch<EmailTemplate>(`/templates/${templateId}`, {
+			method: 'PUT',
+			body: JSON.stringify(data)
+		}, token);
+	},
+
+	deleteTemplate(token: string, templateId: number) {
+		return apiFetch<{ deleted: boolean }>(`/templates/${templateId}`, {
+			method: 'DELETE'
+		}, token);
 	}
 };

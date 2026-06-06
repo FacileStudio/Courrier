@@ -20,7 +20,7 @@
       "devDependencies": {
         "@fontsource-variable/inter": "^5.2.8",
         "@internationalized/date": "^3.12.1",
-        "@lucide/svelte": "^1.14.0",
+        "@lucide/svelte": "^1.17.0",
         "@sveltejs/adapter-auto": "^7.0.0",
         "@sveltejs/adapter-node": "^5.5.4",
         "@sveltejs/adapter-static": "^3.0.10",
@@ -120,7 +120,7 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@lucide/svelte": ["@lucide/svelte@1.14.0", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-MVuP5VRCBQa2OaIpaRbuEV4k5OV2dy9MyxA6Tf4Sz/IN0v3zzUU72ObHc9r2Zn/wSMXDg6lLrHrczqI7w7gCzQ=="],
+    "@lucide/svelte": ["@lucide/svelte@1.17.0", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-q06YCFBN5CO8cd1ADmLCxWRVMVb7xxvHzqC0lvNoxGa+FLW6Cd1Y1AOxgbQk4Iwe68vkAMCRveNHint4WoaVKg=="],
 
     "@polka/url": ["@polka/url@1.0.0-next.29", "", {}, "sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww=="],
 

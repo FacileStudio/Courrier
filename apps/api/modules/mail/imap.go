@@ -351,4 +351,33 @@ func storeFlags(client *imapclient.Client, mailbox string, uid imap.UID, op imap
 	return storeCmd.Close()
 }
 
+func moveMessage(client *imapclient.Client, srcMailbox string, uid imap.UID, destMailbox string) error {
+	_, err := client.Select(srcMailbox, nil).Wait()
+	if err != nil {
+		return fmt.Errorf("SELECT %q failed: %w", srcMailbox, err)
+	}
+
+	uidSet := imap.UIDSetNum(uid)
+	moveCmd := client.Move(uidSet, destMailbox)
+	_, err = moveCmd.Wait()
+	if err != nil {
+		copyCmd := client.Copy(uidSet, destMailbox)
+		if _, copyErr := copyCmd.Wait(); copyErr != nil {
+			return fmt.Errorf("COPY to %q failed: %w", destMailbox, copyErr)
+		}
+		storeCmd := client.Store(uidSet, &imap.StoreFlags{
+			Op:     imap.StoreFlagsAdd,
+			Silent: true,
+			Flags:  []imap.Flag{imap.FlagDeleted},
+		}, nil)
+		if storeErr := storeCmd.Close(); storeErr != nil {
+			return fmt.Errorf("flag deleted failed: %w", storeErr)
+		}
+		if expungeErr := client.Expunge().Close(); expungeErr != nil {
+			return fmt.Errorf("expunge failed: %w", expungeErr)
+		}
+	}
+	return nil
+}
+
 var _ = mail.Header{}
