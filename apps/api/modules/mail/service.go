@@ -332,11 +332,7 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 		return errors.Invalid("body is required")
 	}
 
-	if err := sendSMTP(
-		account.SMTPHost,
-		account.SMTPPort,
-		account.SMTPUser,
-		account.SMTPPassword,
+	msgBytes, err := buildMessage(
 		account.Email,
 		account.Name,
 		req.To,
@@ -345,11 +341,64 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 		req.Body,
 		"",
 		nil,
-	); err != nil {
+	)
+	if err != nil {
+		return errors.Internal("failed to build message", err)
+	}
+
+	allRecipients := make([]string, 0, len(req.To)+len(req.Cc))
+	allRecipients = append(allRecipients, req.To...)
+	allRecipients = append(allRecipients, req.Cc...)
+
+	addr := fmt.Sprintf("%s:%d", account.SMTPHost, account.SMTPPort)
+	if account.SMTPPort == 465 {
+		err = sendImplicitTLS(addr, account.SMTPHost, account.SMTPUser, account.SMTPPassword, account.Email, allRecipients, msgBytes)
+	} else {
+		err = sendSTARTTLS(addr, account.SMTPHost, account.SMTPUser, account.SMTPPassword, account.Email, allRecipients, msgBytes)
+	}
+	if err != nil {
 		return errors.Failed(fmt.Sprintf("failed to send: %s", err))
 	}
 
+	go s.appendToSent(account, msgBytes)
+
 	return nil
+}
+
+func (s *Service) appendToSent(account schemas.Account, msgBytes []byte) {
+	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+	if err != nil {
+		return
+	}
+	defer func() {
+		client.Logout().Wait()
+		client.Close()
+	}()
+
+	var sentFolder string
+	mailboxes, err := listMailboxes(client)
+	if err != nil {
+		return
+	}
+	for _, mbox := range mailboxes {
+		if detectFolderType(mbox) == schemas.FolderTypeSent {
+			sentFolder = mbox.Mailbox
+			break
+		}
+	}
+	if sentFolder == "" {
+		return
+	}
+
+	appendCmd := client.Append(sentFolder, int64(len(msgBytes)), &imap.AppendOptions{
+		Flags: []imap.Flag{imap.FlagSeen},
+	})
+	if _, err := appendCmd.Write(msgBytes); err != nil {
+		appendCmd.Close()
+		return
+	}
+	appendCmd.Close()
+	appendCmd.Wait()
 }
 
 func (s *Service) TestConnection(ctx context.Context, req TestConnectionRequest) error {

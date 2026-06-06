@@ -9,6 +9,7 @@
 		token: string;
 		defaultAccountId: number | null;
 		accounts: MailAccount[];
+		folders: { id: number; type: string }[];
 		refreshAccounts: () => Promise<void>;
 	}>('app');
 
@@ -37,6 +38,10 @@
 		try {
 			await backend.syncAccount(app.token, app.defaultAccountId);
 			await app.refreshAccounts();
+			const inboxFolder = app.folders.find((f) => f.type === 'inbox');
+			if (inboxFolder) {
+				await backend.syncFolder(app.token, app.defaultAccountId, inboxFolder.id);
+			}
 			await loadEmails();
 		} catch {
 		}
@@ -84,8 +89,11 @@
 		return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 	}
 
-	onMount(() => {
-		loadEmails();
+	onMount(async () => {
+		await loadEmails();
+		if (emails.length === 0 && app.defaultAccountId) {
+			await syncAndLoad();
+		}
 	});
 </script>
 

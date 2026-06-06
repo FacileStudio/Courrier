@@ -6,7 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { toast } from 'svelte-sonner';
-	import { Trash2 } from 'lucide-svelte';
+	import { Plus, Trash2 } from 'lucide-svelte';
 
 	const app = getContext<{
 		token: string;
@@ -216,13 +216,17 @@
 						</Button>
 						<div class="flex-1"></div>
 						<Button variant="ghost" size="sm" onclick={resetForm}>Cancel</Button>
-						<Button size="sm" onclick={addAccount} disabled={saving || !name || !email || !imapHost || !smtpHost}>
+						<Button size="sm" class="gap-1.5" onclick={addAccount} disabled={saving || !name || !email || !imapHost || !smtpHost}>
+							<Plus class="h-4 w-4" />
 							{saving ? 'Saving...' : 'Add Account'}
 						</Button>
 					</div>
 				</div>
 			{:else}
-				<Button variant="outline" size="sm" onclick={() => (showForm = true)}>Add Account</Button>
+				<Button variant="outline" size="sm" class="gap-1.5" onclick={() => (showForm = true)}>
+					<Plus class="h-4 w-4" />
+					Add Account
+				</Button>
 			{/if}
 		</CardContent>
 	</Card>

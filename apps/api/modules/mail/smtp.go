@@ -12,24 +12,6 @@ import (
 	gomail "github.com/emersion/go-message/mail"
 )
 
-func sendSMTP(host string, port int, user, password, fromEmail, fromName string, toAddrs, ccAddrs []string, subject, bodyText, inReplyTo string, references []string) error {
-	msg, err := buildMessage(fromEmail, fromName, toAddrs, ccAddrs, subject, bodyText, inReplyTo, references)
-	if err != nil {
-		return fmt.Errorf("failed to build message: %w", err)
-	}
-
-	allRecipients := make([]string, 0, len(toAddrs)+len(ccAddrs))
-	allRecipients = append(allRecipients, toAddrs...)
-	allRecipients = append(allRecipients, ccAddrs...)
-
-	addr := fmt.Sprintf("%s:%d", host, port)
-
-	if port == 465 {
-		return sendImplicitTLS(addr, host, user, password, fromEmail, allRecipients, msg)
-	}
-	return sendSTARTTLS(addr, host, user, password, fromEmail, allRecipients, msg)
-}
-
 func sendSTARTTLS(addr, host, user, password, from string, to []string, msg []byte) error {
 	c, err := smtp.Dial(addr)
 	if err != nil {
