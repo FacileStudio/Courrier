@@ -74,6 +74,7 @@ func main() {
 	router.Use(middleware.CORS(appEnv.CORSAllowedOrigins))
 	router.Use(middleware.RequestLogger(appLogger))
 	router.Use(chimiddleware.Recoverer)
+	router.Use(middleware.SecurityHeaders)
 
 	router.Get("/health", func(w http.ResponseWriter, request *http.Request) {
 		httpjson.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
