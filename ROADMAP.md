@@ -25,12 +25,12 @@ Fetch, cache, and display emails. The core email reading experience.
 - [x] Email list view (grouped by folder, unread indicator, date formatting)
 - [x] Email detail view (safe HTML rendering via DOMPurify sanitization)
 - [x] Plain text fallback when no HTML body
-- [ ] Inline image resolution (CID → fetched content)
+- [x] Inline image resolution (CID → fetched content)
 - [x] Attachment list display (filename, size, type icon)
 - [x] Attachment download (lazy-fetch from IMAP by part ID)
 - [x] Read/unread toggle (sync back to IMAP via \Seen flag)
 - [x] Star/flag toggle (sync via \Flagged)
-- [ ] Pagination / infinite scroll for large folders
+- [x] Pagination / infinite scroll for large folders
 - [x] Email caching strategy (IMAP UID validity, incremental sync)
 
 ## Phase 3 — Compose & Send
@@ -38,17 +38,17 @@ Fetch, cache, and display emails. The core email reading experience.
 Write and send emails. Reply, forward, drafts.
 
 - [x] Compose view with rich text editor (Tiptap)
-- [ ] Plain text compose mode
+- [x] Plain text compose mode
 - [x] Reply with quoted body (RFC 3676 format=flowed or HTML quoting)
 - [x] Reply-all with correct recipient handling
 - [x] Forward with original body + attachments
 - [x] In-Reply-To / References headers for proper threading
-- [ ] File attachments (upload → attach to outgoing MIME)
-- [ ] Signature per account (auto-append on compose)
-- [ ] Draft auto-save to IMAP Drafts folder
+- [x] File attachments (upload → attach to outgoing MIME)
+- [x] Signature per account (auto-append on compose)
+- [x] Draft auto-save to IMAP Drafts folder
 - [x] SMTP send via net/smtp (STARTTLS + implicit TLS)
-- [ ] Sent mail copy to IMAP Sent folder
-- [ ] Address autocomplete from recent contacts / address book
+- [x] Sent mail copy to IMAP Sent folder
+- [x] Address autocomplete from recent contacts / address book
 
 ## Phase 4 — Threading & Search
 
