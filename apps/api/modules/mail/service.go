@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/emersion/go-imap/v2"
 
 	"api/internal/errors"
+	"api/internal/httpjson"
 	"api/schemas"
 
 	"gorm.io/gorm"
@@ -265,6 +267,74 @@ func (s *Service) GetEmail(ctx context.Context, userID, accountID, emailID int64
 	return email, nil
 }
 
+func (s *Service) GetEmailWithAttachments(ctx context.Context, userID, accountID, emailID int64) (schemas.Email, []schemas.Attachment, error) {
+	email, err := s.GetEmail(ctx, userID, accountID, emailID)
+	if err != nil {
+		return schemas.Email{}, nil, err
+	}
+
+	var attachments []schemas.Attachment
+	s.orm.WithContext(ctx).Where("email_id = ?", email.ID).Find(&attachments)
+
+	return email, attachments, nil
+}
+
+func (s *Service) DownloadAttachment(w http.ResponseWriter, req *http.Request, userID, accountID, emailID, attachmentID int64) {
+	ctx := req.Context()
+
+	account, err := s.getAccount(ctx, userID, accountID)
+	if err != nil {
+		httpjson.WriteError(w, err)
+		return
+	}
+
+	var email schemas.Email
+	if err := s.orm.WithContext(ctx).Where("id = ? AND account_id = ?", emailID, accountID).First(&email).Error; err != nil {
+		httpjson.WriteError(w, errors.NotFound("email not found"))
+		return
+	}
+
+	var attachment schemas.Attachment
+	if err := s.orm.WithContext(ctx).Where("id = ? AND email_id = ?", attachmentID, emailID).First(&attachment).Error; err != nil {
+		httpjson.WriteError(w, errors.NotFound("attachment not found"))
+		return
+	}
+
+	partNums, err := parsePartID(attachment.PartID)
+	if err != nil {
+		httpjson.WriteError(w, errors.Internal("invalid part ID", err))
+		return
+	}
+
+	var folder schemas.Folder
+	if err := s.orm.WithContext(ctx).Where("id = ?", email.FolderID).First(&folder).Error; err != nil {
+		httpjson.WriteError(w, errors.NotFound("folder not found"))
+		return
+	}
+
+	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+	if err != nil {
+		httpjson.WriteError(w, errors.Failed(err.Error()))
+		return
+	}
+	defer func() {
+		client.Logout().Wait()
+		client.Close()
+	}()
+
+	data, err := fetchAttachmentPart(client, folder.Path, imap.UID(email.IMAPUID), partNums)
+	if err != nil {
+		httpjson.WriteError(w, errors.Internal("failed to fetch attachment", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", attachment.MimeType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, attachment.Filename))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+}
+
 func (s *Service) UpdateEmail(ctx context.Context, userID, accountID, emailID int64, req UpdateEmailRequest) (schemas.Email, error) {
 	account, err := s.getAccount(ctx, userID, accountID)
 	if err != nil {
@@ -336,7 +406,7 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 	if len(req.To) == 0 {
 		return errors.Invalid("at least one recipient is required")
 	}
-	if req.Body == "" {
+	if req.Body == "" && req.BodyHTML == "" {
 		return errors.Invalid("body is required")
 	}
 
@@ -347,8 +417,9 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 		req.Cc,
 		req.Subject,
 		req.Body,
-		"",
-		nil,
+		req.BodyHTML,
+		req.InReplyTo,
+		req.References,
 	)
 	if err != nil {
 		return errors.Internal("failed to build message", err)
@@ -380,6 +451,9 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 			CcAddresses: stringsToAddressJSON(req.Cc),
 			Date:        time.Now(),
 			BodyText:    req.Body,
+			BodyHTML:    req.BodyHTML,
+			InReplyTo:   req.InReplyTo,
+			References:  strings.Join(req.References, " "),
 			IsRead:      true,
 		}
 		s.orm.WithContext(ctx).Create(&email)
@@ -486,7 +560,7 @@ func firstName(addrs []imap.Address) string {
 	return addrs[0].Name
 }
 
-func emailToResponse(e schemas.Email) EmailResponse {
+func emailToResponse(e schemas.Email, attachments ...schemas.Attachment) EmailResponse {
 	resp := EmailResponse{
 		ID:             e.ID,
 		AccountID:      e.AccountID,
@@ -501,10 +575,24 @@ func emailToResponse(e schemas.Email) EmailResponse {
 		IsRead:         e.IsRead,
 		IsStarred:      e.IsStarred,
 		HasAttachments: e.HasAttachments,
+		InReplyTo:      e.InReplyTo,
+		References:     e.References,
 	}
 
 	resp.ToAddresses = parseAddressJSON(e.ToAddresses)
 	resp.CcAddresses = parseAddressJSON(e.CcAddresses)
+
+	if len(attachments) > 0 {
+		resp.Attachments = make([]AttachmentResponse, len(attachments))
+		for i, a := range attachments {
+			resp.Attachments[i] = AttachmentResponse{
+				ID:       a.ID,
+				Filename: a.Filename,
+				MimeType: a.MimeType,
+				Size:     a.Size,
+			}
+		}
+	}
 
 	return resp
 }

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/smtp"
+	"strings"
 	"time"
 
 	gomail "github.com/emersion/go-message/mail"
@@ -90,7 +91,7 @@ func sendImplicitTLS(addr, host, user, password, from string, to []string, msg [
 	return c.Quit()
 }
 
-func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject, bodyText, inReplyTo string, references []string) ([]byte, error) {
+func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject, bodyText, bodyHTML, inReplyTo string, references []string) ([]byte, error) {
 	var buf bytes.Buffer
 
 	var h gomail.Header
@@ -123,18 +124,77 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 		h.SetMsgIDList("References", references)
 	}
 
-	w, err := gomail.CreateSingleInlineWriter(&buf, h)
+	if bodyHTML == "" {
+		w, err := gomail.CreateSingleInlineWriter(&buf, h)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := io.WriteString(w, bodyText); err != nil {
+			return nil, err
+		}
+		if err := w.Close(); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	}
+
+	if bodyText == "" {
+		bodyText = stripHTMLTags(bodyHTML)
+	}
+
+	h.SetContentType("multipart/alternative", map[string]string{"boundary": "courrier-alt-boundary"})
+	mw, err := gomail.CreateWriter(&buf, h)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := io.WriteString(w, bodyText); err != nil {
+
+	var textHeader gomail.InlineHeader
+	textHeader.SetContentType("text/plain", map[string]string{"charset": "utf-8"})
+	tw, err := mw.CreateSingleInline(textHeader)
+	if err != nil {
 		return nil, err
 	}
-	if err := w.Close(); err != nil {
+	if _, err := io.WriteString(tw, bodyText); err != nil {
+		return nil, err
+	}
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+
+	var htmlHeader gomail.InlineHeader
+	htmlHeader.SetContentType("text/html", map[string]string{"charset": "utf-8"})
+	hw, err := mw.CreateSingleInline(htmlHeader)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := io.WriteString(hw, bodyHTML); err != nil {
+		return nil, err
+	}
+	if err := hw.Close(); err != nil {
+		return nil, err
+	}
+
+	if err := mw.Close(); err != nil {
 		return nil, err
 	}
 
 	return buf.Bytes(), nil
+}
+
+func stripHTMLTags(s string) string {
+	var result strings.Builder
+	inTag := false
+	for _, r := range s {
+		switch {
+		case r == '<':
+			inTag = true
+		case r == '>':
+			inTag = false
+		case !inTag:
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }
 
 func testSMTP(host string, port int, user, password string) error {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { getContext, onMount } from 'svelte';
 	import { backend, type MailAccount } from '$lib/backend';
 	import { Button } from '$lib/components/ui/button';
@@ -7,6 +8,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { toast } from 'svelte-sonner';
 	import { X, SendHorizonal } from 'lucide-svelte';
+	import TiptapEditor from '$lib/components/TiptapEditor.svelte';
 
 	const app = getContext<{
 		token: string;
@@ -17,14 +19,77 @@
 	let to = $state('');
 	let cc = $state('');
 	let subject = $state('');
-	let body = $state('');
+	let bodyHtml = $state('');
+	let initialContent = $state('');
 	let sending = $state(false);
+	let inReplyTo = $state('');
+	let references = $state<string[]>([]);
+	let ready = $state(false);
 
-	onMount(() => {
-		const account = app.accounts.find((a) => a.id === app.defaultAccountId);
-		if (account?.signature) {
-			body = `\n\n--\n${account.signature}`;
+	onMount(async () => {
+		const params = page.url.searchParams;
+		const replyId = params.get('reply');
+		const replyAllId = params.get('replyall');
+		const forwardId = params.get('forward');
+		const accountId = params.get('accountId');
+		const emailId = replyId || replyAllId || forwardId;
+
+		if (emailId && accountId) {
+			try {
+				const original = await backend.getEmail(app.token, parseInt(accountId), parseInt(emailId));
+				const account = app.accounts.find((a) => a.id === parseInt(accountId));
+				const currentEmail = account?.email ?? '';
+				const senderDate = new Date(original.date).toLocaleString('fr-FR');
+				const senderName = original.from_name || original.from_address;
+
+				if (replyId || replyAllId) {
+					to = original.from_address;
+
+					if (replyAllId) {
+						const allTo = original.to_addresses
+							.map((a) => a.email)
+							.filter((e) => e !== currentEmail);
+						const allCc = original.cc_addresses
+							.map((a) => a.email)
+							.filter((e) => e !== currentEmail && e !== original.from_address);
+						if (allTo.length > 0) {
+							to = [original.from_address, ...allTo].join(', ');
+						}
+						if (allCc.length > 0) {
+							cc = allCc.join(', ');
+						}
+					}
+
+					subject = original.subject.replace(/^(Re:\s*)+/i, '');
+					subject = `Re: ${subject}`;
+
+					inReplyTo = original.message_id;
+					const existingRefs = original.references ? original.references.split(/\s+/).filter(Boolean) : [];
+					references = [...existingRefs, original.message_id];
+
+					const originalBody = original.body_html || `<p>${original.body_text}</p>`;
+					initialContent = `<p><br></p><p><br></p><blockquote style="border-left: 2px solid #ccc; padding-left: 12px; margin-left: 0; color: #666;"><p>On ${senderDate}, ${senderName} wrote:</p>${originalBody}</blockquote>`;
+				}
+
+				if (forwardId) {
+					subject = original.subject.replace(/^(Fwd:\s*)+/i, '');
+					subject = `Fwd: ${subject}`;
+
+					const toList = original.to_addresses.map((a) => a.email).join(', ');
+					const originalBody = original.body_html || `<p>${original.body_text}</p>`;
+					initialContent = `<p><br></p><p><br></p><p>---------- Forwarded message ----------</p><p>From: ${senderName} &lt;${original.from_address}&gt;</p><p>Date: ${senderDate}</p><p>Subject: ${original.subject}</p><p>To: ${toList}</p><br>${originalBody}`;
+				}
+			} catch {
+				toast.error('Failed to load original email');
+			}
 		}
+
+		const account = app.accounts.find((a) => a.id === app.defaultAccountId);
+		if (account?.signature && !initialContent) {
+			initialContent = `<p><br></p><p><br></p><p>--</p><p>${account.signature}</p>`;
+		}
+
+		ready = true;
 	});
 
 	async function send() {
@@ -33,11 +98,17 @@
 		try {
 			const toAddrs = to.split(',').map((s) => s.trim()).filter(Boolean);
 			const ccAddrs = cc ? cc.split(',').map((s) => s.trim()).filter(Boolean) : [];
+
+			const plainText = bodyHtml.replace(/<[^>]*>/g, '');
+
 			await backend.sendEmail(app.token, app.defaultAccountId, {
 				to: toAddrs,
 				cc: ccAddrs,
 				subject,
-				body
+				body: plainText,
+				body_html: bodyHtml,
+				in_reply_to: inReplyTo || undefined,
+				references: references.length > 0 ? references : undefined
 			});
 			toast.success('Email sent');
 			goto('/mail');
@@ -106,12 +177,11 @@
 			</div>
 		</div>
 
-		<div class="flex-1 overflow-auto p-6">
-			<textarea
-				bind:value={body}
-				placeholder="Write your message..."
-				class="h-full w-full resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
-			></textarea>
-		</div>
+		{#if ready}
+			<TiptapEditor
+				content={initialContent}
+				onchange={(html) => { bodyHtml = html; }}
+			/>
+		{/if}
 	{/if}
 </div>

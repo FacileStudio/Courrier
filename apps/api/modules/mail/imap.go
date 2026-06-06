@@ -222,6 +222,104 @@ func hasAttachments(bs imap.BodyStructure) bool {
 	return found
 }
 
+func extractAttachments(bs imap.BodyStructure, emailID int64) []schemas.Attachment {
+	if bs == nil {
+		return nil
+	}
+	var attachments []schemas.Attachment
+	bs.Walk(func(path []int, part imap.BodyStructure) bool {
+		sp, ok := part.(*imap.BodyStructureSinglePart)
+		if !ok {
+			return true
+		}
+
+		filename := sp.Filename()
+		isAttachment := false
+		var cid string
+
+		disp := sp.Disposition()
+		if disp != nil && strings.EqualFold(disp.Value, "attachment") {
+			isAttachment = true
+		}
+		if filename != "" {
+			isAttachment = true
+		}
+
+		if sp.ID != "" {
+			cid = strings.Trim(sp.ID, "<>")
+			if !isAttachment {
+				isAttachment = true
+			}
+		}
+
+		if !isAttachment {
+			return true
+		}
+
+		partNums := make([]string, len(path))
+		for i, n := range path {
+			partNums[i] = fmt.Sprintf("%d", n)
+		}
+		partID := strings.Join(partNums, ".")
+
+		if filename == "" {
+			filename = "unnamed"
+		}
+
+		attachments = append(attachments, schemas.Attachment{
+			EmailID:  emailID,
+			Filename: filename,
+			MimeType: sp.MediaType(),
+			Size:     int64(sp.Size),
+			CID:      cid,
+			PartID:   partID,
+		})
+		return true
+	})
+	return attachments
+}
+
+func fetchAttachmentPart(client *imapclient.Client, mailbox string, uid imap.UID, partNums []int) ([]byte, error) {
+	_, err := client.Select(mailbox, nil).Wait()
+	if err != nil {
+		return nil, fmt.Errorf("SELECT %q failed: %w", mailbox, err)
+	}
+
+	uidSet := imap.UIDSetNum(uid)
+	bodySection := &imap.FetchItemBodySection{
+		Part: partNums,
+		Peek: true,
+	}
+	fetchCmd := client.Fetch(uidSet, &imap.FetchOptions{
+		BodySection: []*imap.FetchItemBodySection{bodySection},
+	})
+	msgs, err := fetchCmd.Collect()
+	if err != nil {
+		return nil, fmt.Errorf("FETCH part failed: %w", err)
+	}
+	if len(msgs) == 0 {
+		return nil, fmt.Errorf("message not found")
+	}
+
+	data := msgs[0].FindBodySection(bodySection)
+	if data == nil {
+		return nil, fmt.Errorf("body section not found")
+	}
+	return data, nil
+}
+
+func parsePartID(partID string) ([]int, error) {
+	parts := strings.Split(partID, ".")
+	nums := make([]int, len(parts))
+	for i, p := range parts {
+		n, err := fmt.Sscanf(p, "%d", &nums[i])
+		if err != nil || n != 1 {
+			return nil, fmt.Errorf("invalid part id: %s", partID)
+		}
+	}
+	return nums, nil
+}
+
 func imapAddressesToJSON(addrs []imap.Address) string {
 	if len(addrs) == 0 {
 		return "[]"

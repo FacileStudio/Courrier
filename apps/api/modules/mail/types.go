@@ -1,10 +1,13 @@
 package mail
 
 type SendRequest struct {
-	To      []string `json:"to"`
-	Cc      []string `json:"cc"`
-	Subject string   `json:"subject"`
-	Body    string   `json:"body"`
+	To         []string `json:"to"`
+	Cc         []string `json:"cc"`
+	Subject    string   `json:"subject"`
+	Body       string   `json:"body"`
+	BodyHTML   string   `json:"body_html"`
+	InReplyTo  string   `json:"in_reply_to"`
+	References []string `json:"references"`
 }
 
 type TestConnectionRequest struct {
@@ -29,21 +32,31 @@ type FolderResponse struct {
 }
 
 type EmailResponse struct {
-	ID             int64             `json:"id"`
-	AccountID      int64             `json:"account_id"`
-	FolderID       int64             `json:"folder_id"`
-	MessageID      string            `json:"message_id"`
-	Subject        string            `json:"subject"`
-	FromAddress    string            `json:"from_address"`
-	FromName       string            `json:"from_name"`
-	ToAddresses    []AddressResponse `json:"to_addresses"`
-	CcAddresses    []AddressResponse `json:"cc_addresses"`
-	Date           string            `json:"date"`
-	BodyText       string            `json:"body_text,omitempty"`
-	BodyHTML       string            `json:"body_html,omitempty"`
-	IsRead         bool              `json:"is_read"`
-	IsStarred      bool              `json:"is_starred"`
-	HasAttachments bool              `json:"has_attachments"`
+	ID             int64                `json:"id"`
+	AccountID      int64                `json:"account_id"`
+	FolderID       int64                `json:"folder_id"`
+	MessageID      string               `json:"message_id"`
+	Subject        string               `json:"subject"`
+	FromAddress    string               `json:"from_address"`
+	FromName       string               `json:"from_name"`
+	ToAddresses    []AddressResponse    `json:"to_addresses"`
+	CcAddresses    []AddressResponse    `json:"cc_addresses"`
+	Date           string               `json:"date"`
+	BodyText       string               `json:"body_text,omitempty"`
+	BodyHTML       string               `json:"body_html,omitempty"`
+	IsRead         bool                 `json:"is_read"`
+	IsStarred      bool                 `json:"is_starred"`
+	HasAttachments bool                 `json:"has_attachments"`
+	Attachments    []AttachmentResponse `json:"attachments,omitempty"`
+	InReplyTo      string               `json:"in_reply_to,omitempty"`
+	References     string               `json:"references,omitempty"`
+}
+
+type AttachmentResponse struct {
+	ID       int64  `json:"id"`
+	Filename string `json:"filename"`
+	MimeType string `json:"mime_type"`
+	Size     int64  `json:"size"`
 }
 
 type AddressResponse struct {

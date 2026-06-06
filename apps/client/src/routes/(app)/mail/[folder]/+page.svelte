@@ -3,9 +3,9 @@
 	import { goto } from '$app/navigation';
 	import { getContext, onMount } from 'svelte';
 	import DOMPurify from 'dompurify';
-	import { backend, type EmailMessage, type MailAccount } from '$lib/backend';
+	import { backend, type EmailMessage, type EmailAttachment, type MailAccount } from '$lib/backend';
 	import { Button } from '$lib/components/ui/button';
-	import { RefreshCw } from 'lucide-svelte';
+	import { RefreshCw, Paperclip, Download, Reply, ReplyAll, Forward } from 'lucide-svelte';
 
 	const app = getContext<{
 		token: string;
@@ -109,6 +109,17 @@
 		return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 	}
 
+	function formatFileSize(bytes: number): string {
+		if (bytes < 1024) return `${bytes} B`;
+		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+	}
+
+	async function downloadAttachment(attachment: EmailAttachment) {
+		if (!app.defaultAccountId || !selected) return;
+		await backend.downloadAttachment(app.token, app.defaultAccountId, selected.id, attachment.id, attachment.filename);
+	}
+
 	onMount(async () => {
 		await loadEmails();
 		if (emails.length === 0 && app.defaultAccountId) {
@@ -175,9 +186,42 @@
 				<div class="mt-2 flex items-center gap-3 text-sm text-muted-foreground">
 					<span class="font-medium text-foreground">{selected.from_name || selected.from_address}</span>
 					<span>&lt;{selected.from_address}&gt;</span>
-					<span class="ml-auto">{formatDate(selected.date)}</span>
+					<div class="ml-auto flex items-center gap-1">
+						<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => goto(`/mail/compose?reply=${selected!.id}&accountId=${app.defaultAccountId}`)}>
+							<Reply class="h-4 w-4" />
+						</Button>
+						<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => goto(`/mail/compose?replyall=${selected!.id}&accountId=${app.defaultAccountId}`)}>
+							<ReplyAll class="h-4 w-4" />
+						</Button>
+						<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => goto(`/mail/compose?forward=${selected!.id}&accountId=${app.defaultAccountId}`)}>
+							<Forward class="h-4 w-4" />
+						</Button>
+						<span class="ml-2 text-xs">{formatDate(selected.date)}</span>
+					</div>
 				</div>
 			</div>
+			{#if selected.attachments && selected.attachments.length > 0}
+				<div class="border-b px-6 py-3">
+					<div class="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+						<Paperclip class="h-4 w-4" />
+						<span>{selected.attachments.length} attachment{selected.attachments.length > 1 ? 's' : ''}</span>
+					</div>
+					<div class="flex flex-wrap gap-2">
+						{#each selected.attachments as attachment}
+							<Button
+								variant="outline"
+								size="sm"
+								class="gap-2 text-xs"
+								onclick={() => downloadAttachment(attachment)}
+							>
+								<Download class="h-3.5 w-3.5" />
+								<span class="max-w-48 truncate">{attachment.filename}</span>
+								<span class="text-muted-foreground">({formatFileSize(attachment.size)})</span>
+							</Button>
+						{/each}
+					</div>
+				</div>
+			{/if}
 			<div class="flex-1 overflow-auto px-6 py-4">
 				{#if selected.body_html}
 					{@html DOMPurify.sanitize(selected.body_html)}

@@ -67,6 +67,8 @@ export type EmailMessage = {
 	is_starred: boolean;
 	has_attachments: boolean;
 	attachments?: EmailAttachment[];
+	in_reply_to?: string;
+	references?: string;
 };
 
 export type EmailAttachment = {
@@ -183,7 +185,7 @@ export const backend = {
 			body: JSON.stringify(data)
 		}, token);
 	},
-	sendEmail(token: string, accountId: number, data: { to: string[]; cc?: string[]; subject: string; body: string }) {
+	sendEmail(token: string, accountId: number, data: { to: string[]; cc?: string[]; subject: string; body: string; body_html?: string; in_reply_to?: string; references?: string[] }) {
 		return apiFetch<{ sent: boolean }>(`/accounts/${accountId}/mail/send`, {
 			method: 'POST',
 			body: JSON.stringify(data)
@@ -194,5 +196,28 @@ export const backend = {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
+	},
+
+	getAttachmentUrl(token: string, accountId: number, emailId: number, attachmentId: number): string {
+		return `${backendBaseUrl}/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download?token=${encodeURIComponent(token)}`;
+	},
+
+	async downloadAttachment(token: string, accountId: number, emailId: number, attachmentId: number, filename: string): Promise<void> {
+		const response = await fetch(
+			`${backendBaseUrl}/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download`,
+			{ headers: { Authorization: `Bearer ${token}` } }
+		);
+		if (!response.ok) {
+			throw new Error(`Download failed with status ${response.status}`);
+		}
+		const blob = await response.blob();
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
 	}
 };

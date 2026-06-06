@@ -97,12 +97,22 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			emailID, _ := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
 
-			email, err := service.GetEmail(req.Context(), uid, accountID, emailID)
+			email, attachments, err := service.GetEmailWithAttachments(req.Context(), uid, accountID, emailID)
 			if err != nil {
 				httpjson.WriteError(w, err)
 				return
 			}
-			httpjson.WriteJSON(w, http.StatusOK, emailToResponse(email))
+			httpjson.WriteJSON(w, http.StatusOK, emailToResponse(email, attachments...))
+		})
+
+		r.Get("/emails/{emailId}/attachments/{attachmentId}/download", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
+			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			emailID, _ := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+			attachmentID, _ := strconv.ParseInt(chi.URLParam(req, "attachmentId"), 10, 64)
+
+			service.DownloadAttachment(w, req, uid, accountID, emailID, attachmentID)
 		})
 
 		r.Patch("/emails/{emailId}", func(w http.ResponseWriter, req *http.Request) {
