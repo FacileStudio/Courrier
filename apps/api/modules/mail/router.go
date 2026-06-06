@@ -84,12 +84,16 @@ func extensionFromFilename(name string) string {
 
 func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service) {
 	router.Get("/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}", func(w http.ResponseWriter, req *http.Request) {
-		token := req.URL.Query().Get("token")
-		if token == "" {
-			httpjson.WriteError(w, errors.Unauthorized("missing token"))
-			return
+		authHeader := req.Header.Get("Authorization")
+		if authHeader == "" {
+			token := req.URL.Query().Get("token")
+			if token == "" {
+				httpjson.WriteError(w, errors.Unauthorized("missing token"))
+				return
+			}
+			authHeader = "Bearer " + token
 		}
-		userID, _, err := authService.Authenticate(req.Context(), "Bearer "+token)
+		userID, _, err := authService.Authenticate(req.Context(), authHeader)
 		if err != nil {
 			httpjson.WriteError(w, err)
 			return
@@ -304,16 +308,19 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 	})
 
-	router.Post("/mail/test-connection", func(w http.ResponseWriter, req *http.Request) {
-		var body TestConnectionRequest
-		if err := httpjson.DecodeJSON(w, req, &body); err != nil {
-			httpjson.WriteError(w, err)
-			return
-		}
-		if err := service.TestConnection(req.Context(), body); err != nil {
-			httpjson.WriteError(w, err)
-			return
-		}
-		httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	router.Group(func(r chi.Router) {
+		r.Use(middleware.RequireAuth(authService))
+		r.Post("/mail/test-connection", func(w http.ResponseWriter, req *http.Request) {
+			var body TestConnectionRequest
+			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			if err := service.TestConnection(req.Context(), body); err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		})
 	})
 }

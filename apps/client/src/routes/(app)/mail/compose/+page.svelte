@@ -39,10 +39,18 @@
 	let savingDraft = $state(false);
 	let saveTimer: ReturnType<typeof setTimeout>;
 
+	function escapeHtml(s: string): string {
+		return s
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;');
+	}
+
 	function buildSignatureHtml(signature: string): string {
 		const sigLines = signature
 			.split('\n')
-			.map((l) => `<p>${l || '<br>'}</p>`)
+			.map((l) => `<p>${escapeHtml(l) || '<br>'}</p>`)
 			.join('');
 		return `<p><br></p><p>--</p>${sigLines}`;
 	}
@@ -135,7 +143,7 @@
 				subject = draft.subject;
 				bodyHtml = draft.body_html || '';
 				bodyPlainText = draft.body_text || '';
-				initialContent = draft.body_html || `<p>${draft.body_text || ''}</p>`;
+				initialContent = draft.body_html || `<p>${escapeHtml(draft.body_text || '')}</p>`;
 				inReplyTo = draft.in_reply_to || '';
 				references = draft.references ? draft.references.split(/\s+/).filter(Boolean) : [];
 				draftId = parseInt(loadDraftId);
@@ -147,8 +155,8 @@
 				const original = await backend.getEmail(app.token, parseInt(accountId), parseInt(emailId));
 				const acct = app.accounts.find((a) => a.id === parseInt(accountId));
 				const currentEmail = acct?.email ?? '';
-				const senderDate = new Date(original.date).toLocaleString('fr-FR');
-				const senderName = original.from_name || original.from_address;
+				const senderDate = escapeHtml(new Date(original.date).toLocaleString('fr-FR'));
+				const senderName = escapeHtml(original.from_name || original.from_address);
 
 				if (replyId || replyAllId) {
 					to = original.from_address;
@@ -175,7 +183,7 @@
 					const existingRefs = original.references ? original.references.split(/\s+/).filter(Boolean) : [];
 					references = [...existingRefs, original.message_id];
 
-					const originalBody = original.body_html || `<p>${original.body_text}</p>`;
+					const originalBody = original.body_html || `<p>${escapeHtml(original.body_text)}</p>`;
 					const quotedBlock = `<blockquote style="border-left: 2px solid #ccc; padding-left: 12px; margin-left: 0; color: #666;"><p>On ${senderDate}, ${senderName} wrote:</p>${originalBody}</blockquote>`;
 					initialContent = `<p><br></p>${signatureHtml}<p><br></p>${quotedBlock}`;
 				}
@@ -184,9 +192,9 @@
 					subject = original.subject.replace(/^(Fwd:\s*)+/i, '');
 					subject = `Fwd: ${subject}`;
 
-					const toList = original.to_addresses.map((a) => a.email).join(', ');
-					const originalBody = original.body_html || `<p>${original.body_text}</p>`;
-					const forwardBlock = `<p>---------- Forwarded message ----------</p><p>From: ${senderName} &lt;${original.from_address}&gt;</p><p>Date: ${senderDate}</p><p>Subject: ${original.subject}</p><p>To: ${toList}</p><br>${originalBody}`;
+					const toList = escapeHtml(original.to_addresses.map((a) => a.email).join(', '));
+					const originalBody = original.body_html || `<p>${escapeHtml(original.body_text)}</p>`;
+					const forwardBlock = `<p>---------- Forwarded message ----------</p><p>From: ${senderName} &lt;${escapeHtml(original.from_address)}&gt;</p><p>Date: ${senderDate}</p><p>Subject: ${escapeHtml(original.subject)}</p><p>To: ${toList}</p><br>${originalBody}`;
 					initialContent = `<p><br></p>${signatureHtml}<p><br></p>${forwardBlock}`;
 				}
 			} catch {

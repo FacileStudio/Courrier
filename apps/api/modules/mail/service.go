@@ -329,7 +329,7 @@ func (s *Service) DownloadAttachment(w http.ResponseWriter, req *http.Request, u
 	}
 
 	w.Header().Set("Content-Type", attachment.MimeType)
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, attachment.Filename))
+	w.Header().Set("Content-Disposition", sanitizeContentDisposition(attachment.Filename))
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
@@ -578,8 +578,13 @@ func (s *Service) DeleteDraft(ctx context.Context, userID, accountID, emailID in
 		return err
 	}
 
+	var draftsFolder schemas.Folder
+	if err := s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeDrafts).First(&draftsFolder).Error; err != nil {
+		return errors.NotFound("drafts folder not found")
+	}
+
 	var email schemas.Email
-	if err := s.orm.WithContext(ctx).Where("id = ? AND account_id = ?", emailID, accountID).First(&email).Error; err != nil {
+	if err := s.orm.WithContext(ctx).Where("id = ? AND account_id = ? AND folder_id = ?", emailID, accountID, draftsFolder.ID).First(&email).Error; err != nil {
 		return errors.NotFound("draft not found")
 	}
 
@@ -691,7 +696,7 @@ func (s *Service) SearchContacts(ctx context.Context, userID, accountID int64, q
 		return nil, err
 	}
 
-	pattern := "%" + strings.ToLower(query) + "%"
+	pattern := "%" + escapeLikePattern(strings.ToLower(query)) + "%"
 
 	type fromRow struct {
 		FromAddress string
@@ -876,6 +881,26 @@ func parseAddressJSON(raw string) []AddressResponse {
 		return []AddressResponse{}
 	}
 	return addrs
+}
+
+func sanitizeContentDisposition(filename string) string {
+	sanitized := strings.Map(func(r rune) rune {
+		if r == '"' || r == '\\' || r == '/' || r == '\n' || r == '\r' || r < 32 {
+			return '_'
+		}
+		return r
+	}, filename)
+	if sanitized == "" {
+		sanitized = "download"
+	}
+	return fmt.Sprintf(`attachment; filename="%s"`, sanitized)
+}
+
+func escapeLikePattern(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "%", "\\%")
+	s = strings.ReplaceAll(s, "_", "\\_")
+	return s
 }
 
 func folderToResponse(f schemas.Folder) FolderResponse {
