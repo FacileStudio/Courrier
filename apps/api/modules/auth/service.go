@@ -18,6 +18,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const SessionTTL = 30 * 24 * time.Hour
+
 type Service struct {
 	orm        *gorm.DB
 	storageDir string
@@ -87,7 +89,7 @@ func (service *Service) insertSession(context context.Context, token string, use
 	record := &schemas.Session{
 		Token:     authcrypto.HashToken(token),
 		UserID:    userID,
-		ExpiresAt: time.Now().Add(30 * 24 * time.Hour),
+		ExpiresAt: time.Now().Add(SessionTTL),
 	}
 	if err := service.orm.WithContext(context).Create(record).Error; err != nil {
 		return errors.Internal("failed to persist session", err)
@@ -153,6 +155,11 @@ func (service *Service) authenticateRequest(context context.Context, authorizati
 
 func (service *Service) Authenticate(context context.Context, authorization string) (string, any, error) {
 	return service.authenticateRequest(context, authorization)
+}
+
+func (service *Service) deleteSession(ctx context.Context, token string) error {
+	hashed := authcrypto.HashToken(token)
+	return service.orm.WithContext(ctx).Where("token = ?", hashed).Delete(&schemas.Session{}).Error
 }
 
 func (service *Service) upsertOIDCUser(ctx context.Context, email string, profile oidcavatar.Profile, oauth2Token *oauth2.Token) (userID string, token string, err error) {

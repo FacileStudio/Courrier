@@ -15,7 +15,6 @@
 	import AddressInput from '$lib/components/AddressInput.svelte';
 
 	const app = getContext<{
-		token: string;
 		defaultAccountId: number | null;
 		accounts: MailAccount[];
 	}>('app');
@@ -103,10 +102,10 @@
 			const bodyHtmlValue = plainTextMode ? undefined : bodyHtml;
 
 			if (draftId) {
-				await backend.deleteDraft(app.token, app.defaultAccountId, draftId);
+				await backend.deleteDraft(app.defaultAccountId, draftId);
 			}
 
-			const result = await backend.saveDraft(app.token, app.defaultAccountId, {
+			const result = await backend.saveDraft(app.defaultAccountId, {
 				to: toAddrs,
 				cc: ccAddrs,
 				subject,
@@ -137,7 +136,7 @@
 	}
 
 	onMount(async () => {
-		backend.listTemplates(app.token).then((r) => { templates = r.templates; }).catch(() => {});
+		backend.listTemplates().then((r) => { templates = r.templates; }).catch(() => {});
 		const params = page.url.searchParams;
 		const replyId = params.get('reply');
 		const replyAllId = params.get('replyall');
@@ -154,7 +153,7 @@
 
 		if (loadDraftId && app.defaultAccountId) {
 			try {
-				const draft = await backend.getEmail(app.token, app.defaultAccountId, parseInt(loadDraftId));
+				const draft = await backend.getEmail(app.defaultAccountId, parseInt(loadDraftId));
 				to = draft.to_addresses.map((a) => a.email).join(', ');
 				cc = draft.cc_addresses.map((a) => a.email).join(', ');
 				subject = draft.subject;
@@ -169,7 +168,7 @@
 			}
 		} else if (emailId && accountId) {
 			try {
-				const original = await backend.getEmail(app.token, parseInt(accountId), parseInt(emailId));
+				const original = await backend.getEmail(parseInt(accountId), parseInt(emailId));
 				const acct = app.accounts.find((a) => a.id === parseInt(accountId));
 				const currentEmail = acct?.email ?? '';
 				const senderDate = escapeHtml(new Date(original.date).toLocaleString('fr-FR'));
@@ -253,10 +252,10 @@
 				for (const file of attachedFiles) {
 					formData.append('attachments', file, file.name);
 				}
-				await backend.sendEmailWithAttachments(app.token, app.defaultAccountId, formData);
+				await backend.sendEmailWithAttachments(app.defaultAccountId, formData);
 			} else {
 				const body = plainTextMode ? bodyPlainText : bodyHtml.replace(/<[^>]*>/g, '');
-				await backend.sendEmail(app.token, app.defaultAccountId, {
+				await backend.sendEmail(app.defaultAccountId, {
 					to: toAddrs,
 					cc: ccAddrs,
 					subject,
@@ -269,7 +268,7 @@
 
 			if (draftId && app.defaultAccountId) {
 				try {
-					await backend.deleteDraft(app.token, app.defaultAccountId, draftId);
+					await backend.deleteDraft(app.defaultAccountId, draftId);
 				} catch {
 					// best effort
 				}
@@ -382,7 +381,6 @@
 					label="To"
 					value={to}
 					onchange={(v) => { to = v; scheduleDraftSave(); }}
-					token={app.token}
 					accountId={app.defaultAccountId ?? 0}
 					placeholder="recipient@example.com"
 				/>
@@ -393,7 +391,6 @@
 					label="Cc"
 					value={cc}
 					onchange={(v) => { cc = v; scheduleDraftSave(); }}
-					token={app.token}
 					accountId={app.defaultAccountId ?? 0}
 					placeholder="cc@example.com"
 				/>

@@ -9,7 +9,6 @@
 		onchange,
 		label = 'To',
 		id = '',
-		token = '',
 		accountId = 0,
 		placeholder = ''
 	}: {
@@ -17,7 +16,6 @@
 		onchange: (value: string) => void;
 		label?: string;
 		id?: string;
-		token?: string;
 		accountId?: number;
 		placeholder?: string;
 	} = $props();
@@ -36,14 +34,14 @@
 
 	function search(query: string) {
 		if (debounceTimer) clearTimeout(debounceTimer);
-		if (!query || query.length < 2 || !token || !accountId) {
+		if (!query || query.length < 2 || !accountId) {
 			suggestions = [];
 			showDropdown = false;
 			return;
 		}
 		debounceTimer = setTimeout(async () => {
 			try {
-				const res = await backend.searchContacts(token, accountId, query);
+				const res = await backend.searchContacts(accountId, query);
 				suggestions = res.contacts ?? [];
 				selectedIndex = -1;
 				showDropdown = suggestions.length > 0;

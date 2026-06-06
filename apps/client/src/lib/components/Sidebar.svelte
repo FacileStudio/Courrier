@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Inbox, Send, FileEdit, Trash2, Archive, AlertCircle, LogOut, PenLine } from 'lucide-svelte';
-	import type { UserProfile, Folder } from '$lib/backend';
+	import { backend, type UserProfile, type Folder } from '$lib/backend';
 
 	let { user, folders = [] }: { user: UserProfile | null; folders?: Folder[] } = $props();
 
@@ -19,8 +19,8 @@
 		return currentUser?.name?.trim() || currentUser?.email || '';
 	}
 
-	function logout() {
-		localStorage.removeItem('courrier.token');
+	async function logout() {
+		try { await backend.logout(); } catch {}
 		goto('/login');
 	}
 

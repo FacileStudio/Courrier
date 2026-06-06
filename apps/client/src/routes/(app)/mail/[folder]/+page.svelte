@@ -15,7 +15,6 @@
 	import DeleteConfirmDialog from '$lib/components/DeleteConfirmDialog.svelte';
 
 	const app = getContext<{
-		token: string;
 		defaultAccountId: number | null;
 		accounts: MailAccount[];
 		folders: { id: number; type: string }[];
@@ -44,8 +43,6 @@
 	let loadingMore = $state(false);
 	let listContainer = $state<HTMLDivElement | null>(null);
 	let sentinel = $state<HTMLDivElement | null>(null);
-	let resourceToken = $state<string | null>(null);
-
 	let checkedIds = $state<Set<number>>(new Set());
 	let deleteDialogOpen = $state(false);
 	let deleteTarget = $state<number[]>([]);
@@ -82,23 +79,15 @@
 		}
 	});
 
-	async function ensureResourceToken(): Promise<string> {
-		if (!resourceToken) {
-			const res = await backend.getResourceToken(app.token);
-			resourceToken = res.token;
-		}
-		return resourceToken;
-	}
-
-	function resolveCIDImages(html: string, accountId: number, emailId: number, token: string): string {
+	function resolveCIDImages(html: string, accountId: number, emailId: number): string {
 		return html.replace(/src=["']cid:([^"']+)["']/gi, (_match, cid) => {
-			return `src="${backend.getCIDImageUrl(token, accountId, emailId, cid)}"`;
+			return `src="${backend.getCIDImageUrl(accountId, emailId, cid)}"`;
 		});
 	}
 
 	function sanitizeHTML(html: string): string {
-		if (!html || !app.defaultAccountId || !selectedId || !resourceToken) return html;
-		const resolved = resolveCIDImages(html, app.defaultAccountId, selectedId, resourceToken);
+		if (!html || !app.defaultAccountId || !selectedId) return html;
+		const resolved = resolveCIDImages(html, app.defaultAccountId, selectedId);
 		return DOMPurify.sanitize(resolved);
 	}
 
@@ -114,7 +103,7 @@
 		loading = !cached;
 		currentPage = 1;
 		try {
-			const result = await backend.getEmailsByFolder(app.token, app.defaultAccountId, folderSlug, 1, LIMIT);
+			const result = await backend.getEmailsByFolder(app.defaultAccountId, folderSlug, 1, LIMIT);
 			emails = result.emails;
 			totalEmails = result.total;
 			mailCache.set(app.defaultAccountId, folderSlug, 1, result.emails, result.total);
@@ -142,7 +131,7 @@
 		}
 
 		try {
-			const result = await backend.getEmailsByFolder(app.token, app.defaultAccountId, folderSlug, nextPage, LIMIT);
+			const result = await backend.getEmailsByFolder(app.defaultAccountId, folderSlug, nextPage, LIMIT);
 			emails = [...emails, ...result.emails];
 			totalEmails = result.total;
 			currentPage = nextPage;
@@ -155,11 +144,11 @@
 		if (!app.defaultAccountId) return;
 		syncing = true;
 		try {
-			await backend.syncAccount(app.token, app.defaultAccountId);
+			await backend.syncAccount(app.defaultAccountId);
 			await app.refreshAccounts();
 			const folder = app.folders.find((f) => f.type === folderSlug);
 			if (folder) {
-				await backend.syncFolder(app.token, app.defaultAccountId, folder.id);
+				await backend.syncFolder(app.defaultAccountId, folder.id);
 			}
 			mailCache.invalidateFolder(app.defaultAccountId, folderSlug);
 			await loadEmails();
@@ -171,20 +160,16 @@
 		selectedId = email.id;
 		if (!app.defaultAccountId) return;
 
-		try {
-			await ensureResourceToken();
-		} catch {}
-
 		if (!email.body_text && !email.body_html) {
 			try {
-				const full = await backend.getEmail(app.token, app.defaultAccountId, email.id);
+				const full = await backend.getEmail(app.defaultAccountId, email.id);
 				emails = emails.map((e) => (e.id === email.id ? full : e));
 			} catch {}
 		}
 
 		if (!email.is_read) {
 			try {
-				await backend.updateEmail(app.token, app.defaultAccountId, email.id, { is_read: true });
+				await backend.updateEmail(app.defaultAccountId, email.id, { is_read: true });
 				emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: true } : e));
 			} catch {}
 		}
@@ -208,7 +193,7 @@
 
 	async function downloadAttachment(attachment: EmailAttachment) {
 		if (!app.defaultAccountId || !selected) return;
-		await backend.downloadAttachment(app.token, app.defaultAccountId, selected.id, attachment.id, attachment.filename);
+		await backend.downloadAttachment(app.defaultAccountId, selected.id, attachment.id, attachment.filename);
 	}
 
 	async function handleBulkDelete() {
@@ -221,7 +206,7 @@
 		bulkLoading = true;
 		const count = deleteTarget.length;
 		try {
-			await backend.bulkAction(app.token, app.defaultAccountId, deleteTarget, 'delete');
+			await backend.bulkAction(app.defaultAccountId, deleteTarget, 'delete');
 			emails = emails.filter((e) => !deleteTarget.includes(e.id));
 			totalEmails = Math.max(0, totalEmails - count);
 			mailCache.removeEmails(deleteTarget);
@@ -240,7 +225,7 @@
 		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
-			await backend.bulkAction(app.token, app.defaultAccountId, ids, 'archive');
+			await backend.bulkAction(app.defaultAccountId, ids, 'archive');
 			emails = emails.filter((e) => !ids.includes(e.id));
 			totalEmails = Math.max(0, totalEmails - ids.length);
 			mailCache.removeEmails(ids);
@@ -258,7 +243,7 @@
 		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
-			await backend.bulkAction(app.token, app.defaultAccountId, ids, 'mark_read');
+			await backend.bulkAction(app.defaultAccountId, ids, 'mark_read');
 			emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: true } : e));
 			checkedIds = new Set();
 		} catch {
@@ -272,7 +257,7 @@
 		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
-			await backend.bulkAction(app.token, app.defaultAccountId, ids, 'mark_unread');
+			await backend.bulkAction(app.defaultAccountId, ids, 'mark_unread');
 			emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: false } : e));
 			checkedIds = new Set();
 		} catch {
@@ -289,7 +274,7 @@
 	async function handleSingleArchive(emailId: number) {
 		if (!app.defaultAccountId) return;
 		try {
-			await backend.bulkAction(app.token, app.defaultAccountId, [emailId], 'archive');
+			await backend.bulkAction(app.defaultAccountId, [emailId], 'archive');
 			emails = emails.filter((e) => e.id !== emailId);
 			totalEmails = Math.max(0, totalEmails - 1);
 			mailCache.removeEmails([emailId]);
@@ -303,7 +288,7 @@
 	async function handleToggleRead(email: EmailMessage) {
 		if (!app.defaultAccountId) return;
 		try {
-			await backend.updateEmail(app.token, app.defaultAccountId, email.id, { is_read: !email.is_read });
+			await backend.updateEmail(app.defaultAccountId, email.id, { is_read: !email.is_read });
 			emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: !email.is_read } : e));
 		} catch {}
 	}
@@ -311,7 +296,7 @@
 	async function handleToggleStar(email: EmailMessage) {
 		if (!app.defaultAccountId) return;
 		try {
-			await backend.updateEmail(app.token, app.defaultAccountId, email.id, { is_starred: !email.is_starred });
+			await backend.updateEmail(app.defaultAccountId, email.id, { is_starred: !email.is_starred });
 			emails = emails.map((e) => (e.id === email.id ? { ...e, is_starred: !email.is_starred } : e));
 		} catch {}
 	}
@@ -324,7 +309,6 @@
 		selectedId = null;
 		currentPage = 1;
 		totalEmails = 0;
-		resourceToken = null;
 
 		const cached = mailCache.get(app.defaultAccountId, _folder, 1);
 		if (cached) {
@@ -338,7 +322,7 @@
 
 		(async () => {
 			try {
-				const result = await backend.getEmailsByFolder(app.token, app.defaultAccountId!, _folder, 1, LIMIT);
+				const result = await backend.getEmailsByFolder(app.defaultAccountId!, _folder, 1, LIMIT);
 				emails = result.emails;
 				totalEmails = result.total;
 				mailCache.set(app.defaultAccountId!, _folder, 1, result.emails, result.total);

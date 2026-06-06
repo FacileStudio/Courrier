@@ -6,7 +6,6 @@
 
 	let { children } = $props();
 
-	let token = $state('');
 	let user = $state<UserProfile | null>(null);
 	let loaded = $state(false);
 	let accounts = $state<MailAccount[]>([]);
@@ -18,7 +17,6 @@
 	}
 
 	setContext('app', {
-		get token() { return token; },
 		get user() { return user; },
 		get accounts() { return accounts; },
 		get defaultAccountId() { return defaultAccountId; },
@@ -28,16 +26,15 @@
 	});
 
 	async function refreshAccounts() {
-		if (!token) return;
 		try {
-			const result = await backend.listAccounts(token);
+			const result = await backend.listAccounts();
 			accounts = result.accounts;
 			const def = accounts.find((a) => a.is_default) ?? accounts[0] ?? null;
 			defaultAccountId = def?.id ?? null;
 
 			if (defaultAccountId) {
 				try {
-					const folderResult = await backend.getFolders(token, defaultAccountId);
+					const folderResult = await backend.getFolders(defaultAccountId);
 					folders = folderResult.folders;
 				} catch {
 					folders = [];
@@ -49,19 +46,13 @@
 	}
 
 	onMount(async () => {
-		const stored = localStorage.getItem('courrier.token') ?? '';
-		if (!stored) {
-			goto('/login');
-			return;
-		}
 		try {
-			const result = await backend.me(stored);
-			token = stored;
+			const result = await backend.me();
 			user = result.user;
 			loaded = true;
-			backend.syncProfile(stored).then(async (r) => {
+			backend.syncProfile().then(async (r) => {
 				if (r.synced) {
-					const fresh = await backend.me(stored);
+					const fresh = await backend.me();
 					user = fresh.user;
 				}
 			}).catch(() => {});

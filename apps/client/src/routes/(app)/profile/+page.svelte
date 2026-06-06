@@ -9,7 +9,6 @@
 	import type { EmailTemplate } from '$lib/backend';
 
 	const app = getContext<{
-		token: string;
 		user: UserProfile | null;
 		setUser: (user: UserProfile) => void;
 		refreshAccounts: () => Promise<void>;
@@ -67,7 +66,7 @@
 	}
 
 	async function loadAccounts() {
-		const result = await backend.listAccounts(app.token);
+		const result = await backend.listAccounts();
 		accounts = result.accounts;
 		for (const account of accounts) {
 			if (!(account.id in signatures)) {
@@ -79,7 +78,7 @@
 	async function saveSignature(accountId: number) {
 		savingSignature = accountId;
 		try {
-			await backend.updateAccount(app.token, accountId, { signature: signatures[accountId] });
+			await backend.updateAccount(accountId, { signature: signatures[accountId] });
 			toast.success('Signature saved');
 			await app.refreshAccounts();
 		} catch (err) {
@@ -112,7 +111,7 @@
 		if (!name || !email || !imapHost || !smtpHost) return;
 		saving = true;
 		try {
-			await backend.createAccount(app.token, {
+			await backend.createAccount({
 				name,
 				email,
 				imap_host: imapHost,
@@ -139,7 +138,7 @@
 	async function deleteAccount(id: number) {
 		deleting = id;
 		try {
-			await backend.deleteAccount(app.token, id);
+			await backend.deleteAccount(id);
 			toast.success('Account deleted');
 			await loadAccounts();
 			await app.refreshAccounts();
@@ -162,7 +161,7 @@
 
 	async function loadTemplates() {
 		try {
-			const result = await backend.listTemplates(app.token);
+			const result = await backend.listTemplates();
 			templates = result.templates;
 		} catch {
 			templates = [];
@@ -196,10 +195,10 @@
 				body_text: templateBody.replace(/<[^>]*>/g, '')
 			};
 			if (editingTemplate) {
-				await backend.updateTemplate(app.token, editingTemplate.id, data);
+				await backend.updateTemplate(editingTemplate.id, data);
 				toast.success('Template updated');
 			} else {
-				await backend.createTemplate(app.token, data);
+				await backend.createTemplate(data);
 				toast.success('Template created');
 			}
 			resetTemplateForm();
@@ -213,7 +212,7 @@
 	async function deleteTemplate(id: number) {
 		deletingTemplate = id;
 		try {
-			await backend.deleteTemplate(app.token, id);
+			await backend.deleteTemplate(id);
 			toast.success('Template deleted');
 			await loadTemplates();
 		} catch (err) {
