@@ -1,10 +1,14 @@
 package mail
 
 import (
+	"io"
+	"mime"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"api/internal/authcontext"
+	"api/internal/errors"
 	"api/internal/httpjson"
 	"api/internal/middleware"
 	"api/modules/auth"
@@ -12,7 +16,92 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+func parseSendMultipart(req *http.Request) (SendRequest, error) {
+	if err := req.ParseMultipartForm(25 << 20); err != nil {
+		return SendRequest{}, errors.TooLarge("request too large or invalid multipart")
+	}
+
+	var sr SendRequest
+	if v := req.FormValue("to"); v != "" {
+		sr.To = strings.Split(v, ",")
+		for i := range sr.To {
+			sr.To[i] = strings.TrimSpace(sr.To[i])
+		}
+	}
+	if v := req.FormValue("cc"); v != "" {
+		sr.Cc = strings.Split(v, ",")
+		for i := range sr.Cc {
+			sr.Cc[i] = strings.TrimSpace(sr.Cc[i])
+		}
+	}
+	sr.Subject = req.FormValue("subject")
+	sr.Body = req.FormValue("body")
+	sr.BodyHTML = req.FormValue("body_html")
+	sr.InReplyTo = req.FormValue("in_reply_to")
+	if v := req.FormValue("references"); v != "" {
+		sr.References = strings.Split(v, ",")
+		for i := range sr.References {
+			sr.References[i] = strings.TrimSpace(sr.References[i])
+		}
+	}
+
+	if req.MultipartForm != nil && req.MultipartForm.File != nil {
+		for _, headers := range req.MultipartForm.File["attachments"] {
+			f, err := headers.Open()
+			if err != nil {
+				continue
+			}
+			data, err := io.ReadAll(f)
+			f.Close()
+			if err != nil {
+				continue
+			}
+			mimeType := headers.Header.Get("Content-Type")
+			if mimeType == "" {
+				mimeType = mime.TypeByExtension("." + extensionFromFilename(headers.Filename))
+				if mimeType == "" {
+					mimeType = "application/octet-stream"
+				}
+			}
+			sr.Attachments = append(sr.Attachments, AttachmentUpload{
+				Filename: headers.Filename,
+				MimeType: mimeType,
+				Data:     data,
+			})
+		}
+	}
+
+	return sr, nil
+}
+
+func extensionFromFilename(name string) string {
+	idx := strings.LastIndex(name, ".")
+	if idx < 0 {
+		return ""
+	}
+	return name[idx+1:]
+}
+
 func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service) {
+	router.Get("/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}", func(w http.ResponseWriter, req *http.Request) {
+		token := req.URL.Query().Get("token")
+		if token == "" {
+			httpjson.WriteError(w, errors.Unauthorized("missing token"))
+			return
+		}
+		userID, _, err := authService.Authenticate(req.Context(), "Bearer "+token)
+		if err != nil {
+			httpjson.WriteError(w, err)
+			return
+		}
+		uid, _ := strconv.ParseInt(userID, 10, 64)
+		accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+		emailID, _ := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+		cid := chi.URLParam(req, "cid")
+
+		service.ServeCIDImage(w, req, uid, accountID, emailID, cid)
+	})
+
 	router.Route("/accounts/{accountId}/mail", func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
 
@@ -135,7 +224,54 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			httpjson.WriteJSON(w, http.StatusOK, emailToResponse(email))
 		})
 
+		r.Get("/contacts", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
+			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			q := req.URL.Query().Get("q")
+			if q == "" {
+				httpjson.WriteJSON(w, http.StatusOK, map[string]any{"contacts": []ContactResult{}})
+				return
+			}
+			contacts, err := service.SearchContacts(req.Context(), uid, accountID, q)
+			if err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			httpjson.WriteJSON(w, http.StatusOK, map[string]any{"contacts": contacts})
+		})
+
 		r.Post("/send", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
+			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+
+			contentType := req.Header.Get("Content-Type")
+			var body SendRequest
+
+			if strings.HasPrefix(contentType, "multipart/form-data") {
+				req.Body = http.MaxBytesReader(w, req.Body, 25<<20)
+				parsed, err := parseSendMultipart(req)
+				if err != nil {
+					httpjson.WriteError(w, err)
+					return
+				}
+				body = parsed
+			} else {
+				if err := httpjson.DecodeJSON(w, req, &body); err != nil {
+					httpjson.WriteError(w, err)
+					return
+				}
+			}
+
+			if err := service.Send(req.Context(), uid, accountID, body); err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"sent": true})
+		})
+
+		r.Post("/drafts", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
 			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
 			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
@@ -146,11 +282,25 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 				return
 			}
 
-			if err := service.Send(req.Context(), uid, accountID, body); err != nil {
+			email, err := service.SaveDraft(req.Context(), uid, accountID, body)
+			if err != nil {
 				httpjson.WriteError(w, err)
 				return
 			}
-			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"sent": true})
+			httpjson.WriteJSON(w, http.StatusOK, map[string]any{"id": email.ID})
+		})
+
+		r.Delete("/drafts/{emailId}", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, _ := strconv.ParseInt(identity.UserID, 10, 64)
+			accountID, _ := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			emailID, _ := strconv.ParseInt(chi.URLParam(req, "emailId"), 10, 64)
+
+			if err := service.DeleteDraft(req.Context(), uid, accountID, emailID); err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"deleted": true})
 		})
 	})
 

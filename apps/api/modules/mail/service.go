@@ -335,6 +335,62 @@ func (s *Service) DownloadAttachment(w http.ResponseWriter, req *http.Request, u
 	w.Write(data)
 }
 
+func (s *Service) ServeCIDImage(w http.ResponseWriter, req *http.Request, userID, accountID, emailID int64, cid string) {
+	ctx := req.Context()
+
+	account, err := s.getAccount(ctx, userID, accountID)
+	if err != nil {
+		httpjson.WriteError(w, err)
+		return
+	}
+
+	var email schemas.Email
+	if err := s.orm.WithContext(ctx).Where("id = ? AND account_id = ?", emailID, accountID).First(&email).Error; err != nil {
+		httpjson.WriteError(w, errors.NotFound("email not found"))
+		return
+	}
+
+	var attachment schemas.Attachment
+	if err := s.orm.WithContext(ctx).Where("email_id = ? AND cid = ?", emailID, cid).First(&attachment).Error; err != nil {
+		httpjson.WriteError(w, errors.NotFound("inline image not found"))
+		return
+	}
+
+	partNums, err := parsePartID(attachment.PartID)
+	if err != nil {
+		httpjson.WriteError(w, errors.Internal("invalid part ID", err))
+		return
+	}
+
+	var folder schemas.Folder
+	if err := s.orm.WithContext(ctx).Where("id = ?", email.FolderID).First(&folder).Error; err != nil {
+		httpjson.WriteError(w, errors.NotFound("folder not found"))
+		return
+	}
+
+	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+	if err != nil {
+		httpjson.WriteError(w, errors.Failed(err.Error()))
+		return
+	}
+	defer func() {
+		client.Logout().Wait()
+		client.Close()
+	}()
+
+	data, err := fetchAttachmentPart(client, folder.Path, imap.UID(email.IMAPUID), partNums)
+	if err != nil {
+		httpjson.WriteError(w, errors.Internal("failed to fetch inline image", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", attachment.MimeType)
+	w.Header().Set("Cache-Control", "private, max-age=86400")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+}
+
 func (s *Service) UpdateEmail(ctx context.Context, userID, accountID, emailID int64, req UpdateEmailRequest) (schemas.Email, error) {
 	account, err := s.getAccount(ctx, userID, accountID)
 	if err != nil {
@@ -420,6 +476,7 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 		req.BodyHTML,
 		req.InReplyTo,
 		req.References,
+		req.Attachments,
 	)
 	if err != nil {
 		return errors.Internal("failed to build message", err)
@@ -463,6 +520,107 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 	go s.appendToSent(account, msgBytes)
 
 	return nil
+}
+
+func (s *Service) SaveDraft(ctx context.Context, userID, accountID int64, req SendRequest) (schemas.Email, error) {
+	account, err := s.getAccount(ctx, userID, accountID)
+	if err != nil {
+		return schemas.Email{}, err
+	}
+
+	msgBytes, err := buildMessage(
+		account.Email,
+		account.Name,
+		req.To,
+		req.Cc,
+		req.Subject,
+		req.Body,
+		req.BodyHTML,
+		req.InReplyTo,
+		req.References,
+		nil,
+	)
+	if err != nil {
+		return schemas.Email{}, errors.Internal("failed to build draft message", err)
+	}
+
+	var draftsFolder schemas.Folder
+	if err := s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeDrafts).First(&draftsFolder).Error; err != nil {
+		return schemas.Email{}, errors.NotFound("drafts folder not found — sync account first")
+	}
+
+	email := schemas.Email{
+		AccountID:   accountID,
+		FolderID:    draftsFolder.ID,
+		Subject:     req.Subject,
+		FromAddress: account.Email,
+		FromName:    account.Name,
+		ToAddresses: stringsToAddressJSON(req.To),
+		CcAddresses: stringsToAddressJSON(req.Cc),
+		Date:        time.Now(),
+		BodyText:    req.Body,
+		BodyHTML:    req.BodyHTML,
+		InReplyTo:   req.InReplyTo,
+		References:  strings.Join(req.References, " "),
+		IsRead:      true,
+	}
+	if err := s.orm.WithContext(ctx).Create(&email).Error; err != nil {
+		return schemas.Email{}, errors.Internal("failed to save draft", err)
+	}
+
+	go s.appendToDrafts(account, msgBytes)
+
+	return email, nil
+}
+
+func (s *Service) DeleteDraft(ctx context.Context, userID, accountID, emailID int64) error {
+	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
+		return err
+	}
+
+	var email schemas.Email
+	if err := s.orm.WithContext(ctx).Where("id = ? AND account_id = ?", emailID, accountID).First(&email).Error; err != nil {
+		return errors.NotFound("draft not found")
+	}
+
+	s.orm.WithContext(ctx).Delete(&email)
+	return nil
+}
+
+func (s *Service) appendToDrafts(account schemas.Account, msgBytes []byte) {
+	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+	if err != nil {
+		return
+	}
+	defer func() {
+		client.Logout().Wait()
+		client.Close()
+	}()
+
+	var draftsFolder string
+	mailboxes, err := listMailboxes(client)
+	if err != nil {
+		return
+	}
+	for _, mbox := range mailboxes {
+		if detectFolderType(mbox) == schemas.FolderTypeDrafts {
+			draftsFolder = mbox.Mailbox
+			break
+		}
+	}
+	if draftsFolder == "" {
+		return
+	}
+
+	appendCmd := client.Append(draftsFolder, int64(len(msgBytes)), &imap.AppendOptions{
+		Flags: []imap.Flag{imap.FlagDraft, imap.FlagSeen},
+	})
+	if _, err := appendCmd.Write(msgBytes); err != nil {
+		appendCmd.Close()
+		return
+	}
+	appendCmd.Close()
+	appendCmd.Wait()
 }
 
 func (s *Service) appendToSent(account schemas.Account, msgBytes []byte) {
@@ -526,6 +684,102 @@ func (s *Service) TestConnection(ctx context.Context, req TestConnectionRequest)
 	}
 
 	return nil
+}
+
+func (s *Service) SearchContacts(ctx context.Context, userID, accountID int64, query string) ([]ContactResult, error) {
+	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
+		return nil, err
+	}
+
+	pattern := "%" + strings.ToLower(query) + "%"
+
+	type fromRow struct {
+		FromAddress string
+		FromName    string
+		Cnt         int
+	}
+	var fromRows []fromRow
+	s.orm.WithContext(ctx).
+		Model(&schemas.Email{}).
+		Select("from_address, from_name, COUNT(*) as cnt").
+		Where("account_id = ? AND (LOWER(from_address) LIKE ? OR LOWER(from_name) LIKE ?)", accountID, pattern, pattern).
+		Group("from_address, from_name").
+		Order("cnt DESC").
+		Limit(20).
+		Find(&fromRows)
+
+	seen := map[string]*ContactResult{}
+	for _, r := range fromRows {
+		key := strings.ToLower(r.FromAddress)
+		if key == "" {
+			continue
+		}
+		if existing, ok := seen[key]; ok {
+			existing.Count += r.Cnt
+			if existing.Name == "" && r.FromName != "" {
+				existing.Name = r.FromName
+			}
+		} else {
+			seen[key] = &ContactResult{
+				Name:  r.FromName,
+				Email: r.FromAddress,
+				Count: r.Cnt,
+			}
+		}
+	}
+
+	var recipientEmails []schemas.Email
+	s.orm.WithContext(ctx).
+		Where("account_id = ? AND (LOWER(to_addresses) LIKE ? OR LOWER(cc_addresses) LIKE ?)", accountID, pattern, pattern).
+		Select("to_addresses, cc_addresses").
+		Limit(100).
+		Find(&recipientEmails)
+
+	for _, email := range recipientEmails {
+		for _, raw := range []string{email.ToAddresses, email.CcAddresses} {
+			addrs := parseAddressJSON(raw)
+			for _, addr := range addrs {
+				if addr.Email == "" {
+					continue
+				}
+				lower := strings.ToLower(addr.Email)
+				if !strings.Contains(lower, strings.ToLower(query)) && !strings.Contains(strings.ToLower(addr.Name), strings.ToLower(query)) {
+					continue
+				}
+				if existing, ok := seen[lower]; ok {
+					existing.Count++
+					if existing.Name == "" && addr.Name != "" {
+						existing.Name = addr.Name
+					}
+				} else {
+					seen[lower] = &ContactResult{
+						Name:  addr.Name,
+						Email: addr.Email,
+						Count: 1,
+					}
+				}
+			}
+		}
+	}
+
+	results := make([]ContactResult, 0, len(seen))
+	for _, c := range seen {
+		results = append(results, *c)
+	}
+
+	for i := 0; i < len(results); i++ {
+		for j := i + 1; j < len(results); j++ {
+			if results[j].Count > results[i].Count {
+				results[i], results[j] = results[j], results[i]
+			}
+		}
+	}
+
+	if len(results) > 10 {
+		results = results[:10]
+	}
+
+	return results, nil
 }
 
 func isNoSelect(mbox *imap.ListData) bool {

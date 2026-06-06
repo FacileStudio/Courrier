@@ -58,14 +58,14 @@
 			{@const unread = folderUnread(folder.type)}
 			<a
 				href={folder.href}
-				class="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors {active
+				class="sidebar-nav-item flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-150 {active
 					? 'bg-foreground text-background font-medium'
 					: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
 			>
 				<folder.icon class="h-4 w-4 shrink-0" />
 				<span class="flex-1">{folder.label}</span>
 				{#if unread > 0}
-					<span class="text-xs font-medium">{unread}</span>
+					<span class="sidebar-badge text-xs font-medium">{unread}</span>
 				{/if}
 			</a>
 		{/each}
@@ -117,3 +117,29 @@
 		</Button>
 	</div>
 </aside>
+
+<style>
+	@media (prefers-reduced-motion: no-preference) {
+		.sidebar-badge {
+			animation: sidebar-badge-pop 300ms ease-out;
+		}
+
+		.sidebar-nav-item {
+			transition: background-color 150ms ease-out, color 150ms ease-out;
+		}
+	}
+
+	@keyframes sidebar-badge-pop {
+		0% {
+			transform: scale(0.8);
+			opacity: 0.5;
+		}
+		60% {
+			transform: scale(1.1);
+		}
+		100% {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+</style>

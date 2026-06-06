@@ -202,6 +202,49 @@ export const backend = {
 		return `${backendBaseUrl}/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download?token=${encodeURIComponent(token)}`;
 	},
 
+	getCIDImageUrl(token: string, accountId: number, emailId: number, cid: string): string {
+		return `${backendBaseUrl}/accounts/${accountId}/mail/emails/${emailId}/cid/${encodeURIComponent(cid)}?token=${encodeURIComponent(token)}`;
+	},
+
+	searchContacts(token: string, accountId: number, query: string) {
+		return apiFetch<{ contacts: Array<{ name: string; email: string; count: number }> }>(
+			`/accounts/${accountId}/mail/contacts?q=${encodeURIComponent(query)}`,
+			{},
+			token
+		);
+	},
+
+	async sendEmailWithAttachments(token: string, accountId: number, data: FormData): Promise<{ sent: boolean }> {
+		const response = await fetch(`${backendBaseUrl}/accounts/${accountId}/mail/send`, {
+			method: 'POST',
+			headers: { Authorization: `Bearer ${token}` },
+			body: data
+		});
+		if (!response.ok) {
+			let payload: ApiErrorPayload | undefined;
+			try {
+				payload = (await response.json()) as ApiErrorPayload;
+			} catch {
+				payload = undefined;
+			}
+			throw new Error(payload?.error?.message || `Request failed with status ${response.status}`);
+		}
+		return (await response.json()) as { sent: boolean };
+	},
+
+	saveDraft(token: string, accountId: number, data: { to: string[]; cc?: string[]; subject: string; body: string; body_html?: string; in_reply_to?: string; references?: string[] }) {
+		return apiFetch<{ id: number }>(`/accounts/${accountId}/mail/drafts`, {
+			method: 'POST',
+			body: JSON.stringify(data)
+		}, token);
+	},
+
+	deleteDraft(token: string, accountId: number, draftId: number) {
+		return apiFetch<{ deleted: boolean }>(`/accounts/${accountId}/mail/drafts/${draftId}`, {
+			method: 'DELETE'
+		}, token);
+	},
+
 	async downloadAttachment(token: string, accountId: number, emailId: number, attachmentId: number, filename: string): Promise<void> {
 		const response = await fetch(
 			`${backendBaseUrl}/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download`,

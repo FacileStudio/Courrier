@@ -4,7 +4,7 @@
 	import DOMPurify from 'dompurify';
 	import { backend, type EmailMessage, type EmailAttachment, type MailAccount } from '$lib/backend';
 	import { Button } from '$lib/components/ui/button';
-	import { RefreshCw, Paperclip, Download, Reply, ReplyAll, Forward } from 'lucide-svelte';
+	import { RefreshCw, Paperclip, Download, Reply, ReplyAll, Forward, Loader2 } from 'lucide-svelte';
 
 	const app = getContext<{
 		token: string;
@@ -18,19 +18,54 @@
 	let selectedId = $state<number | null>(null);
 	let loading = $state(false);
 	let syncing = $state(false);
+	let currentPage = $state(1);
+	let totalEmails = $state(0);
+	let loadingMore = $state(false);
+	let listContainer = $state<HTMLDivElement | null>(null);
+	let sentinel = $state<HTMLDivElement | null>(null);
 
 	const selected = $derived(emails.find((e) => e.id === selectedId) ?? null);
+	const hasMore = $derived(emails.length < totalEmails);
+	const LIMIT = 30;
+
+	function resolveCIDImages(html: string, accountId: number, emailId: number, token: string): string {
+		return html.replace(/src=["']cid:([^"']+)["']/gi, (_match, cid) => {
+			return `src="${backend.getCIDImageUrl(token, accountId, emailId, cid)}"`;
+		});
+	}
+
+	function sanitizeHTML(html: string): string {
+		if (!html || !app.defaultAccountId || !selectedId) return html;
+		const resolved = resolveCIDImages(html, app.defaultAccountId, selectedId, app.token);
+		return DOMPurify.sanitize(resolved);
+	}
 
 	async function loadEmails() {
 		if (!app.defaultAccountId) return;
 		loading = true;
+		currentPage = 1;
 		try {
-			const result = await backend.getEmailsByFolder(app.token, app.defaultAccountId, 'inbox');
+			const result = await backend.getEmailsByFolder(app.token, app.defaultAccountId, 'inbox', 1, LIMIT);
 			emails = result.emails;
+			totalEmails = result.total;
 		} catch {
 			emails = [];
+			totalEmails = 0;
 		}
 		loading = false;
+	}
+
+	async function loadMoreEmails() {
+		if (!app.defaultAccountId || loadingMore || !hasMore) return;
+		loadingMore = true;
+		const nextPage = currentPage + 1;
+		try {
+			const result = await backend.getEmailsByFolder(app.token, app.defaultAccountId, 'inbox', nextPage, LIMIT);
+			emails = [...emails, ...result.emails];
+			totalEmails = result.total;
+			currentPage = nextPage;
+		} catch {}
+		loadingMore = false;
 	}
 
 	async function syncAndLoad() {
@@ -107,6 +142,20 @@
 			await syncAndLoad();
 		}
 	});
+
+	$effect(() => {
+		if (!sentinel) return;
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0]?.isIntersecting && hasMore && !loadingMore) {
+					loadMoreEmails();
+				}
+			},
+			{ root: listContainer, threshold: 0.1 }
+		);
+		observer.observe(sentinel);
+		return () => observer.disconnect();
+	});
 </script>
 
 <div class="flex h-full">
@@ -118,13 +167,26 @@
 			</Button>
 		</div>
 
-		<div class="flex-1 overflow-auto">
+		<div class="flex-1 overflow-auto" bind:this={listContainer}>
 			{#if loading}
-				<div class="flex items-center justify-center h-full text-muted-foreground">
-					<p class="text-sm">Loading...</p>
+				<div class="flex flex-col gap-0">
+					{#each Array(5) as _, i}
+						<div class="px-4 py-3 border-b mail-skeleton" style="--delay: {i * 80}ms">
+							<div class="flex items-center gap-3">
+								<div class="h-8 w-8 shrink-0 rounded-full bg-muted skeleton-pulse"></div>
+								<div class="min-w-0 flex-1 space-y-2">
+									<div class="flex items-center justify-between gap-2">
+										<div class="h-3.5 w-28 rounded bg-muted skeleton-pulse"></div>
+										<div class="h-3 w-10 rounded bg-muted skeleton-pulse"></div>
+									</div>
+									<div class="h-3 w-40 rounded bg-muted skeleton-pulse"></div>
+								</div>
+							</div>
+						</div>
+					{/each}
 				</div>
 			{:else if emails.length === 0}
-				<div class="flex flex-col items-center justify-center h-full text-muted-foreground">
+				<div class="flex flex-col items-center justify-center h-full text-muted-foreground mail-fade-in">
 					{#if app.accounts.length === 0}
 						<p class="text-sm">No mail accounts configured</p>
 						<p class="text-xs mt-1">Add one in Settings</p>
@@ -137,11 +199,12 @@
 					{/if}
 				</div>
 			{:else}
-				{#each emails as email}
+				{#each emails as email, i}
 					<button
-						class="w-full text-left px-4 py-3 border-b transition-colors hover:bg-muted/50
+						class="mail-list-item w-full text-left px-4 py-3 border-b transition-colors duration-150 hover:bg-muted/50
 							{selectedId === email.id ? 'bg-muted' : ''}
 							{!email.is_read ? 'font-medium' : ''}"
+						style="--delay: {Math.min(i, 15) * 30}ms"
 						onclick={() => openEmail(email)}
 					>
 						<div class="flex items-center gap-3">
@@ -161,13 +224,19 @@
 						</div>
 					</button>
 				{/each}
+				{#if loadingMore}
+					<div class="flex items-center justify-center py-4">
+						<Loader2 class="h-4 w-4 animate-spin text-muted-foreground" />
+					</div>
+				{/if}
+				<div bind:this={sentinel} class="h-1"></div>
 			{/if}
 		</div>
 	</div>
 
 	<div class="flex-1 flex flex-col">
 		{#if selected}
-			<div class="border-b px-6 py-4">
+			<div class="border-b px-6 py-4 mail-detail-header">
 				<h1 class="text-xl font-semibold">{selected.subject || '(no subject)'}</h1>
 				<div class="mt-2 flex items-center gap-3 text-sm text-muted-foreground">
 					<span class="font-medium text-foreground">{selected.from_name || selected.from_address}</span>
@@ -187,7 +256,7 @@
 				</div>
 			</div>
 			{#if selected.attachments && selected.attachments.length > 0}
-				<div class="border-b px-6 py-3">
+				<div class="border-b px-6 py-3 mail-attachments">
 					<div class="flex items-center gap-2 text-sm text-muted-foreground mb-2">
 						<Paperclip class="h-4 w-4" />
 						<span>{selected.attachments.length} attachment{selected.attachments.length > 1 ? 's' : ''}</span>
@@ -208,13 +277,16 @@
 					</div>
 				</div>
 			{/if}
-			<div class="flex-1 overflow-auto px-6 py-4">
+			<div class="flex-1 overflow-auto px-6 py-4 mail-body-content">
 				{#if selected.body_html}
-					{@html DOMPurify.sanitize(selected.body_html)}
+					{@html sanitizeHTML(selected.body_html)}
 				{:else if selected.body_text}
 					<pre class="whitespace-pre-wrap text-sm">{selected.body_text}</pre>
 				{:else}
-					<p class="text-sm text-muted-foreground">Loading message body...</p>
+					<div class="flex items-center gap-2 text-sm text-muted-foreground">
+						<Loader2 class="h-4 w-4 animate-spin" />
+						<span>Loading message body...</span>
+					</div>
 				{/if}
 			</div>
 		{:else}
@@ -224,3 +296,79 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	@media (prefers-reduced-motion: no-preference) {
+		.mail-list-item {
+			animation: mail-fade-in 200ms ease-out both;
+			animation-delay: var(--delay, 0ms);
+		}
+
+		.mail-detail-header {
+			animation: mail-slide-in 180ms ease-out both;
+		}
+
+		.mail-body-content {
+			animation: mail-fade-in 200ms ease-out 60ms both;
+		}
+
+		.mail-attachments {
+			animation: mail-slide-down 180ms ease-out both;
+		}
+
+		.mail-fade-in {
+			animation: mail-fade-in 200ms ease-out both;
+		}
+
+		.skeleton-pulse {
+			animation: skeleton-pulse 1.5s ease-in-out infinite;
+		}
+
+		.mail-skeleton {
+			animation: mail-fade-in 200ms ease-out both;
+			animation-delay: var(--delay, 0ms);
+		}
+	}
+
+	@keyframes mail-fade-in {
+		from {
+			opacity: 0;
+			transform: translateY(4px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@keyframes mail-slide-in {
+		from {
+			opacity: 0;
+			transform: translateX(8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(0);
+		}
+	}
+
+	@keyframes mail-slide-down {
+		from {
+			opacity: 0;
+			transform: translateY(-4px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@keyframes skeleton-pulse {
+		0%, 100% {
+			opacity: 0.4;
+		}
+		50% {
+			opacity: 0.8;
+		}
+	}
+</style>

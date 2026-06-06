@@ -1,13 +1,20 @@
 package mail
 
+type AttachmentUpload struct {
+	Filename string
+	MimeType string
+	Data     []byte
+}
+
 type SendRequest struct {
-	To         []string `json:"to"`
-	Cc         []string `json:"cc"`
-	Subject    string   `json:"subject"`
-	Body       string   `json:"body"`
-	BodyHTML   string   `json:"body_html"`
-	InReplyTo  string   `json:"in_reply_to"`
-	References []string `json:"references"`
+	To          []string           `json:"to"`
+	Cc          []string           `json:"cc"`
+	Subject     string             `json:"subject"`
+	Body        string             `json:"body"`
+	BodyHTML    string             `json:"body_html"`
+	InReplyTo   string             `json:"in_reply_to"`
+	References  []string           `json:"references"`
+	Attachments []AttachmentUpload `json:"-"`
 }
 
 type TestConnectionRequest struct {
@@ -67,4 +74,10 @@ type AddressResponse struct {
 type UpdateEmailRequest struct {
 	IsRead    *bool `json:"is_read"`
 	IsStarred *bool `json:"is_starred"`
+}
+
+type ContactResult struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Count int    `json:"count"`
 }

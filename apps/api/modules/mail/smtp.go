@@ -91,7 +91,7 @@ func sendImplicitTLS(addr, host, user, password, from string, to []string, msg [
 	return c.Quit()
 }
 
-func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject, bodyText, bodyHTML, inReplyTo string, references []string) ([]byte, error) {
+func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject, bodyText, bodyHTML, inReplyTo string, references []string, attachments []AttachmentUpload) ([]byte, error) {
 	var buf bytes.Buffer
 
 	var h gomail.Header
@@ -124,54 +124,87 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 		h.SetMsgIDList("References", references)
 	}
 
-	if bodyHTML == "" {
-		w, err := gomail.CreateSingleInlineWriter(&buf, h)
+	if len(attachments) == 0 {
+		if bodyHTML == "" {
+			w, err := gomail.CreateSingleInlineWriter(&buf, h)
+			if err != nil {
+				return nil, err
+			}
+			if _, err := io.WriteString(w, bodyText); err != nil {
+				return nil, err
+			}
+			if err := w.Close(); err != nil {
+				return nil, err
+			}
+			return buf.Bytes(), nil
+		}
+
+		if bodyText == "" {
+			bodyText = stripHTMLTags(bodyHTML)
+		}
+
+		iw, err := gomail.CreateInlineWriter(&buf, h)
 		if err != nil {
 			return nil, err
 		}
-		if _, err := io.WriteString(w, bodyText); err != nil {
+		if err := writeAlternativeParts(iw, bodyText, bodyHTML); err != nil {
 			return nil, err
 		}
-		if err := w.Close(); err != nil {
+		if err := iw.Close(); err != nil {
 			return nil, err
 		}
 		return buf.Bytes(), nil
 	}
 
-	if bodyText == "" {
+	if bodyText == "" && bodyHTML != "" {
 		bodyText = stripHTMLTags(bodyHTML)
 	}
 
-	h.SetContentType("multipart/alternative", map[string]string{"boundary": "courrier-alt-boundary"})
 	mw, err := gomail.CreateWriter(&buf, h)
 	if err != nil {
 		return nil, err
 	}
 
-	var textHeader gomail.InlineHeader
-	textHeader.SetContentType("text/plain", map[string]string{"charset": "utf-8"})
-	tw, err := mw.CreateSingleInline(textHeader)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := io.WriteString(tw, bodyText); err != nil {
-		return nil, err
-	}
-	if err := tw.Close(); err != nil {
-		return nil, err
+	if bodyHTML != "" {
+		altPart, err := mw.CreateInline()
+		if err != nil {
+			return nil, err
+		}
+		if err := writeAlternativeParts(altPart, bodyText, bodyHTML); err != nil {
+			return nil, err
+		}
+		if err := altPart.Close(); err != nil {
+			return nil, err
+		}
+	} else {
+		var textHeader gomail.InlineHeader
+		textHeader.SetContentType("text/plain", map[string]string{"charset": "utf-8"})
+		tw, err := mw.CreateSingleInline(textHeader)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := io.WriteString(tw, bodyText); err != nil {
+			return nil, err
+		}
+		if err := tw.Close(); err != nil {
+			return nil, err
+		}
 	}
 
-	var htmlHeader gomail.InlineHeader
-	htmlHeader.SetContentType("text/html", map[string]string{"charset": "utf-8"})
-	hw, err := mw.CreateSingleInline(htmlHeader)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := io.WriteString(hw, bodyHTML); err != nil {
-		return nil, err
-	}
-	if err := hw.Close(); err != nil {
-		return nil, err
+	for _, att := range attachments {
+		var attHeader gomail.AttachmentHeader
+		attHeader.SetContentType(att.MimeType, nil)
+		attHeader.SetFilename(att.Filename)
+		aw, err := mw.CreateAttachment(attHeader)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := aw.Write(att.Data); err != nil {
+			return nil, err
+		}
+		if err := aw.Close(); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := mw.Close(); err != nil {
@@ -179,6 +212,32 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 	}
 
 	return buf.Bytes(), nil
+}
+
+func writeAlternativeParts(iw *gomail.InlineWriter, bodyText, bodyHTML string) error {
+	var textHeader gomail.InlineHeader
+	textHeader.SetContentType("text/plain", map[string]string{"charset": "utf-8"})
+	tw, err := iw.CreatePart(textHeader)
+	if err != nil {
+		return err
+	}
+	if _, err := io.WriteString(tw, bodyText); err != nil {
+		return err
+	}
+	if err := tw.Close(); err != nil {
+		return err
+	}
+
+	var htmlHeader gomail.InlineHeader
+	htmlHeader.SetContentType("text/html", map[string]string{"charset": "utf-8"})
+	hw, err := iw.CreatePart(htmlHeader)
+	if err != nil {
+		return err
+	}
+	if _, err := io.WriteString(hw, bodyHTML); err != nil {
+		return err
+	}
+	return hw.Close()
 }
 
 func stripHTMLTags(s string) string {
