@@ -9,7 +9,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Resizable from '$lib/components/ui/resizable';
 	import { toast } from 'svelte-sonner';
-	import { RefreshCw, Paperclip, Download, Reply, ReplyAll, Forward, Loader2, Trash2, Archive } from 'lucide-svelte';
+	import { RefreshCw, Paperclip, Download, Reply, ReplyAll, Forward, Loader2, Trash2, Archive, Mail } from 'lucide-svelte';
 	import EmailItem from '$lib/components/EmailItem.svelte';
 	import BulkActionBar from '$lib/components/BulkActionBar.svelte';
 	import DeleteConfirmDialog from '$lib/components/DeleteConfirmDialog.svelte';
@@ -47,6 +47,7 @@
 	let deleteDialogOpen = $state(false);
 	let deleteTarget = $state<number[]>([]);
 	let bulkLoading = $state(false);
+	let showUnreadOnly = $state(false);
 
 	const selected = $derived(emails.find((e) => e.id === selectedId) ?? null);
 	const hasMore = $derived(emails.length < totalEmails);
@@ -94,7 +95,7 @@
 	async function loadEmails() {
 		if (!app.defaultAccountId || !validFolder) return;
 
-		const cached = mailCache.get(app.defaultAccountId, folderSlug, 1);
+		const cached = showUnreadOnly ? null : mailCache.get(app.defaultAccountId, folderSlug, 1);
 		if (cached) {
 			emails = cached.emails;
 			totalEmails = cached.total;
@@ -103,10 +104,12 @@
 		loading = !cached;
 		currentPage = 1;
 		try {
-			const result = await backend.getEmailsByFolder(app.defaultAccountId, folderSlug, 1, LIMIT);
+			const result = await backend.getEmailsByFolder(app.defaultAccountId, folderSlug, 1, LIMIT, showUnreadOnly);
 			emails = result.emails;
 			totalEmails = result.total;
-			mailCache.set(app.defaultAccountId, folderSlug, 1, result.emails, result.total);
+			if (!showUnreadOnly) {
+				mailCache.set(app.defaultAccountId, folderSlug, 1, result.emails, result.total);
+			}
 		} catch {
 			if (!cached) {
 				emails = [];
@@ -121,7 +124,7 @@
 		loadingMore = true;
 		const nextPage = currentPage + 1;
 
-		const cached = mailCache.get(app.defaultAccountId, folderSlug, nextPage);
+		const cached = showUnreadOnly ? null : mailCache.get(app.defaultAccountId, folderSlug, nextPage);
 		if (cached) {
 			emails = [...emails, ...cached.emails];
 			totalEmails = cached.total;
@@ -131,11 +134,13 @@
 		}
 
 		try {
-			const result = await backend.getEmailsByFolder(app.defaultAccountId, folderSlug, nextPage, LIMIT);
+			const result = await backend.getEmailsByFolder(app.defaultAccountId, folderSlug, nextPage, LIMIT, showUnreadOnly);
 			emails = [...emails, ...result.emails];
 			totalEmails = result.total;
 			currentPage = nextPage;
-			mailCache.set(app.defaultAccountId, folderSlug, nextPage, result.emails, result.total);
+			if (!showUnreadOnly) {
+				mailCache.set(app.defaultAccountId, folderSlug, nextPage, result.emails, result.total);
+			}
 		} catch {}
 		loadingMore = false;
 	}
@@ -170,7 +175,13 @@
 		if (!email.is_read) {
 			try {
 				await backend.updateEmail(app.defaultAccountId, email.id, { is_read: true });
-				emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: true } : e));
+				if (showUnreadOnly) {
+					emails = emails.filter((e) => e.id !== email.id);
+					totalEmails = Math.max(0, totalEmails - 1);
+					selectedId = null;
+				} else {
+					emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: true } : e));
+				}
 			} catch {}
 		}
 	}
@@ -244,7 +255,13 @@
 		const ids = [...checkedIds];
 		try {
 			await backend.bulkAction(app.defaultAccountId, ids, 'mark_read');
-			emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: true } : e));
+			if (showUnreadOnly) {
+				emails = emails.filter((e) => !ids.includes(e.id));
+				totalEmails = Math.max(0, totalEmails - ids.length);
+				if (selectedId && ids.includes(selectedId)) selectedId = null;
+			} else {
+				emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: true } : e));
+			}
 			checkedIds = new Set();
 		} catch {
 			toast.error('Failed to mark as read');
@@ -289,7 +306,13 @@
 		if (!app.defaultAccountId) return;
 		try {
 			await backend.updateEmail(app.defaultAccountId, email.id, { is_read: !email.is_read });
-			emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: !email.is_read } : e));
+			if (showUnreadOnly && !email.is_read) {
+				emails = emails.filter((e) => e.id !== email.id);
+				totalEmails = Math.max(0, totalEmails - 1);
+				if (selectedId === email.id) selectedId = null;
+			} else {
+				emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: !email.is_read } : e));
+			}
 		} catch {}
 	}
 
@@ -303,6 +326,7 @@
 
 	$effect(() => {
 		const _folder = folderSlug;
+		const _unreadOnly = showUnreadOnly;
 		if (!validFolder || !app.defaultAccountId) return;
 
 		checkedIds = new Set();
@@ -310,7 +334,7 @@
 		currentPage = 1;
 		totalEmails = 0;
 
-		const cached = mailCache.get(app.defaultAccountId, _folder, 1);
+		const cached = _unreadOnly ? null : mailCache.get(app.defaultAccountId, _folder, 1);
 		if (cached) {
 			emails = cached.emails;
 			totalEmails = cached.total;
@@ -322,10 +346,12 @@
 
 		(async () => {
 			try {
-				const result = await backend.getEmailsByFolder(app.defaultAccountId!, _folder, 1, LIMIT);
+				const result = await backend.getEmailsByFolder(app.defaultAccountId!, _folder, 1, LIMIT, _unreadOnly);
 				emails = result.emails;
 				totalEmails = result.total;
-				mailCache.set(app.defaultAccountId!, _folder, 1, result.emails, result.total);
+				if (!_unreadOnly) {
+					mailCache.set(app.defaultAccountId!, _folder, 1, result.emails, result.total);
+				}
 			} catch {
 				if (!cached) {
 					emails = [];
@@ -334,7 +360,7 @@
 			}
 			loading = false;
 
-			if (emails.length === 0) {
+			if (emails.length === 0 && !_unreadOnly) {
 				await syncAndLoad();
 			}
 		})();
@@ -375,9 +401,20 @@
 				{/if}
 				<h2 class="text-lg font-semibold">{folderLabel}</h2>
 			</div>
-			<Button variant="ghost" size="icon" class="h-8 w-8" onclick={syncAndLoad} disabled={syncing}>
-				<RefreshCw class="h-4 w-4 {syncing ? 'animate-spin' : ''}" />
-			</Button>
+			<div class="flex items-center gap-1">
+				<Button
+					variant="ghost"
+					size="sm"
+					class="h-8 gap-1.5 px-2 text-xs {showUnreadOnly ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'}"
+					onclick={() => { showUnreadOnly = !showUnreadOnly; }}
+				>
+					<Mail class="h-3.5 w-3.5" />
+					Unread
+				</Button>
+				<Button variant="ghost" size="icon" class="h-8 w-8" onclick={syncAndLoad} disabled={syncing}>
+					<RefreshCw class="h-4 w-4 {syncing ? 'animate-spin' : ''}" />
+				</Button>
+			</div>
 		</div>
 
 		<BulkActionBar
@@ -410,7 +447,7 @@
 				</div>
 			{:else if emails.length === 0}
 				<div class="flex flex-col items-center justify-center h-full text-muted-foreground mail-fade-in">
-					<p class="text-sm">No emails in {folderLabel}</p>
+					<p class="text-sm">{showUnreadOnly ? `No unread emails in ${folderLabel}` : `No emails in ${folderLabel}`}</p>
 				</div>
 			{:else}
 				{#each emails as email, i (email.id)}

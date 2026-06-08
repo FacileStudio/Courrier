@@ -240,8 +240,9 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			if limit < 1 || limit > 100 {
 				limit = 50
 			}
+			unreadOnly := req.URL.Query().Get("unread") == "true"
 
-			emails, total, err := service.GetEmailsByFolderType(req.Context(), uid, accountID, folderType, page, limit)
+			emails, total, err := service.GetEmailsByFolderType(req.Context(), uid, accountID, folderType, page, limit, unreadOnly)
 			if err != nil {
 				httpjson.WriteError(w, err)
 				return

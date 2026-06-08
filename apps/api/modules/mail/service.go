@@ -218,7 +218,7 @@ func (s *Service) GetFolders(ctx context.Context, userID, accountID int64) ([]sc
 	return folders, nil
 }
 
-func (s *Service) GetEmailsByFolderType(ctx context.Context, userID, accountID int64, folderType string, page, limit int) ([]schemas.Email, int64, error) {
+func (s *Service) GetEmailsByFolderType(ctx context.Context, userID, accountID int64, folderType string, page, limit int, unreadOnly bool) ([]schemas.Email, int64, error) {
 	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
 		return nil, 0, err
 	}
@@ -228,26 +228,26 @@ func (s *Service) GetEmailsByFolderType(ctx context.Context, userID, accountID i
 		return nil, 0, errors.NotFound(fmt.Sprintf("folder type %q not found", folderType))
 	}
 
-	return s.GetEmails(ctx, userID, accountID, folder.ID, page, limit)
+	return s.GetEmails(ctx, userID, accountID, folder.ID, page, limit, unreadOnly)
 }
 
-func (s *Service) GetEmails(ctx context.Context, userID, accountID, folderID int64, page, limit int) ([]schemas.Email, int64, error) {
+func (s *Service) GetEmails(ctx context.Context, userID, accountID, folderID int64, page, limit int, unreadOnly bool) ([]schemas.Email, int64, error) {
 	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
 		return nil, 0, err
 	}
 
 	offset := (page - 1) * limit
 
+	query := s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("account_id = ? AND folder_id = ?", accountID, folderID)
+	if unreadOnly {
+		query = query.Where("is_read = false")
+	}
+
 	var total int64
-	s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("account_id = ? AND folder_id = ?", accountID, folderID).Count(&total)
+	query.Count(&total)
 
 	var emails []schemas.Email
-	if err := s.orm.WithContext(ctx).
-		Where("account_id = ? AND folder_id = ?", accountID, folderID).
-		Order("date DESC").
-		Offset(offset).
-		Limit(limit).
-		Find(&emails).Error; err != nil {
+	if err := query.Order("date DESC").Offset(offset).Limit(limit).Find(&emails).Error; err != nil {
 		return nil, 0, errors.Internal("failed to list emails", err)
 	}
 	return emails, total, nil

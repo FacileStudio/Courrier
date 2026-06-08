@@ -179,9 +179,11 @@ export const backend = {
 	getFolders(accountId: number) {
 		return apiFetch<{ folders: Folder[] }>(`/accounts/${accountId}/mail/folders`);
 	},
-	getEmailsByFolder(accountId: number, folderType: string, page = 1, limit = 50) {
+	getEmailsByFolder(accountId: number, folderType: string, page = 1, limit = 50, unreadOnly = false) {
+		const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+		if (unreadOnly) params.set('unread', 'true');
 		return apiFetch<{ emails: EmailMessage[]; total: number; page: number; limit: number }>(
-			`/accounts/${accountId}/mail/folders/${folderType}/emails?page=${page}&limit=${limit}`
+			`/accounts/${accountId}/mail/folders/${folderType}/emails?${params}`
 		);
 	},
 	getEmail(accountId: number, emailId: number) {
