@@ -1,18 +1,35 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Inbox, Send, PenLine, Trash2, User } from 'lucide-svelte';
-	import type { Folder } from '$lib/backend';
+	import { Inbox, Send, PenLine, Trash2 } from 'lucide-svelte';
+	import type { Folder, UserProfile } from '$lib/backend';
 
-	let { folders = [] }: { folders?: Folder[] } = $props();
+	let { folders = [], user = null }: { folders?: Folder[]; user?: UserProfile | null } = $props();
 
 	const inboxUnread = $derived(folders.find((f) => f.type === 'inbox')?.unread_count ?? 0);
+
+	let avatarFailed = $state(false);
+
+	// Reset the fallback when the avatar URL changes (e.g. after profile sync).
+	$effect(() => {
+		void user?.avatar_url;
+		avatarFailed = false;
+	});
+
+	function getInitials(value: string) {
+		const parts = value.trim().split(/\s+/).filter(Boolean);
+		if (parts.length === 0) return '?';
+		if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+		return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+	}
+
+	const userLabel = $derived(user?.name?.trim() || user?.email || '');
+	const profileActive = $derived(page.url.pathname.startsWith('/profile'));
 
 	const items = [
 		{ href: '/mail', label: 'Inbox', icon: Inbox, exact: true },
 		{ href: '/mail/sent', label: 'Sent', icon: Send, exact: false },
 		{ href: '/mail/compose', label: 'Compose', icon: PenLine, exact: false },
-		{ href: '/mail/trash', label: 'Trash', icon: Trash2, exact: false },
-		{ href: '/profile', label: 'Profile', icon: User, exact: false }
+		{ href: '/mail/trash', label: 'Trash', icon: Trash2, exact: false }
 	];
 
 	function isActive(item: (typeof items)[number]) {
@@ -49,5 +66,29 @@
 				{/if}
 			</a>
 		{/each}
+
+		<a
+			href="/profile"
+			aria-label="Profile"
+			title="Profile"
+			class="flex items-center justify-center rounded-full px-2.5 py-1.5 transition-all duration-200 {profileActive
+				? 'bg-foreground shadow-sm'
+				: 'hover:bg-muted/60'}"
+		>
+			{#if user?.avatar_url && !avatarFailed}
+				<img
+					src={user.avatar_url}
+					alt={userLabel}
+					class="h-7 w-7 rounded-full border border-border object-cover"
+					onerror={() => (avatarFailed = true)}
+				/>
+			{:else}
+				<span
+					class="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-foreground text-[10px] font-semibold text-background"
+				>
+					{getInitials(userLabel)}
+				</span>
+			{/if}
+		</a>
 	</div>
 </nav>

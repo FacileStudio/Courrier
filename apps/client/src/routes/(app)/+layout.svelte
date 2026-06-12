@@ -70,6 +70,6 @@
 		<main class="flex-1 overflow-auto pb-20 md:pb-0">
 			{@render children()}
 		</main>
-		<MobileNav {folders} />
+		<MobileNav {folders} {user} />
 	</div>
 {/if}
