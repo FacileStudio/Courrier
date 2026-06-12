@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { backend, type UserProfile, type MailAccount, type Folder } from '$lib/backend';
 	import Sidebar from '$lib/components/Sidebar.svelte';
+	import MobileNav from '$lib/components/MobileNav.svelte';
 
 	let { children } = $props();
 
@@ -66,8 +67,9 @@
 {#if loaded}
 	<div class="flex h-screen w-full overflow-hidden">
 		<Sidebar {user} {folders} />
-		<main class="flex-1 overflow-auto">
+		<main class="flex-1 overflow-auto pb-20 md:pb-0">
 			{@render children()}
 		</main>
+		<MobileNav {folders} />
 	</div>
 {/if}

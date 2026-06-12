@@ -328,7 +328,7 @@
 
 					{#if showForm}
 						<div class="space-y-4 pt-2">
-							<div class="grid grid-cols-2 gap-4">
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<div class="space-y-2">
 									<Label for="acc-name">Display name</Label>
 									<Input id="acc-name" bind:value={name} placeholder="Work Email" />
@@ -346,7 +346,7 @@
 
 							<div class="pt-2">
 								<p class="text-sm font-medium mb-3">IMAP (Incoming)</p>
-								<div class="grid grid-cols-2 gap-4">
+								<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 									<div class="space-y-2">
 										<Label for="imap-host">Host</Label>
 										<Input
@@ -380,7 +380,7 @@
 
 							<div class="pt-2">
 								<p class="text-sm font-medium mb-3">SMTP (Outgoing)</p>
-								<div class="grid grid-cols-2 gap-4">
+								<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 									<div class="space-y-2">
 										<Label for="smtp-host">Host</Label>
 										<Input

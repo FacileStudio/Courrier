@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { getContext, onMount } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import DOMPurify from 'dompurify';
 	import { backend, type EmailMessage, type EmailAttachment, type MailAccount } from '$lib/backend';
 	import { mailCache } from '$lib/stores/mail-cache';
@@ -8,7 +9,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Resizable from '$lib/components/ui/resizable';
 	import { toast } from 'svelte-sonner';
-	import { RefreshCw, Paperclip, Download, Reply, ReplyAll, Forward, Loader2, Trash2, Archive } from 'lucide-svelte';
+	import { RefreshCw, Paperclip, Download, Reply, ReplyAll, Forward, Loader2, Trash2, Archive, ArrowLeft } from 'lucide-svelte';
 	import EmailItem from '$lib/components/EmailItem.svelte';
 	import BulkActionBar from '$lib/components/BulkActionBar.svelte';
 	import DeleteConfirmDialog from '$lib/components/DeleteConfirmDialog.svelte';
@@ -39,6 +40,8 @@
 	const selectionActive = $derived(checkedIds.size > 0);
 	const allChecked = $derived(emails.length > 0 && emails.every((e) => checkedIds.has(e.id)));
 	const LIMIT = 30;
+
+	const isDesktop = new MediaQuery('(min-width: 768px)');
 
 	function toggleCheck(id: number) {
 		const next = new Set(checkedIds);
@@ -305,8 +308,8 @@
 
 <DeleteConfirmDialog bind:open={deleteDialogOpen} count={deleteTarget.length} onconfirm={confirmDelete} />
 
-<Resizable.PaneGroup direction="horizontal" class="h-full">
-	<Resizable.Pane defaultSize={30} minSize={20} maxSize={50} class="flex flex-col">
+{#snippet listPane()}
+	<div class="flex h-full flex-col">
 		<div class="flex items-center justify-between border-b px-4 py-3">
 			<div class="flex items-center gap-2">
 				{#if emails.length > 0}
@@ -392,15 +395,15 @@
 				<div bind:this={sentinel} class="h-1"></div>
 			{/if}
 		</div>
-	</Resizable.Pane>
+	</div>
+{/snippet}
 
-	<Resizable.Handle />
-
-	<Resizable.Pane defaultSize={70} class="flex flex-col">
+{#snippet readingPane()}
+	<div class="flex h-full flex-col">
 		{#if selected}
-			<div class="border-b px-6 py-4 mail-detail-header">
+			<div class="border-b px-4 py-4 sm:px-6 mail-detail-header">
 				<h1 class="text-xl font-semibold">{selected.subject || '(no subject)'}</h1>
-				<div class="mt-2 flex items-center gap-3 text-sm text-muted-foreground">
+				<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
 					<span class="font-medium text-foreground">{selected.from_name || selected.from_address}</span>
 					<span>&lt;{selected.from_address}&gt;</span>
 					<div class="ml-auto flex items-center gap-1">
@@ -425,7 +428,7 @@
 				</div>
 			</div>
 			{#if selected.attachments && selected.attachments.length > 0}
-				<div class="border-b px-6 py-3 mail-attachments">
+				<div class="border-b px-4 py-3 sm:px-6 mail-attachments">
 					<div class="flex items-center gap-2 text-sm text-muted-foreground mb-2">
 						<Paperclip class="h-4 w-4" />
 						<span>{selected.attachments.length} attachment{selected.attachments.length > 1 ? 's' : ''}</span>
@@ -446,7 +449,7 @@
 					</div>
 				</div>
 			{/if}
-			<div class="flex-1 overflow-auto px-6 py-4 mail-body-content">
+			<div class="flex-1 overflow-auto px-4 py-4 sm:px-6 mail-body-content">
 				{#if selected.body_html}
 					{@html sanitizeHTML(selected.body_html)}
 				{:else if selected.body_text}
@@ -463,8 +466,34 @@
 				<p class="text-sm">Select an email to read</p>
 			</div>
 		{/if}
-	</Resizable.Pane>
-</Resizable.PaneGroup>
+	</div>
+{/snippet}
+
+{#if isDesktop.current}
+	<Resizable.PaneGroup direction="horizontal" class="h-full">
+		<Resizable.Pane defaultSize={30} minSize={20} maxSize={50}>
+			{@render listPane()}
+		</Resizable.Pane>
+		<Resizable.Handle />
+		<Resizable.Pane defaultSize={70}>
+			{@render readingPane()}
+		</Resizable.Pane>
+	</Resizable.PaneGroup>
+{:else if selected}
+	<div class="flex h-full flex-col">
+		<div class="flex flex-shrink-0 items-center border-b px-2 py-1.5">
+			<Button variant="ghost" size="sm" class="gap-1.5" onclick={() => (selectedId = null)}>
+				<ArrowLeft class="h-4 w-4" />
+				Back
+			</Button>
+		</div>
+		<div class="min-h-0 flex-1">
+			{@render readingPane()}
+		</div>
+	</div>
+{:else}
+	{@render listPane()}
+{/if}
 
 <style>
 	@media (prefers-reduced-motion: no-preference) {
