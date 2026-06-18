@@ -1,15 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Inbox, Send, PenLine, Trash2 } from 'lucide-svelte';
 	import type { Folder, UserProfile } from '$lib/backend';
 
 	let { folders = [], user = null }: { folders?: Folder[]; user?: UserProfile | null } = $props();
 
-	const inboxUnread = $derived(folders.find((f) => f.type === 'inbox')?.unread_count ?? 0);
-
 	let avatarFailed = $state(false);
 
-	// Reset the fallback when the avatar URL changes (e.g. after profile sync).
 	$effect(() => {
 		void user?.avatar_url;
 		avatarFailed = false;
@@ -23,20 +19,20 @@
 	}
 
 	const userLabel = $derived(user?.name?.trim() || user?.email || '');
-	const profileActive = $derived(page.url.pathname.startsWith('/profile'));
+	const profileActive = $derived(isActive('/profile'));
 
 	const items = [
-		{ href: '/mail', label: 'Inbox', icon: Inbox, exact: true },
-		{ href: '/mail/sent', label: 'Sent', icon: Send, exact: false },
-		{ href: '/mail/compose', label: 'Compose', icon: PenLine, exact: false },
-		{ href: '/mail/trash', label: 'Trash', icon: Trash2, exact: false }
+		{ href: '/mail', label: 'Mail', icon: 'solar:letter-linear' },
+		{ href: '/accounts', label: 'Accounts', icon: 'solar:mailbox-linear' },
+		{ href: '/templates', label: 'Templates', icon: 'solar:document-linear' },
+		{ href: '/settings', label: 'Settings', icon: 'solar:settings-linear' }
 	];
 
-	function isActive(item: (typeof items)[number]) {
-		return item.exact
-			? page.url.pathname === item.href
-			: page.url.pathname.startsWith(item.href);
+	function isActive(href: string) {
+		return page.url.pathname === href || page.url.pathname.startsWith(href + '/');
 	}
+
+	const inboxUnread = $derived(folders.find((f) => f.type === 'inbox')?.unread_count ?? 0);
 </script>
 
 <nav
@@ -47,7 +43,7 @@
 		class="flex items-center gap-1 rounded-full border border-border/40 bg-background/55 p-1.5 shadow-lg shadow-black/10 ring-1 ring-white/10 backdrop-blur-2xl backdrop-saturate-150"
 	>
 		{#each items as item (item.href)}
-			{@const active = isActive(item)}
+			{@const active = isActive(item.href)}
 			<a
 				href={item.href}
 				aria-label={item.label}
@@ -56,7 +52,7 @@
 					? 'bg-foreground text-background shadow-sm'
 					: 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'}"
 			>
-				<item.icon class="h-[22px] w-[22px]" />
+				<iconify-icon icon={item.icon} width="22"></iconify-icon>
 				{#if item.href === '/mail' && inboxUnread > 0 && !active}
 					<span
 						class="absolute right-1 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-semibold text-background"

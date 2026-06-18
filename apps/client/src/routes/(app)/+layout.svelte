@@ -65,9 +65,9 @@
 </script>
 
 {#if loaded}
-	<div class="flex h-screen w-full overflow-hidden">
+	<div class="flex h-[100dvh] w-full overflow-hidden">
 		<Sidebar {user} {folders} />
-		<main class="flex-1 overflow-auto pb-20 md:pb-0">
+		<main class="flex-1 overflow-auto pb-24 md:pb-0">
 			{@render children()}
 		</main>
 		<MobileNav {folders} {user} />

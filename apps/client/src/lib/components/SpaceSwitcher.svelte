@@ -97,7 +97,7 @@
 						onclick={() => open = false}
 					>
 						<iconify-icon icon="solar:settings-linear" width="16" class="shrink-0"></iconify-icon>
-						Gérer les espaces
+						Manage spaces
 					</a>
 				</div>
 			</div>

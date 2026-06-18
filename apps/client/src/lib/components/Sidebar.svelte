@@ -1,9 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Button } from '$lib/components/ui/button';
-	import { Separator } from '$lib/components/ui/separator';
-	import { Inbox, Send, FileEdit, Trash2, Archive, AlertCircle, LogOut, PenLine } from 'lucide-svelte';
 	import { backend, type UserProfile, type Folder } from '$lib/backend';
 	import SpaceSwitcher from '$lib/components/SpaceSwitcher.svelte';
 
@@ -30,54 +27,43 @@
 		return f?.unread_count ?? 0;
 	}
 
-	const navFolders = [
-		{ href: '/mail', label: 'Inbox', icon: Inbox, type: 'inbox' },
-		{ href: '/mail/sent', label: 'Sent', icon: Send, type: 'sent' },
-		{ href: '/mail/drafts', label: 'Drafts', icon: FileEdit, type: 'drafts' },
-		{ href: '/mail/archive', label: 'Archive', icon: Archive, type: 'archive' },
-		{ href: '/mail/junk', label: 'Junk', icon: AlertCircle, type: 'junk' },
-		{ href: '/mail/trash', label: 'Trash', icon: Trash2, type: 'trash' }
+	const navLinks: { href: string; label: string; icon: string; type?: string }[] = [
+		{ href: '/mail', label: 'Mail', icon: 'solar:letter-linear', type: 'inbox' },
+		{ href: '/accounts', label: 'Accounts', icon: 'solar:mailbox-linear' },
+		{ href: '/templates', label: 'Templates', icon: 'solar:document-linear' },
+		{ href: '/spaces', label: 'Spaces', icon: 'solar:users-group-rounded-linear' },
+		{ href: '/settings', label: 'Settings', icon: 'solar:settings-linear' }
 	];
 </script>
 
-<aside class="sticky top-0 hidden h-screen w-60 flex-col border-r bg-background md:flex">
+<aside class="sticky top-0 hidden h-[100dvh] w-60 flex-col border-r bg-background md:flex">
 	<div class="flex items-center gap-3 px-5 pt-8 pb-4">
 		<iconify-icon icon="solar:letter-bold-duotone" width="28" class="text-foreground"></iconify-icon>
 		<span class="text-2xl font-bold font-heading tracking-tight">Courrier</span>
 	</div>
 
-	<div class="px-3 pb-2">
-		<SpaceSwitcher />
-	</div>
-
-	<div class="px-3 pb-4">
-		<Button class="w-full justify-start gap-2" onclick={() => goto('/mail/compose')}>
-			<PenLine class="h-4 w-4" />
-			Compose
-		</Button>
-	</div>
+	<SpaceSwitcher />
 
 	<nav class="flex flex-1 flex-col gap-1 px-3">
-		{#each navFolders as folder}
-			{@const active = page.url.pathname === folder.href}
-			{@const unread = folderUnread(folder.type)}
+		{#each navLinks as link}
+			{@const active = page.url.pathname === link.href || page.url.pathname.startsWith(link.href + '/')}
+			{@const unread = link.type ? folderUnread(link.type) : 0}
 			<a
-				href={folder.href}
-				class="sidebar-nav-item flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-150 {active
+				href={link.href}
+				class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors {active
 					? 'bg-foreground text-background font-medium'
 					: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
 			>
-				<folder.icon class="h-4 w-4 shrink-0" />
-				<span class="flex-1">{folder.label}</span>
+				<iconify-icon icon={link.icon} width="16"></iconify-icon>
+				<span class="flex-1">{link.label}</span>
 				{#if unread > 0}
-					<span class="sidebar-badge text-xs font-medium">{unread}</span>
+					<span class="text-xs font-medium">{unread}</span>
 				{/if}
 			</a>
 		{/each}
-
 	</nav>
 
-	<Separator />
+	<div class="h-px bg-border"></div>
 
 	<div class="flex flex-col gap-2 p-4">
 		<a
@@ -88,52 +74,24 @@
 				<img
 					src={user.avatar_url}
 					alt={userLabel(user)}
-					class="h-10 w-10 rounded-full border border-border object-cover shrink-0"
+					class="h-9 w-9 rounded-full border border-border object-cover shrink-0"
 				/>
 			{:else}
-				<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-foreground text-sm font-semibold text-background">
+				<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-foreground text-xs font-semibold text-background">
 					{getInitials(userLabel(user))}
 				</div>
 			{/if}
 			<div class="min-w-0 flex-1">
 				<p class="truncate text-sm font-medium">{user?.name || 'Set your profile'}</p>
-				<p class="truncate text-xs text-muted-foreground">{user?.email}</p>
+				<p class="truncate text-xs text-muted-foreground">{user?.email ?? ''}</p>
 			</div>
 		</a>
-		<Button
-			variant="ghost"
-			size="sm"
-			class="w-full justify-start gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+		<button
 			onclick={logout}
+			class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-destructive hover:bg-destructive/10"
 		>
-			<LogOut class="h-4 w-4" />
+			<iconify-icon icon="solar:logout-2-linear" width="16"></iconify-icon>
 			Logout
-		</Button>
+		</button>
 	</div>
 </aside>
-
-<style>
-	@media (prefers-reduced-motion: no-preference) {
-		.sidebar-badge {
-			animation: sidebar-badge-pop 300ms ease-out;
-		}
-
-		.sidebar-nav-item {
-			transition: background-color 150ms ease-out, color 150ms ease-out;
-		}
-	}
-
-	@keyframes sidebar-badge-pop {
-		0% {
-			transform: scale(0.8);
-			opacity: 0.5;
-		}
-		60% {
-			transform: scale(1.1);
-		}
-		100% {
-			transform: scale(1);
-			opacity: 1;
-		}
-	}
-</style>
