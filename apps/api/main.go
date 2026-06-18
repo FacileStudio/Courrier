@@ -22,6 +22,7 @@ import (
 	"api/modules/auth"
 	"api/modules/mail"
 	"api/modules/settings"
+	"api/modules/spaces"
 	"api/modules/users"
 	"api/schemas"
 
@@ -77,6 +78,7 @@ func main() {
 	mailService := mail.NewService(db, appEnv.EncryptionKey)
 	userService := users.NewService(db, appEnv.StorageDir)
 	settingsService := settings.NewService(db)
+	spaceService := spaces.NewService(db)
 
 	router := chi.NewRouter()
 	router.Use(chimiddleware.RequestID)
@@ -105,6 +107,7 @@ func main() {
 	mail.RegisterRoutes(router, mailService, authService, appEnv.ResourceTokenSecret)
 	users.RegisterRoutes(router, userService, authService)
 	settings.RegisterRoutes(router, settingsService, authService)
+	spaces.RegisterRoutes(router, spaceService, authService)
 
 	clientDir := os.Getenv("CLIENT_DIR")
 	if clientDir == "" {

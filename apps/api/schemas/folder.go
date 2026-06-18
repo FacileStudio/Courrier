@@ -3,6 +3,7 @@ package schemas
 type Folder struct {
 	ID          int64  `gorm:"column:id;primaryKey"`
 	AccountID   int64  `gorm:"column:account_id;index"`
+	SpaceID     *string `gorm:"column:space_id;index"`
 	Path        string `gorm:"column:path"`
 	Name        string `gorm:"column:name"`
 	Type        string `gorm:"column:type;default:'custom'"`

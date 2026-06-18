@@ -5,6 +5,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { Inbox, Send, FileEdit, Trash2, Archive, AlertCircle, LogOut, PenLine } from 'lucide-svelte';
 	import { backend, type UserProfile, type Folder } from '$lib/backend';
+	import SpaceSwitcher from '$lib/components/SpaceSwitcher.svelte';
 
 	let { user, folders = [] }: { user: UserProfile | null; folders?: Folder[] } = $props();
 
@@ -43,6 +44,10 @@
 	<div class="flex items-center gap-3 px-5 pt-8 pb-4">
 		<iconify-icon icon="solar:letter-bold-duotone" width="28" class="text-foreground"></iconify-icon>
 		<span class="text-2xl font-bold font-heading tracking-tight">Courrier</span>
+	</div>
+
+	<div class="px-3 pb-2">
+		<SpaceSwitcher />
 	</div>
 
 	<div class="px-3 pb-4">

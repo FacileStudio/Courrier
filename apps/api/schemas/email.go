@@ -5,6 +5,7 @@ import "time"
 type Email struct {
 	ID             int64     `gorm:"column:id;primaryKey"`
 	AccountID      int64     `gorm:"column:account_id;index"`
+	SpaceID        *string   `gorm:"column:space_id;index"`
 	FolderID       int64     `gorm:"column:folder_id;index"`
 	MessageID      string    `gorm:"column:message_id;index"`
 	ThreadID       string    `gorm:"column:thread_id;index"`

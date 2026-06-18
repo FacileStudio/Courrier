@@ -13,5 +13,7 @@ func Migrate(db *gorm.DB) error {
 		&Email{},
 		&Attachment{},
 		&EmailTemplate{},
+		&Space{},
+		&SpaceMember{},
 	)
 }
