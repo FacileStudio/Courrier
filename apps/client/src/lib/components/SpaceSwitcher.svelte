@@ -49,7 +49,7 @@
 	>
 		<Users class="h-4 w-4 shrink-0 text-muted-foreground" />
 		<span class="flex-1 truncate text-left">
-			{spaceStore.active?.name ?? 'Personal'}
+			{spaceStore.active?.name ?? 'Personnel'}
 		</span>
 		<ChevronDown class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform {open ? 'rotate-180' : ''}" />
 	</button>
@@ -60,7 +60,7 @@
 				class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent"
 				onclick={clearSpace}
 			>
-				<span class="flex-1 text-left">Personal</span>
+				<span class="flex-1 text-left">Personnel</span>
 				{#if !spaceStore.active}
 					<Check class="h-3.5 w-3.5" />
 				{/if}
@@ -85,7 +85,7 @@
 				onclick={() => { open = false; goto('/spaces/new'); }}
 			>
 				<Plus class="h-3.5 w-3.5" />
-				New Space
+				Nouvel espace
 			</button>
 
 			<button
@@ -93,7 +93,7 @@
 				onclick={() => { open = false; goto('/spaces'); }}
 			>
 				<Users class="h-3.5 w-3.5" />
-				Manage Spaces
+				Gérer les espaces
 			</button>
 		</div>
 	{/if}

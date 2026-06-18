@@ -47,19 +47,19 @@
 </script>
 
 <svelte:head>
-	<title>Spaces — Courrier</title>
+	<title>Espaces — Courrier</title>
 </svelte:head>
 
 <div class="flex flex-col gap-0 h-full">
 	<div class="px-6 pt-6 pb-0">
 		<div class="flex items-center justify-between">
 			<div>
-				<h1 class="text-2xl font-semibold">Spaces</h1>
-				<p class="text-sm text-muted-foreground mt-1">Collaborate with your team in shared spaces.</p>
+				<h1 class="text-2xl font-semibold">Espaces</h1>
+				<p class="text-sm text-muted-foreground mt-1">Collaborez avec votre équipe dans des espaces partagés.</p>
 			</div>
 			<Button class="gap-1.5" onclick={() => goto('/spaces/new')}>
 				<Plus class="h-4 w-4" />
-				New Space
+				Nouvel espace
 			</Button>
 		</div>
 	</div>
@@ -67,13 +67,13 @@
 	<div class="flex-1 overflow-auto p-6">
 		<div class="max-w-2xl">
 			{#if loading}
-				<p class="text-sm text-muted-foreground">Loading...</p>
+				<p class="text-sm text-muted-foreground">Chargement...</p>
 			{:else if spaces.length === 0}
 				<div class="flex flex-col items-center justify-center gap-4 py-16">
 					<Users class="h-12 w-12 text-muted-foreground/40" />
 					<div class="text-center">
-						<p class="text-sm font-medium">No spaces yet</p>
-						<p class="text-sm text-muted-foreground mt-1">Create a space to start collaborating.</p>
+						<p class="text-sm font-medium">Aucun espace</p>
+						<p class="text-sm text-muted-foreground mt-1">Créez un espace pour commencer à collaborer.</p>
 					</div>
 					<Button variant="outline" class="gap-1.5" onclick={() => goto('/spaces/new')}>
 						<Plus class="h-4 w-4" />
