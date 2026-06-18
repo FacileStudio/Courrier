@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, getContext } from 'svelte';
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { backend, type SpaceMember, type Space } from '$lib/backend';

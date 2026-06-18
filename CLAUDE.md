@@ -22,7 +22,7 @@ docker-compose.yml        Two services: db + courrier
 apps/
   api/                    Go backend
     main.go               Entrypoint: env, DB, migrations, router, static file serving, graceful shutdown
-    modules/              Domain modules (auth, accounts, users, settings)
+    modules/              Domain modules (auth, accounts, users, settings, spaces)
     internal/             Shared infra (database, middleware, logger, env, errors, etc.)
     schemas/              GORM models and migrations (auto-run on startup)
     vendor/               Vendored Go dependencies
@@ -95,6 +95,7 @@ Client dev only (in `apps/client/.env`):
 - Connection test: `POST /mail/test-connection`
 - Users: `/users/me`, `/users`
 - Settings: `/settings/`
+- Spaces: `/spaces` (CRUD), `/spaces/{id}/members` (member management), `/spaces/{id}/leave`
 
 ## Conventions
 
