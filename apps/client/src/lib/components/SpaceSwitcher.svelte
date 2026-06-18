@@ -1,30 +1,33 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { backend, type Space } from '$lib/backend';
 	import { spaceStore } from '$lib/stores/space.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { ChevronDown, Plus, Users, Check } from 'lucide-svelte';
 
 	let spaces = $state<Space[]>([]);
 	let open = $state(false);
+	let loading = $state(true);
+
+	onMount(async () => {
+		await loadSpaces();
+	});
 
 	async function loadSpaces() {
+		loading = true;
 		try {
-			const result = await backend.listSpaces();
-			spaces = result.spaces;
+			const res = await backend.listSpaces();
+			spaces = res.spaces ?? [];
 		} catch {
 			spaces = [];
 		}
+		loading = false;
 	}
 
-	function selectSpace(space: Space) {
-		spaceStore.set({ id: space.id, name: space.name, role: space.role });
-		open = false;
-	}
-
-	function clearSpace() {
-		spaceStore.clear();
+	function selectSpace(space: Space | null) {
+		if (space) {
+			spaceStore.set({ id: space.id, name: space.name, role: space.role });
+		} else {
+			spaceStore.clear();
+		}
 		open = false;
 	}
 
@@ -35,66 +38,69 @@
 		}
 	}
 
-	onMount(() => {
-		loadSpaces();
-		document.addEventListener('click', handleClickOutside);
-		return () => document.removeEventListener('click', handleClickOutside);
+	$effect(() => {
+		if (open) {
+			document.addEventListener('click', handleClickOutside);
+			return () => document.removeEventListener('click', handleClickOutside);
+		}
 	});
 </script>
 
-<div class="space-switcher relative">
-	<button
-		class="flex w-full items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm transition-colors hover:bg-muted"
-		onclick={() => (open = !open)}
-	>
-		<Users class="h-4 w-4 shrink-0 text-muted-foreground" />
-		<span class="flex-1 truncate text-left">
-			{spaceStore.active?.name ?? 'Personnel'}
-		</span>
-		<ChevronDown class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform {open ? 'rotate-180' : ''}" />
-	</button>
+{#if !loading && spaces.length > 0}
+	<div class="space-switcher relative px-3 pb-2">
+		<button
+			class="flex w-full items-center gap-2.5 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60"
+			onclick={() => open = !open}
+		>
+			<iconify-icon
+				icon={spaceStore.active ? 'solar:users-group-rounded-bold-duotone' : 'solar:user-circle-bold-duotone'}
+				width="18"
+				class="shrink-0 text-muted-foreground"
+			></iconify-icon>
+			<span class="min-w-0 flex-1 truncate font-medium">
+				{spaceStore.active?.name ?? 'Personnel'}
+			</span>
+			<iconify-icon
+				icon="solar:alt-arrow-down-linear"
+				width="14"
+				class="shrink-0 text-muted-foreground transition-transform {open ? 'rotate-180' : ''}"
+			></iconify-icon>
+		</button>
 
-	{#if open}
-		<div class="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border bg-popover p-1 shadow-md">
-			<button
-				class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent"
-				onclick={clearSpace}
-			>
-				<span class="flex-1 text-left">Personnel</span>
-				{#if !spaceStore.active}
-					<Check class="h-3.5 w-3.5" />
-				{/if}
-			</button>
+		{#if open}
+			<div class="absolute left-3 right-3 z-50 mt-1 overflow-hidden rounded-lg border border-border bg-background shadow-lg">
+				<div class="max-h-64 overflow-auto p-1">
+					<button
+						class="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors {!spaceStore.active ? 'bg-foreground text-background' : 'text-foreground hover:bg-muted'}"
+						onclick={() => selectSpace(null)}
+					>
+						<iconify-icon icon="solar:user-circle-bold-duotone" width="16" class="shrink-0"></iconify-icon>
+						Personnel
+					</button>
 
-			{#each spaces as space}
-				<button
-					class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent"
-					onclick={() => selectSpace(space)}
-				>
-					<span class="flex-1 truncate text-left">{space.name}</span>
-					{#if spaceStore.active?.id === space.id}
-						<Check class="h-3.5 w-3.5" />
-					{/if}
-				</button>
-			{/each}
+					{#each spaces as space}
+						<button
+							class="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors {spaceStore.active?.id === space.id ? 'bg-foreground text-background' : 'text-foreground hover:bg-muted'}"
+							onclick={() => selectSpace(space)}
+						>
+							<iconify-icon icon="solar:users-group-rounded-bold-duotone" width="16" class="shrink-0"></iconify-icon>
+							<span class="min-w-0 flex-1 truncate">{space.name}</span>
+							<span class="shrink-0 text-xs opacity-60">{space.role}</span>
+						</button>
+					{/each}
+				</div>
 
-			<div class="my-1 border-t"></div>
-
-			<button
-				class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-				onclick={() => { open = false; goto('/spaces/new'); }}
-			>
-				<Plus class="h-3.5 w-3.5" />
-				Nouvel espace
-			</button>
-
-			<button
-				class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-				onclick={() => { open = false; goto('/spaces'); }}
-			>
-				<Users class="h-3.5 w-3.5" />
-				Gérer les espaces
-			</button>
-		</div>
-	{/if}
-</div>
+				<div class="border-t border-border p-1">
+					<a
+						href="/spaces"
+						class="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+						onclick={() => open = false}
+					>
+						<iconify-icon icon="solar:settings-linear" width="16" class="shrink-0"></iconify-icon>
+						Gérer les espaces
+					</a>
+				</div>
+			</div>
+		{/if}
+	</div>
+{/if}

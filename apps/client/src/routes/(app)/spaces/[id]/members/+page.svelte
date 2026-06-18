@@ -1,35 +1,32 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { backend, type SpaceMember, type Space } from '$lib/backend';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
 	import { toast } from 'svelte-sonner';
-	import { ArrowLeft, Plus, Trash2, Crown, Shield, Users, X } from 'lucide-svelte';
 
 	const spaceId = $derived(page.params.id as string);
 
 	let space = $state<Space | null>(null);
 	let members = $state<SpaceMember[]>([]);
 	let loading = $state(true);
-	let showAddForm = $state(false);
 	let addUserId = $state('');
 	let addRole = $state('member');
+	let addError = $state('');
 	let adding = $state(false);
-	let removing = $state<string | null>(null);
-	let updatingRole = $state<string | null>(null);
+
+	onMount(async () => {
+		await loadData();
+	});
 
 	async function loadData() {
 		loading = true;
 		try {
-			const [spaceResult, membersResult] = await Promise.all([
+			const [spaceRes, membersRes] = await Promise.all([
 				backend.getSpace(spaceId),
 				backend.listSpaceMembers(spaceId)
 			]);
-			space = spaceResult;
-			members = membersResult.members;
+			space = spaceRes;
+			members = membersRes.members ?? [];
 		} catch {
 			space = null;
 			members = [];
@@ -40,165 +37,178 @@
 	async function addMember() {
 		const uid = parseInt(addUserId, 10);
 		if (isNaN(uid)) {
-			toast.error('Enter a valid user ID');
+			addError = 'Entrez un ID utilisateur valide';
 			return;
 		}
+
 		adding = true;
+		addError = '';
 		try {
 			await backend.addSpaceMember(spaceId, { user_id: uid, role: addRole });
-			toast.success('Member added');
 			addUserId = '';
 			addRole = 'member';
-			showAddForm = false;
-			await loadData();
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to add member');
+			const res = await backend.listSpaceMembers(spaceId);
+			members = res.members ?? [];
+		} catch (e: any) {
+			addError = e.message || 'Impossible d\'ajouter le membre';
 		}
 		adding = false;
 	}
 
-	async function removeMember(member: SpaceMember) {
-		removing = member.id;
+	async function updateRole(memberId: string, role: string) {
 		try {
-			await backend.removeSpaceMember(spaceId, member.id);
-			toast.success('Member removed');
-			await loadData();
+			await backend.updateSpaceMember(spaceId, memberId, { role });
+			const res = await backend.listSpaceMembers(spaceId);
+			members = res.members ?? [];
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to remove member');
+			toast.error(err instanceof Error ? err.message : 'Impossible de mettre à jour le rôle');
 		}
-		removing = null;
 	}
 
-	async function changeRole(member: SpaceMember, newRole: string) {
-		updatingRole = member.id;
+	async function removeMember(memberId: string) {
 		try {
-			await backend.updateSpaceMember(spaceId, member.id, { role: newRole });
-			toast.success('Role updated');
-			await loadData();
+			await backend.removeSpaceMember(spaceId, memberId);
+			members = members.filter(m => m.id !== memberId);
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to update role');
+			toast.error(err instanceof Error ? err.message : 'Impossible de retirer le membre');
 		}
-		updatingRole = null;
 	}
 
-	const canManage = $derived(space?.role === 'owner' || space?.role === 'admin');
+	function roleBadgeClass(role: string): string {
+		switch (role) {
+			case 'owner': return 'bg-amber-500/10 text-amber-600';
+			case 'admin': return 'bg-blue-500/10 text-blue-600';
+			default: return 'bg-muted text-muted-foreground';
+		}
+	}
 
-	onMount(() => {
-		loadData();
-	});
+	let isOwnerOrAdmin = $derived(space?.role === 'owner' || space?.role === 'admin');
+	let isOwner = $derived(space?.role === 'owner');
 </script>
 
 <svelte:head>
-	<title>Members — {space?.name ?? 'Space'} — Courrier</title>
+	<title>Membres — {space?.name ?? 'Espace'} — Courrier</title>
 </svelte:head>
 
-<div class="flex flex-col gap-0 h-full">
-	<div class="px-6 pt-6 pb-0">
-		<button class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4" onclick={() => goto(`/spaces/${spaceId}`)}>
-			<ArrowLeft class="h-4 w-4" />
-			Back to Space
-		</button>
-		<h1 class="text-2xl font-semibold">Members</h1>
-		<p class="text-sm text-muted-foreground mt-1">{space?.name ?? ''}</p>
+<div class="flex h-full flex-col">
+	<div class="border-b border-border px-4 py-4 md:px-8 md:py-5">
+		<div class="flex items-center gap-3">
+			<a href="/spaces/{spaceId}" class="text-muted-foreground transition-colors hover:text-foreground" aria-label="Retour à l'espace">
+				<iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
+			</a>
+			<div>
+				<h1 class="text-lg font-semibold">Membres</h1>
+				{#if space}
+					<p class="mt-0.5 text-sm text-muted-foreground">{space.name}</p>
+				{/if}
+			</div>
+		</div>
 	</div>
 
-	<div class="flex-1 overflow-auto p-6">
-		<div class="max-w-2xl">
-			{#if loading}
-				<p class="text-sm text-muted-foreground">Loading...</p>
-			{:else}
-				<div class="space-y-4">
-					<div class="space-y-0">
-						{#each members as member, i}
-							<div class="flex items-center justify-between py-3 {i < members.length - 1 ? 'border-b' : ''}">
-								<div class="min-w-0">
-									<p class="font-medium text-sm">{member.name || member.email}</p>
+	<div class="flex-1 overflow-auto px-4 py-6 md:px-8">
+		{#if loading}
+			<div class="flex items-center justify-center py-20">
+				<div class="h-6 w-6 animate-spin rounded-full border-2 border-foreground border-t-transparent"></div>
+			</div>
+		{:else if !space}
+			<div class="flex flex-col items-center justify-center py-20 text-center">
+				<p class="text-sm text-muted-foreground">Espace introuvable ou accès refusé.</p>
+			</div>
+		{:else}
+			<div class="max-w-2xl space-y-8">
+				{#if isOwnerOrAdmin}
+					<div class="space-y-3">
+						<h2 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Ajouter un membre</h2>
+						<div class="flex items-end gap-2">
+							<div class="flex-1">
+								<label for="user-id" class="mb-1.5 block text-sm font-medium">ID utilisateur</label>
+								<input
+									id="user-id"
+									type="text"
+									bind:value={addUserId}
+									placeholder="Entrez l'ID utilisateur"
+									class="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								/>
+							</div>
+							<div class="w-32">
+								<label for="add-role" class="mb-1.5 block text-sm font-medium">Rôle</label>
+								<select
+									id="add-role"
+									bind:value={addRole}
+									class="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								>
+									<option value="member">Membre</option>
+									<option value="admin">Admin</option>
+								</select>
+							</div>
+							<button
+								class="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+								onclick={addMember}
+								disabled={adding}
+							>
+								{adding ? 'Ajout...' : 'Ajouter'}
+							</button>
+						</div>
+						{#if addError}
+							<p class="text-sm text-destructive">{addError}</p>
+						{/if}
+					</div>
+				{/if}
+
+				<div class="space-y-3">
+					<h2 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+						{members.length} membre{members.length !== 1 ? 's' : ''}
+					</h2>
+
+					{#each members as member}
+						<div class="flex items-center justify-between rounded-lg border border-border p-3">
+							<div class="flex items-center gap-3">
+								<div
+									class="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold"
+								>
+									{(member.name || member.email || '?').slice(0, 2).toUpperCase()}
+								</div>
+								<div>
+									<p class="text-sm font-medium">{member.name || member.email}</p>
 									{#if member.name}
 										<p class="text-xs text-muted-foreground">{member.email}</p>
 									{/if}
 								</div>
-								<div class="flex items-center gap-2 shrink-0">
-									{#if member.role === 'owner'}
-										<span class="inline-flex items-center gap-1 text-xs text-muted-foreground">
-											<Crown class="h-3 w-3" />
-											Owner
-										</span>
-									{:else if canManage}
-										<select
-											class="h-8 rounded-md border border-input bg-transparent px-2 text-xs outline-none"
-											value={member.role}
-											onchange={(e) => changeRole(member, (e.target as HTMLSelectElement).value)}
-											disabled={updatingRole === member.id}
-										>
-											<option value="admin">Admin</option>
-											<option value="member">Member</option>
-										</select>
-										<Button
-											variant="ghost"
-											size="icon"
-											class="h-8 w-8 text-muted-foreground hover:text-destructive"
-											onclick={() => removeMember(member)}
-											disabled={removing === member.id}
-										>
-											<Trash2 class="h-4 w-4" />
-										</Button>
-									{:else}
-										<span class="inline-flex items-center gap-1 text-xs text-muted-foreground">
-											{#if member.role === 'owner'}
-												<Crown class="h-3 w-3" />
-											{:else if member.role === 'admin'}
-												<Shield class="h-3 w-3" />
-											{:else}
-												<Users class="h-3 w-3" />
-											{/if}
-											{member.role.charAt(0).toUpperCase() + member.role.slice(1)}
-										</span>
-									{/if}
-								</div>
 							</div>
-						{/each}
-					</div>
-
-					{#if canManage}
-						{#if showAddForm}
-							<div class="space-y-4 pt-2 border-t">
-								<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-									<div class="space-y-2">
-										<Label for="add-user-id">User ID</Label>
-										<Input id="add-user-id" bind:value={addUserId} placeholder="Enter user ID" />
-									</div>
-									<div class="space-y-2">
-										<Label for="add-role">Role</Label>
-										<select
-											id="add-role"
-											bind:value={addRole}
-											class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none"
-										>
-											<option value="member">Member</option>
-											<option value="admin">Admin</option>
-										</select>
-									</div>
-								</div>
-								<div class="flex items-center gap-2">
-									<Button size="sm" class="gap-1.5" onclick={addMember} disabled={adding || !addUserId}>
-										<Plus class="h-4 w-4" />
-										{adding ? 'Adding...' : 'Add Member'}
-									</Button>
-									<Button variant="ghost" size="sm" class="gap-1.5" onclick={() => (showAddForm = false)}>
-										<X class="h-4 w-4" />
-										Cancel
-									</Button>
-								</div>
+							<div class="flex items-center gap-2">
+								{#if member.role === 'owner'}
+									<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {roleBadgeClass('owner')}">
+										owner
+									</span>
+								{:else if isOwnerOrAdmin}
+									<select
+										value={member.role}
+										onchange={(e) => updateRole(member.id, (e.target as HTMLSelectElement).value)}
+										class="h-8 rounded-md border border-border bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									>
+										<option value="member">Membre</option>
+										<option value="admin">Admin</option>
+										{#if isOwner}
+											<option value="owner">Owner</option>
+										{/if}
+									</select>
+									<button
+										class="inline-flex h-8 items-center rounded-md px-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
+										onclick={() => removeMember(member.id)}
+										aria-label="Retirer le membre"
+									>
+										<iconify-icon icon="solar:trash-bin-2-linear" width="14"></iconify-icon>
+									</button>
+								{:else}
+									<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {roleBadgeClass(member.role)}">
+										{member.role}
+									</span>
+								{/if}
 							</div>
-						{:else}
-							<Button variant="outline" size="sm" class="gap-1.5" onclick={() => (showAddForm = true)}>
-								<Plus class="h-4 w-4" />
-								Add Member
-							</Button>
-						{/if}
-					{/if}
+						</div>
+					{/each}
 				</div>
-			{/if}
-		</div>
+			</div>
+		{/if}
 	</div>
 </div>

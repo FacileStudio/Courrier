@@ -1,132 +1,94 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { backend, type Space } from '$lib/backend';
-	import { spaceStore } from '$lib/stores/space.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Plus, Users, Settings, LogOut, Crown, Shield } from 'lucide-svelte';
-	import { toast } from 'svelte-sonner';
 
 	let spaces = $state<Space[]>([]);
 	let loading = $state(true);
-	let leaving = $state<string | null>(null);
 
-	function roleLabel(role: string) {
-		return role.charAt(0).toUpperCase() + role.slice(1);
-	}
+	onMount(async () => {
+		await loadSpaces();
+	});
 
 	async function loadSpaces() {
 		loading = true;
 		try {
-			const result = await backend.listSpaces();
-			spaces = result.spaces;
+			const res = await backend.listSpaces();
+			spaces = res.spaces ?? [];
 		} catch {
 			spaces = [];
 		}
 		loading = false;
 	}
 
-	async function leaveSpace(space: Space) {
-		leaving = space.id;
-		try {
-			await backend.leaveSpace(space.id);
-			toast.success(`Left ${space.name}`);
-			if (spaceStore.active?.id === space.id) {
-				spaceStore.clear();
-			}
-			await loadSpaces();
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to leave space');
+	function roleBadgeClass(role: string): string {
+		switch (role) {
+			case 'owner': return 'bg-amber-500/10 text-amber-600';
+			case 'admin': return 'bg-blue-500/10 text-blue-600';
+			default: return 'bg-muted text-muted-foreground';
 		}
-		leaving = null;
 	}
-
-	onMount(() => {
-		loadSpaces();
-	});
 </script>
 
 <svelte:head>
 	<title>Espaces — Courrier</title>
 </svelte:head>
 
-<div class="flex flex-col gap-0 h-full">
-	<div class="px-6 pt-6 pb-0">
-		<div class="flex items-center justify-between">
-			<div>
-				<h1 class="text-2xl font-semibold">Espaces</h1>
-				<p class="text-sm text-muted-foreground mt-1">Collaborez avec votre équipe dans des espaces partagés.</p>
-			</div>
-			<Button class="gap-1.5" onclick={() => goto('/spaces/new')}>
-				<Plus class="h-4 w-4" />
-				Nouvel espace
-			</Button>
+<div class="flex h-full flex-col">
+	<div class="flex items-center justify-between border-b border-border px-4 py-4 md:px-8 md:py-5">
+		<div>
+			<h1 class="text-lg font-semibold">Espaces</h1>
+			<p class="mt-1 text-sm text-muted-foreground">Collaborez avec votre équipe dans des espaces partagés.</p>
 		</div>
+		<a
+			href="/spaces/new"
+			class="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+		>
+			<iconify-icon icon="solar:add-circle-linear" width="16"></iconify-icon>
+			Nouvel espace
+		</a>
 	</div>
 
-	<div class="flex-1 overflow-auto p-6">
-		<div class="max-w-2xl">
-			{#if loading}
-				<p class="text-sm text-muted-foreground">Chargement...</p>
-			{:else if spaces.length === 0}
-				<div class="flex flex-col items-center justify-center gap-4 py-16">
-					<Users class="h-12 w-12 text-muted-foreground/40" />
-					<div class="text-center">
-						<p class="text-sm font-medium">Aucun espace</p>
-						<p class="text-sm text-muted-foreground mt-1">Créez un espace pour commencer à collaborer.</p>
-					</div>
-					<Button variant="outline" class="gap-1.5" onclick={() => goto('/spaces/new')}>
-						<Plus class="h-4 w-4" />
-						Create your first space
-					</Button>
-				</div>
-			{:else}
-				<div class="space-y-0">
-					{#each spaces as space, i}
-						<div class="flex items-center justify-between py-3 {i < spaces.length - 1 ? 'border-b' : ''}">
-							<a href="/spaces/{space.id}" class="min-w-0 flex-1 group">
-								<p class="font-medium text-sm group-hover:underline">{space.name}</p>
+	<div class="flex-1 overflow-auto px-4 py-6 md:px-8">
+		{#if loading}
+			<div class="flex items-center justify-center py-20">
+				<div class="h-6 w-6 animate-spin rounded-full border-2 border-foreground border-t-transparent"></div>
+			</div>
+		{:else if spaces.length === 0}
+			<div class="flex flex-col items-center justify-center py-20 text-center">
+				<iconify-icon icon="solar:users-group-rounded-bold-duotone" width="48" class="text-muted-foreground/40"></iconify-icon>
+				<p class="mt-4 text-sm font-medium text-muted-foreground">Aucun espace</p>
+				<p class="mt-1 text-sm text-muted-foreground/70">Créez un espace pour commencer à collaborer.</p>
+				<a
+					href="/spaces/new"
+					class="mt-4 inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+				>
+					Créer votre premier espace
+				</a>
+			</div>
+		{:else}
+			<div class="grid gap-3">
+				{#each spaces as space}
+					<a
+						href="/spaces/{space.id}"
+						class="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
+					>
+						<div class="flex items-center gap-3">
+							<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+								<iconify-icon icon="solar:users-group-rounded-bold-duotone" width="20" class="text-primary"></iconify-icon>
+							</div>
+							<div>
+								<p class="text-sm font-medium">{space.name}</p>
 								{#if space.description}
-									<p class="text-xs text-muted-foreground mt-0.5">{space.description}</p>
-								{/if}
-							</a>
-							<div class="flex items-center gap-2 shrink-0 ml-4">
-								<span class="inline-flex items-center gap-1 text-xs text-muted-foreground">
-									{#if space.role === 'owner'}
-										<Crown class="h-3 w-3" />
-									{:else if space.role === 'admin'}
-										<Shield class="h-3 w-3" />
-									{:else}
-										<Users class="h-3 w-3" />
-									{/if}
-									{roleLabel(space.role)}
-								</span>
-								{#if space.role === 'owner' || space.role === 'admin'}
-									<Button
-										variant="ghost"
-										size="icon"
-										class="h-8 w-8"
-										onclick={() => goto(`/spaces/${space.id}/settings`)}
-									>
-										<Settings class="h-4 w-4" />
-									</Button>
-								{/if}
-								{#if space.role !== 'owner'}
-									<Button
-										variant="ghost"
-										size="icon"
-										class="h-8 w-8 text-muted-foreground hover:text-destructive"
-										onclick={() => leaveSpace(space)}
-										disabled={leaving === space.id}
-									>
-										<LogOut class="h-4 w-4" />
-									</Button>
+									<p class="mt-0.5 text-xs text-muted-foreground line-clamp-1">{space.description}</p>
 								{/if}
 							</div>
 						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
+						<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {roleBadgeClass(space.role)}">
+							{space.role}
+						</span>
+					</a>
+				{/each}
+			</div>
+		{/if}
 	</div>
 </div>
