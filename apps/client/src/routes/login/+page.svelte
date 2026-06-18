@@ -28,7 +28,7 @@
 		if (raw === 'register') tab = 'register';
 
 		try {
-			const cfg = await fetch(`${backend.baseUrl}/auth/config`, { credentials: 'include' }).then(r => r.json());
+			const cfg = await fetch(`${backend.baseUrl}/api/auth/config`, { credentials: 'include' }).then(r => r.json());
 			ssoOnly = cfg.sso_only ?? false;
 			oidcEnabled = cfg.oidc_enabled ?? false;
 			if (ssoOnly) tab = 'login';
@@ -156,7 +156,7 @@
 						</div>
 					{/if}
 
-					<a href="{backend.baseUrl}/auth/oidc" class="block">
+					<a href="{backend.baseUrl}/api/auth/oidc" class="block">
 						<Button variant="outline" class="w-full gap-2" type="button">
 							<ExternalLink class="h-4 w-4" />
 							Continue with SSO

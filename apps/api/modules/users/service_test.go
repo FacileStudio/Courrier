@@ -58,8 +58,8 @@ func TestRemoveAvatarFileDeletesManagedAvatarOnly(t *testing.T) {
 		t.Fatalf("write external file: %v", err)
 	}
 
-	service.removeAvatarFile("/files/avatars/managed.png")
-	service.removeAvatarFile("/files/../outside.txt")
+	service.removeAvatarFile("/api/files/avatars/managed.png")
+	service.removeAvatarFile("/api/files/../outside.txt")
 
 	if _, err := os.Stat(managedPath); !os.IsNotExist(err) {
 		t.Fatalf("expected managed avatar removed, stat err=%v", err)

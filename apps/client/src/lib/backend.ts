@@ -143,106 +143,106 @@ export const backend = {
 	baseUrl: backendBaseUrl,
 
 	register(email: string, password: string) {
-		return apiFetch<AuthResponse>('/auth/register', {
+		return apiFetch<AuthResponse>('/api/auth/register', {
 			method: 'POST',
 			body: JSON.stringify({ email, password })
 		});
 	},
 	login(email: string, password: string) {
-		return apiFetch<AuthResponse>('/auth/login', {
+		return apiFetch<AuthResponse>('/api/auth/login', {
 			method: 'POST',
 			body: JSON.stringify({ email, password })
 		});
 	},
 	logout() {
-		return apiFetch<{ ok: boolean }>('/auth/logout', { method: 'POST' });
+		return apiFetch<{ ok: boolean }>('/api/auth/logout', { method: 'POST' });
 	},
 	me() {
-		return apiFetch<MeResponse>('/users/me').then((r) => ({
+		return apiFetch<MeResponse>('/api/users/me').then((r) => ({
 			user: normalizeUser(r.user)
 		}));
 	},
 
 	listAccounts() {
-		return apiFetch<{ accounts: MailAccount[] }>('/accounts');
+		return apiFetch<{ accounts: MailAccount[] }>('/api/accounts');
 	},
 	getAccount(id: number) {
-		return apiFetch<MailAccount>(`/accounts/${id}`);
+		return apiFetch<MailAccount>(`/api/accounts/${id}`);
 	},
 	createAccount(data: Omit<MailAccount, 'id' | 'created_at' | 'updated_at'> & { imap_password: string; smtp_password: string }) {
-		return apiFetch<MailAccount>('/accounts', {
+		return apiFetch<MailAccount>('/api/accounts', {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
 	},
 	updateAccount(id: number, data: Partial<MailAccount & { imap_password: string; smtp_password: string }>) {
-		return apiFetch<MailAccount>(`/accounts/${id}`, {
+		return apiFetch<MailAccount>(`/api/accounts/${id}`, {
 			method: 'PUT',
 			body: JSON.stringify(data)
 		});
 	},
 	deleteAccount(id: number) {
-		return apiFetch<{ deleted: boolean }>(`/accounts/${id}`, { method: 'DELETE' });
+		return apiFetch<{ deleted: boolean }>(`/api/accounts/${id}`, { method: 'DELETE' });
 	},
 
 	syncProfile() {
-		return apiFetch<{ synced: boolean }>('/auth/sync-profile', { method: 'POST' });
+		return apiFetch<{ synced: boolean }>('/api/auth/sync-profile', { method: 'POST' });
 	},
 
 	syncAccount(accountId: number) {
-		return apiFetch<{ synced: boolean }>(`/accounts/${accountId}/mail/sync`, { method: 'POST' });
+		return apiFetch<{ synced: boolean }>(`/api/accounts/${accountId}/mail/sync`, { method: 'POST' });
 	},
 	syncFolder(accountId: number, folderId: number) {
-		return apiFetch<{ synced: boolean }>(`/accounts/${accountId}/mail/folders/${folderId}/sync`, { method: 'POST' });
+		return apiFetch<{ synced: boolean }>(`/api/accounts/${accountId}/mail/folders/${folderId}/sync`, { method: 'POST' });
 	},
 	getFolders(accountId: number) {
-		return apiFetch<{ folders: Folder[] }>(`/accounts/${accountId}/mail/folders`);
+		return apiFetch<{ folders: Folder[] }>(`/api/accounts/${accountId}/mail/folders`);
 	},
 	getEmailsByFolder(accountId: number, folderType: string, page = 1, limit = 50, unreadOnly = false) {
 		const params = new URLSearchParams({ page: String(page), limit: String(limit) });
 		if (unreadOnly) params.set('unread', 'true');
 		return apiFetch<{ emails: EmailMessage[]; total: number; page: number; limit: number }>(
-			`/accounts/${accountId}/mail/folders/${folderType}/emails?${params}`
+			`/api/accounts/${accountId}/mail/folders/${folderType}/emails?${params}`
 		);
 	},
 	getEmail(accountId: number, emailId: number) {
-		return apiFetch<EmailMessage>(`/accounts/${accountId}/mail/emails/${emailId}`);
+		return apiFetch<EmailMessage>(`/api/accounts/${accountId}/mail/emails/${emailId}`);
 	},
 	updateEmail(accountId: number, emailId: number, data: { is_read?: boolean; is_starred?: boolean }) {
-		return apiFetch<EmailMessage>(`/accounts/${accountId}/mail/emails/${emailId}`, {
+		return apiFetch<EmailMessage>(`/api/accounts/${accountId}/mail/emails/${emailId}`, {
 			method: 'PATCH',
 			body: JSON.stringify(data)
 		});
 	},
 	sendEmail(accountId: number, data: { to: string[]; cc?: string[]; subject: string; body: string; body_html?: string; in_reply_to?: string; references?: string[] }) {
-		return apiFetch<{ sent: boolean }>(`/accounts/${accountId}/mail/send`, {
+		return apiFetch<{ sent: boolean }>(`/api/accounts/${accountId}/mail/send`, {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
 	},
 	testConnection(data: { imap_host: string; imap_port: number; imap_user: string; imap_password: string; smtp_host: string; smtp_port: number; smtp_user: string; smtp_password: string }) {
-		return apiFetch<{ ok: boolean }>('/mail/test-connection', {
+		return apiFetch<{ ok: boolean }>('/api/mail/test-connection', {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
 	},
 
 	getAttachmentUrl(accountId: number, emailId: number, attachmentId: number): string {
-		return `${backendBaseUrl}/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download`;
+		return `${backendBaseUrl}/api/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download`;
 	},
 
 	getCIDImageUrl(accountId: number, emailId: number, cid: string): string {
-		return `${backendBaseUrl}/accounts/${accountId}/mail/emails/${emailId}/cid/${encodeURIComponent(cid)}`;
+		return `${backendBaseUrl}/api/accounts/${accountId}/mail/emails/${emailId}/cid/${encodeURIComponent(cid)}`;
 	},
 
 	searchContacts(accountId: number, query: string) {
 		return apiFetch<{ contacts: Array<{ name: string; email: string; count: number }> }>(
-			`/accounts/${accountId}/mail/contacts?q=${encodeURIComponent(query)}`
+			`/api/accounts/${accountId}/mail/contacts?q=${encodeURIComponent(query)}`
 		);
 	},
 
 	async sendEmailWithAttachments(accountId: number, data: FormData): Promise<{ sent: boolean }> {
-		const response = await fetch(`${backendBaseUrl}/accounts/${accountId}/mail/send`, {
+		const response = await fetch(`${backendBaseUrl}/api/accounts/${accountId}/mail/send`, {
 			method: 'POST',
 			credentials: 'include',
 			body: data
@@ -260,21 +260,21 @@ export const backend = {
 	},
 
 	saveDraft(accountId: number, data: { to: string[]; cc?: string[]; subject: string; body: string; body_html?: string; in_reply_to?: string; references?: string[] }) {
-		return apiFetch<{ id: number }>(`/accounts/${accountId}/mail/drafts`, {
+		return apiFetch<{ id: number }>(`/api/accounts/${accountId}/mail/drafts`, {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
 	},
 
 	deleteDraft(accountId: number, draftId: number) {
-		return apiFetch<{ deleted: boolean }>(`/accounts/${accountId}/mail/drafts/${draftId}`, {
+		return apiFetch<{ deleted: boolean }>(`/api/accounts/${accountId}/mail/drafts/${draftId}`, {
 			method: 'DELETE'
 		});
 	},
 
 	async downloadAttachment(accountId: number, emailId: number, attachmentId: number, filename: string): Promise<void> {
 		const response = await fetch(
-			`${backendBaseUrl}/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download`,
+			`${backendBaseUrl}/api/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download`,
 			{ credentials: 'include' }
 		);
 		if (!response.ok) {
@@ -292,90 +292,90 @@ export const backend = {
 	},
 
 	bulkAction(accountId: number, emailIds: number[], action: 'delete' | 'archive' | 'mark_read' | 'mark_unread') {
-		return apiFetch<{ ok: boolean }>(`/accounts/${accountId}/mail/emails/bulk-action`, {
+		return apiFetch<{ ok: boolean }>(`/api/accounts/${accountId}/mail/emails/bulk-action`, {
 			method: 'POST',
 			body: JSON.stringify({ email_ids: emailIds, action })
 		});
 	},
 
 	listTemplates() {
-		return apiFetch<{ templates: EmailTemplate[] }>('/templates');
+		return apiFetch<{ templates: EmailTemplate[] }>('/api/templates');
 	},
 
 	createTemplate(data: { name: string; subject: string; body_html: string; body_text: string }) {
-		return apiFetch<EmailTemplate>('/templates', {
+		return apiFetch<EmailTemplate>('/api/templates', {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
 	},
 
 	updateTemplate(templateId: number, data: { name: string; subject: string; body_html: string; body_text: string }) {
-		return apiFetch<EmailTemplate>(`/templates/${templateId}`, {
+		return apiFetch<EmailTemplate>(`/api/templates/${templateId}`, {
 			method: 'PUT',
 			body: JSON.stringify(data)
 		});
 	},
 
 	deleteTemplate(templateId: number) {
-		return apiFetch<{ deleted: boolean }>(`/templates/${templateId}`, {
+		return apiFetch<{ deleted: boolean }>(`/api/templates/${templateId}`, {
 			method: 'DELETE'
 		});
 	},
 
 	listSpaces() {
-		return apiFetch<{ spaces: Space[] }>('/spaces');
+		return apiFetch<{ spaces: Space[] }>('/api/spaces');
 	},
 
 	getSpace(spaceId: string) {
-		return apiFetch<Space>(`/spaces/${spaceId}`);
+		return apiFetch<Space>(`/api/spaces/${spaceId}`);
 	},
 
 	createSpace(data: { name: string; description?: string }) {
-		return apiFetch<Space>('/spaces', {
+		return apiFetch<Space>('/api/spaces', {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
 	},
 
 	updateSpace(spaceId: string, data: { name?: string; description?: string }) {
-		return apiFetch<Space>(`/spaces/${spaceId}`, {
+		return apiFetch<Space>(`/api/spaces/${spaceId}`, {
 			method: 'PUT',
 			body: JSON.stringify(data)
 		});
 	},
 
 	deleteSpace(spaceId: string) {
-		return apiFetch<{ deleted: boolean }>(`/spaces/${spaceId}`, {
+		return apiFetch<{ deleted: boolean }>(`/api/spaces/${spaceId}`, {
 			method: 'DELETE'
 		});
 	},
 
 	leaveSpace(spaceId: string) {
-		return apiFetch<{ left: boolean }>(`/spaces/${spaceId}/leave`, {
+		return apiFetch<{ left: boolean }>(`/api/spaces/${spaceId}/leave`, {
 			method: 'POST'
 		});
 	},
 
 	listSpaceMembers(spaceId: string) {
-		return apiFetch<{ members: SpaceMember[] }>(`/spaces/${spaceId}/members`);
+		return apiFetch<{ members: SpaceMember[] }>(`/api/spaces/${spaceId}/members`);
 	},
 
 	addSpaceMember(spaceId: string, data: { user_id: number; role?: string }) {
-		return apiFetch<SpaceMember>(`/spaces/${spaceId}/members`, {
+		return apiFetch<SpaceMember>(`/api/spaces/${spaceId}/members`, {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
 	},
 
 	updateSpaceMember(spaceId: string, memberId: string, data: { role: string }) {
-		return apiFetch<{ id: string; role: string }>(`/spaces/${spaceId}/members/${memberId}`, {
+		return apiFetch<{ id: string; role: string }>(`/api/spaces/${spaceId}/members/${memberId}`, {
 			method: 'PUT',
 			body: JSON.stringify(data)
 		});
 	},
 
 	removeSpaceMember(spaceId: string, memberId: string) {
-		return apiFetch<{ removed: boolean }>(`/spaces/${spaceId}/members/${memberId}`, {
+		return apiFetch<{ removed: boolean }>(`/api/spaces/${spaceId}/members/${memberId}`, {
 			method: 'DELETE'
 		});
 	}

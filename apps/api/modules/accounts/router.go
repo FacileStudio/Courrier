@@ -15,7 +15,7 @@ import (
 )
 
 func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service) {
-	router.Route("/accounts", func(r chi.Router) {
+	router.Route("/api/accounts", func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
 
 		r.Post("/", func(w http.ResponseWriter, req *http.Request) {

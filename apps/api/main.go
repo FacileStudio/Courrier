@@ -88,10 +88,10 @@ func main() {
 	router.Use(chimiddleware.Recoverer)
 	router.Use(middleware.SecurityHeaders)
 
-	router.Get("/health", func(w http.ResponseWriter, request *http.Request) {
+	router.Get("/api/health", func(w http.ResponseWriter, request *http.Request) {
 		httpjson.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
-	router.Get("/ready", func(w http.ResponseWriter, request *http.Request) {
+	router.Get("/api/ready", func(w http.ResponseWriter, request *http.Request) {
 		readinessContext, cancel := context.WithTimeout(request.Context(), 2*time.Second)
 		defer cancel()
 		if err := sqlDB.PingContext(readinessContext); err != nil {
@@ -100,7 +100,7 @@ func main() {
 		}
 		httpjson.WriteJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 	})
-	router.Handle("/files/*", http.StripPrefix("/files/", http.FileServer(http.Dir(appEnv.StorageDir))))
+	router.Handle("/api/files/*", http.StripPrefix("/api/files/", http.FileServer(http.Dir(appEnv.StorageDir))))
 
 	auth.RegisterRoutes(router, authService, appEnv)
 	accounts.RegisterRoutes(router, accountService, authService)

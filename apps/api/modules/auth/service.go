@@ -212,7 +212,7 @@ func (service *Service) upsertOIDCUser(ctx context.Context, email string, profil
 			if fetchErr != nil {
 				service.logger.Warn("failed to fetch OIDC avatar for new user", slog.Int64("user_id", record.ID), slog.Any("error", fetchErr))
 			} else {
-				record.AvatarURL = "/files/" + relPath
+				record.AvatarURL = "/api/files/" + relPath
 				record.AvatarSource = "oidc"
 				record.OIDCPictureURL = profile.Picture
 			}
@@ -224,12 +224,12 @@ func (service *Service) upsertOIDCUser(ctx context.Context, email string, profil
 		}
 		needsAvatar := profile.Picture != "" && (profile.Picture != record.OIDCPictureURL || (record.AvatarSource != "upload" && record.AvatarURL == ""))
 		if needsAvatar && record.AvatarSource != "upload" {
-			oidcavatar.RemoveFile(service.storageDir, strings.TrimPrefix(record.AvatarURL, "/files/"))
+			oidcavatar.RemoveFile(service.storageDir, strings.TrimPrefix(record.AvatarURL, "/api/files/"))
 			relPath, fetchErr := oidcavatar.FetchAvatar(profile.Picture, service.storageDir, record.ID, service.logger)
 			if fetchErr != nil {
 				service.logger.Warn("failed to fetch OIDC avatar", slog.Int64("user_id", record.ID), slog.Any("error", fetchErr))
 			} else {
-				record.AvatarURL = "/files/" + relPath
+				record.AvatarURL = "/api/files/" + relPath
 				record.AvatarSource = "oidc"
 			}
 			record.OIDCPictureURL = profile.Picture
@@ -310,12 +310,12 @@ func (service *Service) SyncOIDCProfile(ctx context.Context, userID string, prov
 
 	needsAvatar := profile.Picture != "" && (profile.Picture != record.OIDCPictureURL || (record.AvatarSource != "upload" && record.AvatarURL == ""))
 	if needsAvatar && record.AvatarSource != "upload" {
-		oidcavatar.RemoveFile(service.storageDir, strings.TrimPrefix(record.AvatarURL, "/files/"))
+		oidcavatar.RemoveFile(service.storageDir, strings.TrimPrefix(record.AvatarURL, "/api/files/"))
 		relPath, fetchErr := oidcavatar.FetchAvatar(profile.Picture, service.storageDir, record.ID, service.logger)
 		if fetchErr != nil {
 			service.logger.Warn("failed to fetch OIDC avatar during sync", slog.Int64("user_id", record.ID), slog.Any("error", fetchErr))
 		} else {
-			record.AvatarURL = "/files/" + relPath
+			record.AvatarURL = "/api/files/" + relPath
 			record.AvatarSource = "oidc"
 		}
 		record.OIDCPictureURL = profile.Picture
