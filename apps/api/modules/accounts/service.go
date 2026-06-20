@@ -65,6 +65,7 @@ func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountReq
 
 	account := schemas.Account{
 		UserID:       userID,
+		SpaceID:      req.SpaceID,
 		Name:         req.Name,
 		Email:        req.Email,
 		IMAPHost:     req.IMAPHost,

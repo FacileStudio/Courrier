@@ -91,6 +91,7 @@ func (s *Service) SyncAccount(ctx context.Context, userID, accountID int64) erro
 		if result.Error != nil {
 			folder = schemas.Folder{
 				AccountID: accountID,
+				SpaceID:   account.SpaceID,
 				Path:      mbox.Mailbox,
 				Name:      name,
 				Type:      folderType,
@@ -174,6 +175,7 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 		env := msg.Envelope
 		email := schemas.Email{
 			AccountID:      accountID,
+			SpaceID:        account.SpaceID,
 			FolderID:       folderID,
 			MessageID:      env.MessageID,
 			Subject:        env.Subject,
@@ -525,6 +527,7 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 	if s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeSent).First(&sentFolder).Error == nil {
 		email := schemas.Email{
 			AccountID:   accountID,
+			SpaceID:     account.SpaceID,
 			FolderID:    sentFolder.ID,
 			Subject:     req.Subject,
 			FromAddress: account.Email,
@@ -576,6 +579,7 @@ func (s *Service) SaveDraft(ctx context.Context, userID, accountID int64, req Se
 
 	email := schemas.Email{
 		AccountID:   accountID,
+		SpaceID:     account.SpaceID,
 		FolderID:    draftsFolder.ID,
 		Subject:     req.Subject,
 		FromAddress: account.Email,
@@ -769,6 +773,7 @@ func (s *Service) CreateTemplate(ctx context.Context, userID int64, req EmailTem
 
 	tmpl := schemas.EmailTemplate{
 		UserID:   userID,
+		SpaceID:  req.SpaceID,
 		Name:     req.Name,
 		Subject:  req.Subject,
 		BodyHTML: req.BodyHTML,

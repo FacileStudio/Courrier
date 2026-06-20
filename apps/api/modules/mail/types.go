@@ -108,10 +108,11 @@ type BulkActionRequest struct {
 }
 
 type EmailTemplateRequest struct {
-	Name     string `json:"name"`
-	Subject  string `json:"subject"`
-	BodyHTML string `json:"body_html"`
-	BodyText string `json:"body_text"`
+	Name     string  `json:"name"`
+	Subject  string  `json:"subject"`
+	BodyHTML string  `json:"body_html"`
+	BodyText string  `json:"body_text"`
+	SpaceID  *string `json:"space_id"`
 }
 
 type EmailTemplateResponse struct {

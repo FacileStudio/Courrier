@@ -124,7 +124,8 @@
 				smtp_user: smtpUser,
 				smtp_password: smtpPassword,
 				signature: '',
-				is_default: accounts.length === 0
+				is_default: accounts.length === 0,
+				space_id: spaceStore.active?.id
 			});
 			toast.success('Account added');
 			resetForm();
@@ -199,7 +200,7 @@
 				await backend.updateTemplate(editingTemplate.id, data);
 				toast.success('Template updated');
 			} else {
-				await backend.createTemplate(data);
+				await backend.createTemplate({ ...data, space_id: spaceStore.active?.id });
 				toast.success('Template created');
 			}
 			resetTemplateForm();

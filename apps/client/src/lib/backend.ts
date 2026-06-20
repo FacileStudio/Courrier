@@ -170,7 +170,7 @@ export const backend = {
 	getAccount(id: number) {
 		return apiFetch<MailAccount>(`/api/accounts/${id}`);
 	},
-	createAccount(data: Omit<MailAccount, 'id' | 'created_at' | 'updated_at'> & { imap_password: string; smtp_password: string }) {
+	createAccount(data: Omit<MailAccount, 'id' | 'created_at' | 'updated_at'> & { imap_password: string; smtp_password: string; space_id?: string }) {
 		return apiFetch<MailAccount>('/api/accounts', {
 			method: 'POST',
 			body: JSON.stringify(data)
@@ -304,7 +304,7 @@ export const backend = {
 		return apiFetch<{ templates: EmailTemplate[] }>(`/api/templates${params}`);
 	},
 
-	createTemplate(data: { name: string; subject: string; body_html: string; body_text: string }) {
+	createTemplate(data: { name: string; subject: string; body_html: string; body_text: string; space_id?: string }) {
 		return apiFetch<EmailTemplate>('/api/templates', {
 			method: 'POST',
 			body: JSON.stringify(data)

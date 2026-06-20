@@ -1,18 +1,19 @@
 package accounts
 
 type CreateAccountRequest struct {
-	Name         string `json:"name"`
-	Email        string `json:"email"`
-	IMAPHost     string `json:"imap_host"`
-	IMAPPort     int    `json:"imap_port"`
-	IMAPUser     string `json:"imap_user"`
-	IMAPPassword string `json:"imap_password"`
-	SMTPHost     string `json:"smtp_host"`
-	SMTPPort     int    `json:"smtp_port"`
-	SMTPUser     string `json:"smtp_user"`
-	SMTPPassword string `json:"smtp_password"`
-	Signature    string `json:"signature"`
-	IsDefault    bool   `json:"is_default"`
+	Name         string  `json:"name"`
+	Email        string  `json:"email"`
+	IMAPHost     string  `json:"imap_host"`
+	IMAPPort     int     `json:"imap_port"`
+	IMAPUser     string  `json:"imap_user"`
+	IMAPPassword string  `json:"imap_password"`
+	SMTPHost     string  `json:"smtp_host"`
+	SMTPPort     int     `json:"smtp_port"`
+	SMTPUser     string  `json:"smtp_user"`
+	SMTPPassword string  `json:"smtp_password"`
+	Signature    string  `json:"signature"`
+	IsDefault    bool    `json:"is_default"`
+	SpaceID      *string `json:"space_id"`
 }
 
 type UpdateAccountRequest struct {
