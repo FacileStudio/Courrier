@@ -559,8 +559,12 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 				httpjson.WriteError(w, errors.Invalid("invalid user id"))
 				return
 			}
+			var spaceID *string
+			if sid := req.URL.Query().Get("space_id"); sid != "" {
+				spaceID = &sid
+			}
 
-			templates, err := service.ListTemplates(req.Context(), uid)
+			templates, err := service.ListTemplates(req.Context(), uid, spaceID)
 			if err != nil {
 				httpjson.WriteError(w, err)
 				return

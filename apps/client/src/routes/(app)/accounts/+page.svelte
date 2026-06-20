@@ -1,19 +1,25 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { backend, type MailAccount } from '$lib/backend';
+	import { spaceStore } from '$lib/stores/space.svelte';
 
 	let accounts = $state<MailAccount[]>([]);
 	let loading = $state(true);
 
-	onMount(async () => {
-		try {
-			const res = await backend.listAccounts();
-			accounts = res.accounts ?? [];
-		} catch {
-			accounts = [];
-		}
-		loading = false;
+	$effect(() => {
+		const spaceId = spaceStore.active?.id;
+		loading = true;
+		backend
+			.listAccounts(spaceId)
+			.then((res) => {
+				accounts = res.accounts ?? [];
+			})
+			.catch(() => {
+				accounts = [];
+			})
+			.finally(() => {
+				loading = false;
+			});
 	});
 </script>
 

@@ -163,8 +163,9 @@ export const backend = {
 		}));
 	},
 
-	listAccounts() {
-		return apiFetch<{ accounts: MailAccount[] }>('/api/accounts');
+	listAccounts(spaceId?: string) {
+		const params = spaceId ? `?space_id=${encodeURIComponent(spaceId)}` : '';
+		return apiFetch<{ accounts: MailAccount[] }>(`/api/accounts${params}`);
 	},
 	getAccount(id: number) {
 		return apiFetch<MailAccount>(`/api/accounts/${id}`);
@@ -298,8 +299,9 @@ export const backend = {
 		});
 	},
 
-	listTemplates() {
-		return apiFetch<{ templates: EmailTemplate[] }>('/api/templates');
+	listTemplates(spaceId?: string) {
+		const params = spaceId ? `?space_id=${encodeURIComponent(spaceId)}` : '';
+		return apiFetch<{ templates: EmailTemplate[] }>(`/api/templates${params}`);
 	},
 
 	createTemplate(data: { name: string; subject: string; body_html: string; body_text: string }) {

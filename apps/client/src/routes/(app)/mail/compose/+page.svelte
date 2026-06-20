@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { getContext, onMount, onDestroy } from 'svelte';
 	import { backend, type MailAccount } from '$lib/backend';
+	import { spaceStore } from '$lib/stores/space.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -136,7 +137,7 @@
 	}
 
 	onMount(async () => {
-		backend.listTemplates().then((r) => { templates = r.templates; }).catch(() => {});
+		backend.listTemplates(spaceStore.active?.id).then((r) => { templates = r.templates; }).catch(() => {});
 		const params = page.url.searchParams;
 		const replyId = params.get('reply');
 		const replyAllId = params.get('replyall');

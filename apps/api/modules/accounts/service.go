@@ -89,9 +89,15 @@ func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountReq
 	return account, nil
 }
 
-func (s *Service) List(ctx context.Context, userID int64) ([]schemas.Account, error) {
+func (s *Service) List(ctx context.Context, userID int64, spaceID *string) ([]schemas.Account, error) {
 	var accounts []schemas.Account
-	if err := s.orm.WithContext(ctx).Where("user_id = ?", userID).Order("is_default DESC, name ASC").Find(&accounts).Error; err != nil {
+	query := s.orm.WithContext(ctx).Where("user_id = ?", userID)
+	if spaceID != nil {
+		query = query.Where("space_id = ?", *spaceID)
+	} else {
+		query = query.Where("space_id IS NULL")
+	}
+	if err := query.Order("is_default DESC, name ASC").Find(&accounts).Error; err != nil {
 		return nil, errors.Internal("failed to list accounts", err)
 	}
 	return accounts, nil

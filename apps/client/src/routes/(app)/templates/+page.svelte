@@ -1,18 +1,24 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { backend, type EmailTemplate } from '$lib/backend';
+	import { spaceStore } from '$lib/stores/space.svelte';
 
 	let templates = $state<EmailTemplate[]>([]);
 	let loading = $state(true);
 
-	onMount(async () => {
-		try {
-			const res = await backend.listTemplates();
-			templates = res.templates ?? [];
-		} catch {
-			templates = [];
-		}
-		loading = false;
+	$effect(() => {
+		const spaceId = spaceStore.active?.id;
+		loading = true;
+		backend
+			.listTemplates(spaceId)
+			.then((res) => {
+				templates = res.templates ?? [];
+			})
+			.catch(() => {
+				templates = [];
+			})
+			.finally(() => {
+				loading = false;
+			});
 	});
 </script>
 

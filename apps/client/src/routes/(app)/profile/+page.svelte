@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext, onMount } from 'svelte';
 	import { backend, type UserProfile, type MailAccount } from '$lib/backend';
+	import { spaceStore } from '$lib/stores/space.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -66,7 +67,7 @@
 	}
 
 	async function loadAccounts() {
-		const result = await backend.listAccounts();
+		const result = await backend.listAccounts(spaceStore.active?.id);
 		accounts = result.accounts;
 		for (const account of accounts) {
 			if (!(account.id in signatures)) {
@@ -161,7 +162,7 @@
 
 	async function loadTemplates() {
 		try {
-			const result = await backend.listTemplates();
+			const result = await backend.listTemplates(spaceStore.active?.id);
 			templates = result.templates;
 		} catch {
 			templates = [];

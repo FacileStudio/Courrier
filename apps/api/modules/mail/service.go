@@ -742,9 +742,15 @@ func (s *Service) ArchiveEmails(ctx context.Context, userID, accountID int64, em
 	return s.MoveEmails(ctx, userID, accountID, emailIDs, schemas.FolderTypeArchive)
 }
 
-func (s *Service) ListTemplates(ctx context.Context, userID int64) ([]schemas.EmailTemplate, error) {
+func (s *Service) ListTemplates(ctx context.Context, userID int64, spaceID *string) ([]schemas.EmailTemplate, error) {
 	var templates []schemas.EmailTemplate
-	if err := s.orm.WithContext(ctx).Where("user_id = ?", userID).Order("updated_at DESC").Find(&templates).Error; err != nil {
+	query := s.orm.WithContext(ctx).Where("user_id = ?", userID)
+	if spaceID != nil {
+		query = query.Where("space_id = ?", *spaceID)
+	} else {
+		query = query.Where("space_id IS NULL")
+	}
+	if err := query.Order("updated_at DESC").Find(&templates).Error; err != nil {
 		return nil, errors.Internal("failed to list templates", err)
 	}
 	return templates, nil

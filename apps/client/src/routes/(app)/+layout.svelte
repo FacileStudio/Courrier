@@ -2,6 +2,7 @@
 	import { onMount, setContext } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { backend, type UserProfile, type MailAccount, type Folder } from '$lib/backend';
+	import { spaceStore } from '$lib/stores/space.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import MobileNav from '$lib/components/MobileNav.svelte';
 
@@ -28,7 +29,7 @@
 
 	async function refreshAccounts() {
 		try {
-			const result = await backend.listAccounts();
+			const result = await backend.listAccounts(spaceStore.active?.id);
 			accounts = result.accounts;
 			const def = accounts.find((a) => a.is_default) ?? accounts[0] ?? null;
 			defaultAccountId = def?.id ?? null;
@@ -61,6 +62,11 @@
 		} catch {
 			goto('/login');
 		}
+	});
+
+	$effect(() => {
+		spaceStore.active;
+		if (loaded) refreshAccounts();
 	});
 </script>
 
