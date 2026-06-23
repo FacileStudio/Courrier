@@ -27,12 +27,19 @@
 		return f?.unread_count ?? 0;
 	}
 
-	const navLinks: { href: string; label: string; icon: string; type?: string }[] = [
-		{ href: '/mail', label: 'Mail', icon: 'solar:letter-linear', type: 'inbox' },
+	const folderLinks: { href: string; label: string; icon: string; type: string }[] = [
+		{ href: '/mail', label: 'Inbox', icon: 'solar:inbox-linear', type: 'inbox' },
+		{ href: '/mail/sent', label: 'Sent', icon: 'solar:plain-2-linear', type: 'sent' },
+		{ href: '/mail/drafts', label: 'Drafts', icon: 'solar:file-text-linear', type: 'drafts' },
+		{ href: '/mail/archive', label: 'Archive', icon: 'solar:archive-linear', type: 'archive' },
+		{ href: '/mail/junk', label: 'Junk', icon: 'solar:danger-triangle-linear', type: 'junk' },
+		{ href: '/mail/trash', label: 'Trash', icon: 'solar:trash-bin-trash-linear', type: 'trash' }
+	];
+
+	const manageLinks: { href: string; label: string; icon: string }[] = [
 		{ href: '/accounts', label: 'Accounts', icon: 'solar:mailbox-linear' },
-		{ href: '/templates', label: 'Templates', icon: 'solar:document-linear' },
-		{ href: '/spaces', label: 'Spaces', icon: 'solar:users-group-rounded-linear' },
-		{ href: '/settings', label: 'Settings', icon: 'solar:settings-linear' }
+		{ href: '/templates', label: 'Templates', icon: 'solar:documents-linear' },
+		{ href: '/spaces', label: 'Spaces', icon: 'solar:users-group-rounded-linear' }
 	];
 </script>
 
@@ -44,10 +51,20 @@
 
 	<SpaceSwitcher />
 
-	<nav class="flex flex-1 flex-col gap-1 px-3">
-		{#each navLinks as link}
-			{@const active = page.url.pathname === link.href || page.url.pathname.startsWith(link.href + '/')}
-			{@const unread = link.type ? folderUnread(link.type) : 0}
+	<div class="px-3 py-3">
+		<a
+			href="/mail/compose"
+			class="flex items-center justify-center gap-2 rounded-md bg-foreground px-3 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90"
+		>
+			<iconify-icon icon="solar:pen-new-square-linear" width="16"></iconify-icon>
+			Compose
+		</a>
+	</div>
+
+	<nav class="flex flex-1 flex-col gap-1 overflow-y-auto px-3">
+		{#each folderLinks as link}
+			{@const active = page.url.pathname === link.href}
+			{@const unread = folderUnread(link.type)}
 			<a
 				href={link.href}
 				class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors {active
@@ -61,13 +78,28 @@
 				{/if}
 			</a>
 		{/each}
+
+		<div class="my-2 h-px bg-border"></div>
+
+		{#each manageLinks as link}
+			{@const active = page.url.pathname === link.href || page.url.pathname.startsWith(link.href + '/')}
+			<a
+				href={link.href}
+				class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors {active
+					? 'bg-foreground text-background font-medium'
+					: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+			>
+				<iconify-icon icon={link.icon} width="16"></iconify-icon>
+				<span class="flex-1">{link.label}</span>
+			</a>
+		{/each}
 	</nav>
 
 	<div class="h-px bg-border"></div>
 
 	<div class="flex flex-col gap-2 p-4">
 		<a
-			href="/profile"
+			href="/settings"
 			class="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/40 p-2.5 transition-colors hover:bg-muted"
 		>
 			{#if user?.avatar_url}

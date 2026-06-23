@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { getContext, onMount } from 'svelte';
+	import { getContext } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import DOMPurify from 'dompurify';
 	import { backend, type EmailMessage, type EmailAttachment, type MailAccount } from '$lib/backend';
@@ -284,11 +284,18 @@
 		} catch {}
 	}
 
-	onMount(async () => {
-		await loadEmails();
-		if (emails.length === 0 && app.defaultAccountId) {
-			await syncAndLoad();
-		}
+	let lastLoadedAccount = -1;
+
+	$effect(() => {
+		const accountId = app.defaultAccountId;
+		if (!accountId || accountId === lastLoadedAccount) return;
+		lastLoadedAccount = accountId;
+		void (async () => {
+			await loadEmails();
+			if (emails.length === 0) {
+				await syncAndLoad();
+			}
+		})();
 	});
 
 	$effect(() => {

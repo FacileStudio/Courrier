@@ -19,13 +19,12 @@
 	}
 
 	const userLabel = $derived(user?.name?.trim() || user?.email || '');
-	const profileActive = $derived(isActive('/profile'));
+	const profileActive = $derived(isActive('/settings'));
 
 	const items = [
 		{ href: '/mail', label: 'Mail', icon: 'solar:letter-linear' },
 		{ href: '/accounts', label: 'Accounts', icon: 'solar:mailbox-linear' },
-		{ href: '/templates', label: 'Templates', icon: 'solar:document-linear' },
-		{ href: '/settings', label: 'Settings', icon: 'solar:settings-linear' }
+		{ href: '/templates', label: 'Templates', icon: 'solar:document-linear' }
 	];
 
 	function isActive(href: string) {
@@ -64,7 +63,7 @@
 		{/each}
 
 		<a
-			href="/profile"
+			href="/settings"
 			aria-label="Profile"
 			title="Profile"
 			class="flex items-center justify-center rounded-full px-2.5 py-1.5 transition-all duration-200 {profileActive

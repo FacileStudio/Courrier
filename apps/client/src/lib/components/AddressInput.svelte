@@ -55,8 +55,7 @@
 	function selectContact(contact: Contact) {
 		const parts = value.split(',').map((s) => s.trim()).filter(Boolean);
 		parts.pop();
-		const display = contact.name ? `${contact.name} <${contact.email}>` : contact.email;
-		parts.push(display);
+		parts.push(contact.email);
 		const newValue = parts.join(', ') + ', ';
 		onchange(newValue);
 		suggestions = [];

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -510,8 +511,8 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 	}
 
 	allRecipients := make([]string, 0, len(req.To)+len(req.Cc))
-	allRecipients = append(allRecipients, req.To...)
-	allRecipients = append(allRecipients, req.Cc...)
+	allRecipients = append(allRecipients, extractEmails(req.To)...)
+	allRecipients = append(allRecipients, extractEmails(req.Cc)...)
 
 	addr := fmt.Sprintf("%s:%d", account.SMTPHost, account.SMTPPort)
 	if account.SMTPPort == 465 {
@@ -1090,7 +1091,11 @@ func stringsToAddressJSON(addrs []string) string {
 	}
 	items := make([]entry, len(addrs))
 	for i, addr := range addrs {
-		items[i] = entry{Email: addr}
+		if parsed, err := mail.ParseAddress(strings.TrimSpace(addr)); err == nil {
+			items[i] = entry{Name: parsed.Name, Email: parsed.Address}
+		} else {
+			items[i] = entry{Email: addr}
+		}
 	}
 	data, _ := json.Marshal(items)
 	return string(data)

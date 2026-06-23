@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/mail"
 	"net/smtp"
 	"strings"
 	"time"
@@ -99,18 +100,10 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 	h.SetSubject(subject)
 	h.SetAddressList("From", []*gomail.Address{{Name: fromName, Address: fromEmail}})
 
-	toList := make([]*gomail.Address, len(toAddrs))
-	for i, addr := range toAddrs {
-		toList[i] = &gomail.Address{Address: addr}
-	}
-	h.SetAddressList("To", toList)
+	h.SetAddressList("To", parseAddresses(toAddrs))
 
 	if len(ccAddrs) > 0 {
-		ccList := make([]*gomail.Address, len(ccAddrs))
-		for i, addr := range ccAddrs {
-			ccList[i] = &gomail.Address{Address: addr}
-		}
-		h.SetAddressList("Cc", ccList)
+		h.SetAddressList("Cc", parseAddresses(ccAddrs))
 	}
 
 	if err := h.GenerateMessageIDWithHostname("courrier.local"); err != nil {
@@ -301,4 +294,36 @@ func testSMTP(host string, port int, user, password string) error {
 		return fmt.Errorf("SMTP auth failed: %w", err)
 	}
 	return c.Quit()
+}
+
+func parseAddresses(addrs []string) []*gomail.Address {
+	out := make([]*gomail.Address, 0, len(addrs))
+	for _, a := range addrs {
+		a = strings.TrimSpace(a)
+		if a == "" {
+			continue
+		}
+		if parsed, err := mail.ParseAddress(a); err == nil {
+			out = append(out, &gomail.Address{Name: parsed.Name, Address: parsed.Address})
+		} else {
+			out = append(out, &gomail.Address{Address: a})
+		}
+	}
+	return out
+}
+
+func extractEmails(addrs []string) []string {
+	out := make([]string, 0, len(addrs))
+	for _, a := range addrs {
+		a = strings.TrimSpace(a)
+		if a == "" {
+			continue
+		}
+		if parsed, err := mail.ParseAddress(a); err == nil {
+			out = append(out, parsed.Address)
+		} else {
+			out = append(out, a)
+		}
+	}
+	return out
 }
