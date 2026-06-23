@@ -14,6 +14,7 @@
 	import EmailItem from '$lib/components/EmailItem.svelte';
 	import BulkActionBar from '$lib/components/BulkActionBar.svelte';
 	import DeleteConfirmDialog from '$lib/components/DeleteConfirmDialog.svelte';
+	import MailFolderSwitcher from '$lib/components/MailFolderSwitcher.svelte';
 
 	const app = getContext<{
 		defaultAccountId: number | null;
@@ -402,7 +403,10 @@
 						<Checkbox checked={allChecked} class="h-4 w-4" />
 					</button>
 				{/if}
-				<h2 class="text-lg font-semibold">{folderLabel}</h2>
+				<h2 class="hidden text-lg font-semibold md:block">{folderLabel}</h2>
+				<div class="md:hidden">
+					<MailFolderSwitcher folders={app.folders} />
+				</div>
 			</div>
 			<div class="flex items-center gap-1">
 				<Button

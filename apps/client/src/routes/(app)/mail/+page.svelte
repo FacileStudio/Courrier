@@ -13,6 +13,7 @@
 	import EmailItem from '$lib/components/EmailItem.svelte';
 	import BulkActionBar from '$lib/components/BulkActionBar.svelte';
 	import DeleteConfirmDialog from '$lib/components/DeleteConfirmDialog.svelte';
+	import MailFolderSwitcher from '$lib/components/MailFolderSwitcher.svelte';
 
 	const app = getContext<{
 		defaultAccountId: number | null;
@@ -327,7 +328,10 @@
 						<Checkbox checked={allChecked} class="h-4 w-4" />
 					</button>
 				{/if}
-				<h2 class="text-lg font-semibold">Inbox</h2>
+				<h2 class="hidden text-lg font-semibold md:block">Inbox</h2>
+				<div class="md:hidden">
+					<MailFolderSwitcher folders={app.folders} />
+				</div>
 			</div>
 			<Button variant="ghost" size="icon" class="h-8 w-8" onclick={syncAndLoad} disabled={syncing}>
 				<RefreshCw class="h-4 w-4 {syncing ? 'animate-spin' : ''}" />
