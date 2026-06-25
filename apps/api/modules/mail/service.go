@@ -375,18 +375,6 @@ func (s *Service) ServeCIDImage(w http.ResponseWriter, req *http.Request, userID
 		return
 	}
 
-	var attachment schemas.Attachment
-	if err := s.orm.WithContext(ctx).Where("email_id = ? AND cid = ?", emailID, cid).First(&attachment).Error; err != nil {
-		httpjson.WriteError(w, errors.NotFound("inline image not found"))
-		return
-	}
-
-	partNums, err := parsePartID(attachment.PartID)
-	if err != nil {
-		httpjson.WriteError(w, errors.Internal("invalid part ID", err))
-		return
-	}
-
 	var folder schemas.Folder
 	if err := s.orm.WithContext(ctx).Where("id = ?", email.FolderID).First(&folder).Error; err != nil {
 		httpjson.WriteError(w, errors.NotFound("folder not found"))
@@ -403,14 +391,23 @@ func (s *Service) ServeCIDImage(w http.ResponseWriter, req *http.Request, userID
 		client.Close()
 	}()
 
-	data, err := fetchAttachmentPart(client, folder.Path, imap.UID(email.IMAPUID), partNums)
+	raw, err := fetchFullMessage(client, folder.Path, imap.UID(email.IMAPUID))
 	if err != nil {
-		httpjson.WriteError(w, errors.Internal("failed to fetch inline image", err))
+		httpjson.WriteError(w, errors.Internal("failed to fetch message", err))
 		return
 	}
 
-	etag := attachmentETag(email.IMAPUID, attachment.PartID)
-	writeAttachmentResponse(w, req, data, attachment.MimeType, attachment.Filename, true, etag)
+	data, contentType, filename, ok := resolveInlineImage(raw, cid)
+	if !ok {
+		httpjson.WriteError(w, errors.NotFound("inline image not found"))
+		return
+	}
+	if filename == "" {
+		filename = normalizeCID(cid)
+	}
+
+	etag := attachmentETag(email.IMAPUID, normalizeCID(cid))
+	writeAttachmentResponse(w, req, data, contentType, filename, true, etag)
 }
 
 func (s *Service) UpdateEmail(ctx context.Context, userID, accountID, emailID int64, req UpdateEmailRequest) (schemas.Email, error) {

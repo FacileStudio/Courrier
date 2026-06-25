@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -33,7 +34,6 @@ func TestCIDParamIsDecoded(t *testing.T) {
 
 func TestDecodeTransferEncoding(t *testing.T) {
 	png := []byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x01, 0x02, 0x03}
-	// base64 with MIME-style CRLF line breaks, as servers actually return it
 	b64 := base64.StdEncoding.EncodeToString(png)
 	wrapped := b64[:4] + "\r\n" + b64[4:]
 
@@ -88,6 +88,88 @@ func TestResolveContentType(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNormalizeCID(t *testing.T) {
+	cases := map[string]string{
+		"<image001.png@01DD0333.B53E0920>": "image001.png@01DD0333.B53E0920",
+		"cid:logo.png@host":                "logo.png@host",
+		"  < spaced@id >  ":                "spaced@id",
+		"image001.png%4001DD0333":          "image001.png@01DD0333",
+		"plain@id":                         "plain@id",
+	}
+	for in, want := range cases {
+		if got := normalizeCID(in); got != want {
+			t.Errorf("normalizeCID(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func buildRelatedMessage(t *testing.T, contentID, filename string, png []byte) []byte {
+	t.Helper()
+	b64 := base64.StdEncoding.EncodeToString(png)
+	parts := []string{
+		"From: a@b.com",
+		"To: c@d.com",
+		"Subject: test",
+		"MIME-Version: 1.0",
+		`Content-Type: multipart/related; boundary="BOUND"`,
+		"",
+		"--BOUND",
+		`Content-Type: text/html; charset="utf-8"`,
+		"",
+		`<html><body><img src="cid:image001.png@01DD0333.B53E0920"></body></html>`,
+		"--BOUND",
+		"Content-Type: image/png; name=\"" + filename + "\"",
+		"Content-Transfer-Encoding: base64",
+		"Content-ID: " + contentID,
+		`Content-Disposition: inline; filename="` + filename + `"`,
+		"",
+		b64,
+		"--BOUND--",
+		"",
+	}
+	return []byte(strings.Join(parts, "\r\n"))
+}
+
+func TestResolveInlineImage(t *testing.T) {
+	png := []byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01, 0x02, 0x03}
+	raw := buildRelatedMessage(t, "<image001.png@01DD0333.B53E0920>", "image001.png", png)
+
+	t.Run("matches by content-id with brackets", func(t *testing.T) {
+		data, ct, fn, ok := resolveInlineImage(raw, "image001.png@01DD0333.B53E0920")
+		if !ok {
+			t.Fatal("expected to resolve inline image")
+		}
+		if string(data) != string(png) {
+			t.Fatalf("decoded bytes mismatch: got %v", data)
+		}
+		if ct != "image/png" {
+			t.Errorf("content type = %q, want image/png", ct)
+		}
+		if fn != "image001.png" {
+			t.Errorf("filename = %q, want image001.png", fn)
+		}
+	})
+
+	t.Run("matches case-insensitively", func(t *testing.T) {
+		if _, _, _, ok := resolveInlineImage(raw, "IMAGE001.PNG@01dd0333.b53e0920"); !ok {
+			t.Fatal("expected case-insensitive match")
+		}
+	})
+
+	t.Run("falls back to filename", func(t *testing.T) {
+		byFilename := buildRelatedMessage(t, "<unrelated-guid@outlook>", "image001.png", png)
+		if _, _, _, ok := resolveInlineImage(byFilename, "image001.png"); !ok {
+			t.Fatal("expected filename fallback match")
+		}
+	})
+
+	t.Run("misses unknown cid", func(t *testing.T) {
+		if _, _, _, ok := resolveInlineImage(raw, "nope@nowhere"); ok {
+			t.Fatal("expected no match for unknown cid")
+		}
+	})
 }
 
 func TestFormatContentDisposition(t *testing.T) {

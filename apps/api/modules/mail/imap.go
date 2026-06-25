@@ -1,9 +1,12 @@
 package mail
 
 import (
+	"bytes"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 
 	"github.com/emersion/go-imap/v2"
@@ -308,6 +311,116 @@ func fetchAttachmentPart(client *imapclient.Client, mailbox string, uid imap.UID
 	}
 
 	return decodeTransferEncoding(data, partEncoding(msgs[0].BodyStructure, partNums))
+}
+
+const maxInlineImageSize = 25 << 20
+
+// fetchFullMessage retrieves the entire raw RFC822 message (BODY.PEEK[]).
+func fetchFullMessage(client *imapclient.Client, mailbox string, uid imap.UID) ([]byte, error) {
+	if _, err := client.Select(mailbox, nil).Wait(); err != nil {
+		return nil, fmt.Errorf("SELECT %q failed: %w", mailbox, err)
+	}
+
+	uidSet := imap.UIDSetNum(uid)
+	section := &imap.FetchItemBodySection{Peek: true}
+	fetchCmd := client.Fetch(uidSet, &imap.FetchOptions{
+		BodySection: []*imap.FetchItemBodySection{section},
+	})
+	msgs, err := fetchCmd.Collect()
+	if err != nil {
+		return nil, fmt.Errorf("FETCH message failed: %w", err)
+	}
+	if len(msgs) == 0 {
+		return nil, fmt.Errorf("message not found")
+	}
+
+	data := msgs[0].FindBodySection(section)
+	if data == nil {
+		return nil, fmt.Errorf("message body not found")
+	}
+	return data, nil
+}
+
+// normalizeCID reduces an HTML cid: token or a MIME Content-ID header value to
+// a comparable form per RFC 2392: drop the cid: prefix, the angle brackets that
+// both go-imap and go-message preserve, surrounding whitespace, and %hh escapes.
+func normalizeCID(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "cid:")
+	s = strings.TrimSpace(s)
+	s = strings.Trim(s, "<>")
+	s = strings.TrimSpace(s)
+	if decoded, err := url.PathUnescape(s); err == nil {
+		s = decoded
+	}
+	return strings.TrimSpace(s)
+}
+
+// resolveInlineImage parses a raw message and returns the decoded bytes of the
+// part referenced by a cid: URL. It walks the whole MIME tree (not just
+// multipart/related) and matches by Content-ID first, then falls back to
+// filename / Content-Type name / Content-Location for senders that reference
+// inline images loosely (Outlook, Word "save as web page").
+func resolveInlineImage(raw []byte, cid string) (data []byte, contentType, filename string, ok bool) {
+	want := normalizeCID(cid)
+	if want == "" {
+		return nil, "", "", false
+	}
+
+	if d, ct, fn, found := walkInlineParts(raw, func(h *gomessage.Header) bool {
+		return strings.EqualFold(normalizeCID(h.Get("Content-Id")), want)
+	}); found {
+		return d, ct, fn, true
+	}
+
+	return walkInlineParts(raw, func(h *gomessage.Header) bool {
+		_, ctParams, _ := h.ContentType()
+		_, dispParams, _ := h.ContentDisposition()
+		return strings.EqualFold(dispParams["filename"], want) ||
+			strings.EqualFold(ctParams["name"], want) ||
+			strings.EqualFold(strings.TrimSpace(h.Get("Content-Location")), want)
+	})
+}
+
+func walkInlineParts(raw []byte, match func(*gomessage.Header) bool) ([]byte, string, string, bool) {
+	entity, err := gomessage.Read(bytes.NewReader(raw))
+	if entity == nil {
+		return nil, "", "", false
+	}
+	_ = err
+
+	var (
+		outData []byte
+		outType string
+		outName string
+		found   bool
+	)
+	stop := stderrors.New("stop")
+
+	_ = entity.Walk(func(path []int, part *gomessage.Entity, werr error) error {
+		if part == nil {
+			return nil
+		}
+		mediaType, params, _ := part.Header.ContentType()
+		if strings.HasPrefix(mediaType, "multipart/") {
+			return nil
+		}
+		if !match(&part.Header) {
+			return nil
+		}
+
+		body, _ := io.ReadAll(io.LimitReader(part.Body, maxInlineImageSize))
+		_, dispParams, _ := part.Header.ContentDisposition()
+		name := dispParams["filename"]
+		if name == "" {
+			name = params["name"]
+		}
+
+		outData, outType, outName, found = body, mediaType, name, true
+		return stop
+	})
+
+	return outData, outType, outName, found
 }
 
 func partEncoding(bs imap.BodyStructure, partNums []int) string {
