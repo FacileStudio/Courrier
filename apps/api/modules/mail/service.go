@@ -174,6 +174,8 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 		}
 
 		env := msg.Envelope
+		attachments := extractAttachments(msg.BodyStructure, 0)
+
 		email := schemas.Email{
 			AccountID:      accountID,
 			SpaceID:        account.SpaceID,
@@ -187,18 +189,18 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 			Date:           env.Date,
 			IsRead:         containsFlag(msg.Flags, imap.FlagSeen),
 			IsStarred:      containsFlag(msg.Flags, imap.FlagFlagged),
-			HasAttachments: hasAttachments(msg.BodyStructure),
+			HasAttachments: len(attachments) > 0,
 			InReplyTo:      strings.Join(env.InReplyTo, " "),
 			IMAPUID:        uint32(msg.UID),
 		}
 
 		s.orm.WithContext(ctx).Create(&email)
 
-		if email.HasAttachments && msg.BodyStructure != nil {
-			attachments := extractAttachments(msg.BodyStructure, email.ID)
-			if len(attachments) > 0 {
-				s.orm.WithContext(ctx).Create(&attachments)
+		if len(attachments) > 0 {
+			for i := range attachments {
+				attachments[i].EmailID = email.ID
 			}
+			s.orm.WithContext(ctx).Create(&attachments)
 		}
 	}
 

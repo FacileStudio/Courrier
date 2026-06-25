@@ -12,7 +12,6 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
 	gomessage "github.com/emersion/go-message"
-	"github.com/emersion/go-message/mail"
 
 	"api/schemas"
 )
@@ -203,28 +202,9 @@ func collectParts(mr gomessage.MultipartReader, textBody, htmlBody *string) {
 	}
 }
 
-func hasAttachments(bs imap.BodyStructure) bool {
-	if bs == nil {
-		return false
-	}
-	found := false
-	bs.Walk(func(path []int, part imap.BodyStructure) bool {
-		if sp, ok := part.(*imap.BodyStructureSinglePart); ok {
-			if sp.Filename() != "" {
-				found = true
-				return false
-			}
-			disp := sp.Disposition()
-			if disp != nil && strings.EqualFold(disp.Value, "attachment") {
-				found = true
-				return false
-			}
-		}
-		return true
-	})
-	return found
-}
-
+// extractAttachments lists the downloadable parts of a message: those with a
+// filename or an explicit attachment disposition. Inline parts referenced only
+// by Content-ID are served on demand by ServeCIDImage and are not listed here.
 func extractAttachments(bs imap.BodyStructure, emailID int64) []schemas.Attachment {
 	if bs == nil {
 		return nil
@@ -237,36 +217,17 @@ func extractAttachments(bs imap.BodyStructure, emailID int64) []schemas.Attachme
 		}
 
 		filename := sp.Filename()
-		isAttachment := false
-		var cid string
-
 		disp := sp.Disposition()
-		if disp != nil && strings.EqualFold(disp.Value, "attachment") {
-			isAttachment = true
-		}
-		if filename != "" {
-			isAttachment = true
-		}
-
-		if sp.ID != "" {
-			cid = strings.Trim(sp.ID, "<>")
-			if !isAttachment {
-				isAttachment = true
-			}
-		}
-
-		if !isAttachment {
+		if filename == "" && (disp == nil || !strings.EqualFold(disp.Value, "attachment")) {
 			return true
+		}
+		if filename == "" {
+			filename = "unnamed"
 		}
 
 		partNums := make([]string, len(path))
 		for i, n := range path {
 			partNums[i] = fmt.Sprintf("%d", n)
-		}
-		partID := strings.Join(partNums, ".")
-
-		if filename == "" {
-			filename = "unnamed"
 		}
 
 		attachments = append(attachments, schemas.Attachment{
@@ -274,8 +235,7 @@ func extractAttachments(bs imap.BodyStructure, emailID int64) []schemas.Attachme
 			Filename: filename,
 			MimeType: sp.MediaType(),
 			Size:     int64(sp.Size),
-			CID:      cid,
-			PartID:   partID,
+			PartID:   strings.Join(partNums, "."),
 		})
 		return true
 	})
@@ -383,11 +343,10 @@ func resolveInlineImage(raw []byte, cid string) (data []byte, contentType, filen
 }
 
 func walkInlineParts(raw []byte, match func(*gomessage.Header) bool) ([]byte, string, string, bool) {
-	entity, err := gomessage.Read(bytes.NewReader(raw))
+	entity, _ := gomessage.Read(bytes.NewReader(raw))
 	if entity == nil {
 		return nil, "", "", false
 	}
-	_ = err
 
 	var (
 		outData []byte
@@ -522,5 +481,3 @@ func moveMessage(client *imapclient.Client, srcMailbox string, uid imap.UID, des
 	}
 	return nil
 }
-
-var _ = mail.Header{}

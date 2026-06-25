@@ -6,7 +6,6 @@ type Attachment struct {
 	Filename string `gorm:"column:filename"`
 	MimeType string `gorm:"column:mime_type"`
 	Size     int64  `gorm:"column:size"`
-	CID      string `gorm:"column:cid"`
 	PartID   string `gorm:"column:part_id"`
 }
 
