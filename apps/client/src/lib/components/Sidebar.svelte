@@ -7,6 +7,13 @@
 
 	let { user, folders = [] }: { user: UserProfile | null; folders?: Folder[] } = $props();
 
+	let avatarFailed = $state(false);
+
+	$effect(() => {
+		void user?.avatar_url;
+		avatarFailed = false;
+	});
+
 	function getInitials(value: string) {
 		const parts = value.trim().split(/\s+/).filter(Boolean);
 		if (parts.length === 0) return '?';
@@ -96,11 +103,12 @@
 			href="/settings"
 			class="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/40 p-2.5 transition-colors hover:bg-muted"
 		>
-			{#if user?.avatar_url}
+			{#if user?.avatar_url && !avatarFailed}
 				<img
 					src={user.avatar_url}
 					alt={userLabel(user)}
 					class="h-9 w-9 rounded-full border border-border object-cover shrink-0"
+					onerror={() => (avatarFailed = true)}
 				/>
 			{:else}
 				<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-foreground text-xs font-semibold text-background">
