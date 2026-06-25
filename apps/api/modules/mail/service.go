@@ -356,11 +356,8 @@ func (s *Service) DownloadAttachment(w http.ResponseWriter, req *http.Request, u
 		return
 	}
 
-	w.Header().Set("Content-Type", attachment.MimeType)
-	w.Header().Set("Content-Disposition", sanitizeContentDisposition(attachment.Filename))
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
-	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	etag := attachmentETag(email.IMAPUID, attachment.PartID)
+	writeAttachmentResponse(w, req, data, attachment.MimeType, attachment.Filename, false, etag)
 }
 
 func (s *Service) ServeCIDImage(w http.ResponseWriter, req *http.Request, userID, accountID, emailID int64, cid string) {
@@ -412,11 +409,8 @@ func (s *Service) ServeCIDImage(w http.ResponseWriter, req *http.Request, userID
 		return
 	}
 
-	w.Header().Set("Content-Type", attachment.MimeType)
-	w.Header().Set("Cache-Control", "private, max-age=86400")
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
-	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	etag := attachmentETag(email.IMAPUID, attachment.PartID)
+	writeAttachmentResponse(w, req, data, attachment.MimeType, attachment.Filename, true, etag)
 }
 
 func (s *Service) UpdateEmail(ctx context.Context, userID, accountID, emailID int64, req UpdateEmailRequest) (schemas.Email, error) {
@@ -1110,19 +1104,6 @@ func parseAddressJSON(raw string) []AddressResponse {
 		return []AddressResponse{}
 	}
 	return addrs
-}
-
-func sanitizeContentDisposition(filename string) string {
-	sanitized := strings.Map(func(r rune) rune {
-		if r == '"' || r == '\\' || r == '/' || r == '\n' || r == '\r' || r < 32 {
-			return '_'
-		}
-		return r
-	}, filename)
-	if sanitized == "" {
-		sanitized = "download"
-	}
-	return fmt.Sprintf(`attachment; filename="%s"`, sanitized)
 }
 
 func escapeLikePattern(s string) string {

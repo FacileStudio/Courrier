@@ -291,7 +291,8 @@ func fetchAttachmentPart(client *imapclient.Client, mailbox string, uid imap.UID
 		Peek: true,
 	}
 	fetchCmd := client.Fetch(uidSet, &imap.FetchOptions{
-		BodySection: []*imap.FetchItemBodySection{bodySection},
+		BodyStructure: &imap.FetchItemBodyStructure{Extended: true},
+		BodySection:   []*imap.FetchItemBodySection{bodySection},
 	})
 	msgs, err := fetchCmd.Collect()
 	if err != nil {
@@ -305,7 +306,36 @@ func fetchAttachmentPart(client *imapclient.Client, mailbox string, uid imap.UID
 	if data == nil {
 		return nil, fmt.Errorf("body section not found")
 	}
-	return data, nil
+
+	return decodeTransferEncoding(data, partEncoding(msgs[0].BodyStructure, partNums))
+}
+
+func partEncoding(bs imap.BodyStructure, partNums []int) string {
+	if bs == nil {
+		return ""
+	}
+	var encoding string
+	bs.Walk(func(path []int, part imap.BodyStructure) bool {
+		sp, ok := part.(*imap.BodyStructureSinglePart)
+		if ok && intSliceEqual(path, partNums) {
+			encoding = sp.Encoding
+			return false
+		}
+		return true
+	})
+	return encoding
+}
+
+func intSliceEqual(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func parsePartID(partID string) ([]int, error) {
