@@ -4,6 +4,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -141,6 +142,9 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			return
 		}
 		cid := chi.URLParam(req, "cid")
+		if decoded, err := url.PathUnescape(cid); err == nil {
+			cid = decoded
+		}
 
 		service.ServeCIDImage(w, req, uid, accountID, emailID, cid)
 	})
