@@ -67,6 +67,16 @@
 	const searchMode = $derived(debouncedQuery.trim() !== '');
 	const LIMIT = 30;
 
+	let animatedKeys = new Set<string>();
+
+	function animKey(e: EmailMessage): string {
+		return e.message_id || `id:${e.id}`;
+	}
+
+	function isNew(e: EmailMessage): boolean {
+		return !animatedKeys.has(animKey(e));
+	}
+
 	function toggleCheck(id: number) {
 		const next = new Set(checkedIds);
 		if (next.has(id)) next.delete(id);
@@ -135,7 +145,7 @@
 			totalEmails = cached.total;
 		}
 
-		loading = !cached;
+		loading = !cached && emails.length === 0;
 		currentPage = 1;
 		try {
 			const result = await backend.getEmailsByFolder(app.defaultAccountId, folder, 1, LIMIT, showUnreadOnly);
@@ -388,6 +398,7 @@
 		selectedId = null;
 		currentPage = 1;
 		totalEmails = 0;
+		animatedKeys = new Set();
 
 		if (_query !== '') {
 			emails = [];
@@ -438,6 +449,10 @@
 			if (reqId !== loadSeq) return;
 			loading = false;
 		})();
+	});
+
+	$effect(() => {
+		for (const e of emails) animatedKeys.add(animKey(e));
 	});
 
 	$effect(() => {
@@ -564,7 +579,7 @@
 				</div>
 			{:else}
 				{#each emails as email, i (email.id)}
-					<div style="--delay: {Math.min(i, 15) * 30}ms" class="mail-list-item">
+					<div style="--delay: {Math.min(i, 15) * 30}ms" class="mail-list-item" class:mail-animate={isNew(email)}>
 						<EmailItem
 							{email}
 							selected={selectedId === email.id}
@@ -693,7 +708,7 @@
 
 <style>
 	@media (prefers-reduced-motion: no-preference) {
-		.mail-list-item {
+		.mail-list-item.mail-animate {
 			animation: mail-fade-in 200ms ease-out both;
 			animation-delay: var(--delay, 0ms);
 		}
