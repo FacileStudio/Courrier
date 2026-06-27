@@ -269,9 +269,12 @@ func (s *Service) SearchEmails(ctx context.Context, userID, accountID int64, que
 	q := s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("account_id = ?", accountID).
 		Where("subject ILIKE ? OR from_name ILIKE ? OR from_address ILIKE ? OR body_text ILIKE ?", like, like, like, like)
 
-	var trashFolder schemas.Folder
-	if err := s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeTrash).First(&trashFolder).Error; err == nil {
-		q = q.Where("folder_id != ?", trashFolder.ID)
+	var excludedIDs []int64
+	s.orm.WithContext(ctx).Model(&schemas.Folder{}).
+		Where("account_id = ? AND type IN ?", accountID, []string{schemas.FolderTypeTrash, schemas.FolderTypeJunk}).
+		Pluck("id", &excludedIDs)
+	if len(excludedIDs) > 0 {
+		q = q.Where("folder_id NOT IN ?", excludedIDs)
 	}
 
 	var total int64

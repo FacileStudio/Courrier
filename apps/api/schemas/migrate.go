@@ -19,7 +19,26 @@ func Migrate(db *gorm.DB) error {
 		return err
 	}
 
+	ensureSearchIndexes(db)
+
 	return backfillAvatarURLs(db)
+}
+
+func ensureSearchIndexes(db *gorm.DB) {
+	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS pg_trgm").Error; err != nil {
+		return
+	}
+
+	statements := []string{
+		"CREATE INDEX IF NOT EXISTS idx_emails_subject_trgm ON emails USING gin (subject gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_emails_from_name_trgm ON emails USING gin (from_name gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_emails_from_address_trgm ON emails USING gin (from_address gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_emails_body_text_trgm ON emails USING gin (body_text gin_trgm_ops)",
+	}
+
+	for _, stmt := range statements {
+		db.Exec(stmt)
+	}
 }
 
 // backfillAvatarURLs repoints avatars stored before static files moved under
