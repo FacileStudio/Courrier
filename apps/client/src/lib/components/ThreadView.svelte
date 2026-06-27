@@ -53,8 +53,10 @@
 	}
 
 	function initials(msg: EmailMessage): string {
-		const source = msg.from_name || msg.from_address || '?';
-		return source.trim().slice(0, 2).toUpperCase();
+		const parts = (msg.from_name || msg.from_address || '?').trim().split(/\s+/).filter(Boolean);
+		if (parts.length === 0) return '?';
+		if (parts.length === 1) return parts[0][0].toUpperCase();
+		return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 	}
 
 	async function ensureBody(msg: EmailMessage) {
@@ -97,9 +99,16 @@
 		await backend.downloadAttachment(accountId, msg.id, attachment.id, attachment.filename);
 	}
 
+	let loadedId = -1;
+
 	$effect(() => {
 		const seedId = email.id;
 		const threadId = email.thread_id;
+		// Only (re)load when the opened message actually changes. The parent passes
+		// a fresh object for the open row when it marks it read, etc.; re-running
+		// here would refetch the thread and discard expanded/loaded messages.
+		if (seedId === loadedId) return;
+		loadedId = seedId;
 		const reqId = ++loadSeq;
 
 		// Always render the opened message immediately; enrich with the thread next.
@@ -146,7 +155,7 @@
 		<div class="border-b last:border-b-0">
 			<button
 				type="button"
-				class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 sm:px-6"
+				class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-6"
 				onclick={() => toggle(msg)}
 				aria-expanded={isOpen}
 			>
@@ -155,7 +164,7 @@
 				</span>
 				<span class="min-w-0 flex-1">
 					<span class="flex items-center justify-between gap-2">
-						<span class="truncate text-sm {msg.is_read ? 'font-medium' : 'font-semibold'}">
+						<span class="truncate text-sm {msg.is_read ? '' : 'font-semibold'}">
 							{msg.from_name || msg.from_address}
 						</span>
 						<span class="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">

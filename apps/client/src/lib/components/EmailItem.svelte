@@ -72,7 +72,7 @@
 	<ContextMenu.Trigger>
 		<!-- svelte-ignore node_invalid_placement_ssr -->
 		<button
-			class="mail-list-item group w-full text-left px-4 py-3 border-b transition-colors duration-150 hover:bg-muted/50 cursor-pointer
+			class="mail-list-item group w-full text-left px-4 py-3 border-b transition-colors hover:bg-muted/50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring
 				{selected ? 'bg-muted' : ''}
 				{checked ? 'bg-primary/5' : ''}
 				{!email.is_read ? 'font-medium' : ''}"
@@ -130,7 +130,7 @@
 					<p class="truncate text-sm text-muted-foreground">{email.subject || '(no subject)'}</p>
 				</div>
 				{#if !email.is_read}
-					<div class="h-2 w-2 shrink-0 rounded-full bg-blue-600"></div>
+					<div class="h-2 w-2 shrink-0 rounded-full bg-primary"></div>
 				{/if}
 			</div>
 		</button>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, onMount } from 'svelte';
+	import { getContext } from 'svelte';
 	import { backend, type UserProfile, type MailAccount } from '$lib/backend';
 	import { spaceStore } from '$lib/stores/space.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -223,7 +223,8 @@
 		deletingTemplate = null;
 	}
 
-	onMount(() => {
+	$effect(() => {
+		spaceStore.active; // refetch when the active space changes
 		loadAccounts();
 		loadTemplates();
 	});
@@ -309,7 +310,7 @@
 									<div class="flex items-center gap-2 shrink-0">
 										{#if account.is_default}
 											<span
-												class="text-xs bg-foreground text-background px-2 py-0.5 rounded-full"
+												class="text-xs font-medium bg-foreground text-background px-2 py-0.5 rounded-full"
 												>Default</span
 											>
 										{/if}

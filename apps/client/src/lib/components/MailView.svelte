@@ -214,12 +214,12 @@
 	// A list row stands for a whole conversation; map the checked/targeted
 	// representative ids back to every underlying message id for server actions.
 	function expandIds(repIds: number[]): number[] {
-		const want = new Set(repIds);
+		const byId = new Map(emails.map((e) => [e.id, e]));
 		const out: number[] = [];
-		for (const e of emails) {
-			if (want.has(e.id)) out.push(...(e.email_ids ?? [e.id]));
+		for (const id of repIds) {
+			out.push(...(byId.get(id)?.email_ids ?? [id]));
 		}
-		return out.length > 0 ? out : repIds;
+		return out;
 	}
 
 	async function openEmail(email: EmailMessage) {
@@ -314,7 +314,7 @@
 		const ids = [...checkedIds];
 		try {
 			await backend.bulkAction(app.defaultAccountId, expandIds(ids), 'mark_unread');
-			emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: false } : e));
+			emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: false, unread_count: e.message_count ?? 1 } : e));
 			checkedIds = new Set();
 		} catch {
 			toast.error('Failed to mark as unread');
@@ -376,7 +376,6 @@
 		const _folder = folder;
 		const _unreadOnly = showUnreadOnly;
 		const _query = debouncedQuery.trim();
-		if (!app.defaultAccountId) return;
 		const accountId = app.defaultAccountId;
 		const reqId = ++loadSeq;
 
@@ -385,6 +384,12 @@
 		currentPage = 1;
 		totalEmails = 0;
 		animatedKeys = new Set();
+
+		if (!accountId) {
+			emails = [];
+			loading = false;
+			return;
+		}
 
 		if (_query !== '') {
 			emails = [];
@@ -600,7 +605,7 @@
 				<div class="flex items-center gap-2">
 					<h1 class="text-xl font-semibold">{selected.subject || '(no subject)'}</h1>
 					{#if threadMessages.length > 1}
-						<span class="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{threadMessages.length}</span>
+						<span class="rounded-full bg-muted px-1.5 text-xs font-medium tabular-nums text-muted-foreground">{threadMessages.length}</span>
 					{/if}
 				</div>
 				<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">

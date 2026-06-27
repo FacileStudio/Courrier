@@ -136,8 +136,12 @@
 		bodyPlainText = tmpl.body_text || tmpl.body_html?.replace(/<[^>]*>/g, '') || '';
 	}
 
-	onMount(async () => {
+	$effect(() => {
+		spaceStore.active; // reload templates when the active space changes
 		backend.listTemplates(spaceStore.active?.id).then((r) => { templates = r.templates; }).catch(() => {});
+	});
+
+	onMount(async () => {
 		const params = page.url.searchParams;
 		const replyId = params.get('reply');
 		const replyAllId = params.get('replyall');

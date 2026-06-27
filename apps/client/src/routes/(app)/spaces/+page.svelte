@@ -44,7 +44,7 @@
 				<iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
 			</a>
 			<div>
-				<h1 class="text-lg font-semibold">Espaces</h1>
+				<h1 class="text-2xl font-semibold">Espaces</h1>
 				<p class="mt-1 text-sm text-muted-foreground">Collaborez avec votre équipe dans des espaces partagés.</p>
 			</div>
 		</div>
