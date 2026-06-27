@@ -211,15 +211,27 @@
 		syncing = false;
 	}
 
+	// A list row stands for a whole conversation; map the checked/targeted
+	// representative ids back to every underlying message id for server actions.
+	function expandIds(repIds: number[]): number[] {
+		const want = new Set(repIds);
+		const out: number[] = [];
+		for (const e of emails) {
+			if (want.has(e.id)) out.push(...(e.email_ids ?? [e.id]));
+		}
+		return out.length > 0 ? out : repIds;
+	}
+
 	async function openEmail(email: EmailMessage) {
 		selectedId = email.id;
 		threadMessages = [];
 		if (!app.defaultAccountId) return;
 
-		if (!email.is_read) {
+		const unread = (email.unread_count ?? (email.is_read ? 0 : 1)) > 0;
+		if (unread) {
 			try {
-				await backend.updateEmail(app.defaultAccountId, email.id, { is_read: true });
-				emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: true } : e));
+				await backend.bulkAction(app.defaultAccountId, email.email_ids ?? [email.id], 'mark_read');
+				emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: true, unread_count: 0 } : e));
 			} catch {}
 		}
 	}
@@ -244,7 +256,7 @@
 		bulkLoading = true;
 		const count = deleteTarget.length;
 		try {
-			await backend.bulkAction(app.defaultAccountId, deleteTarget, 'delete');
+			await backend.bulkAction(app.defaultAccountId, expandIds(deleteTarget), 'delete');
 			emails = emails.filter((e) => !deleteTarget.includes(e.id));
 			totalEmails = Math.max(0, totalEmails - count);
 			mailCache.removeEmails(deleteTarget);
@@ -263,7 +275,7 @@
 		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
-			await backend.bulkAction(app.defaultAccountId, ids, 'archive');
+			await backend.bulkAction(app.defaultAccountId, expandIds(ids), 'archive');
 			emails = emails.filter((e) => !ids.includes(e.id));
 			totalEmails = Math.max(0, totalEmails - ids.length);
 			mailCache.removeEmails(ids);
@@ -281,13 +293,13 @@
 		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
-			await backend.bulkAction(app.defaultAccountId, ids, 'mark_read');
+			await backend.bulkAction(app.defaultAccountId, expandIds(ids), 'mark_read');
 			if (showUnreadOnly) {
 				emails = emails.filter((e) => !ids.includes(e.id));
 				totalEmails = Math.max(0, totalEmails - ids.length);
 				if (selectedId && ids.includes(selectedId)) selectedId = null;
 			} else {
-				emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: true } : e));
+				emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: true, unread_count: 0 } : e));
 			}
 			checkedIds = new Set();
 		} catch {
@@ -301,7 +313,7 @@
 		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
-			await backend.bulkAction(app.defaultAccountId, ids, 'mark_unread');
+			await backend.bulkAction(app.defaultAccountId, expandIds(ids), 'mark_unread');
 			emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: false } : e));
 			checkedIds = new Set();
 		} catch {
@@ -318,7 +330,7 @@
 	async function handleSingleArchive(emailId: number) {
 		if (!app.defaultAccountId) return;
 		try {
-			await backend.bulkAction(app.defaultAccountId, [emailId], 'archive');
+			await backend.bulkAction(app.defaultAccountId, expandIds([emailId]), 'archive');
 			emails = emails.filter((e) => e.id !== emailId);
 			totalEmails = Math.max(0, totalEmails - 1);
 			mailCache.removeEmails([emailId]);
@@ -331,14 +343,15 @@
 
 	async function handleToggleRead(email: EmailMessage) {
 		if (!app.defaultAccountId) return;
+		const markRead = !email.is_read;
 		try {
-			await backend.updateEmail(app.defaultAccountId, email.id, { is_read: !email.is_read });
-			if (showUnreadOnly && !email.is_read) {
+			await backend.bulkAction(app.defaultAccountId, email.email_ids ?? [email.id], markRead ? 'mark_read' : 'mark_unread');
+			if (showUnreadOnly && markRead) {
 				emails = emails.filter((e) => e.id !== email.id);
 				totalEmails = Math.max(0, totalEmails - 1);
 				if (selectedId === email.id) selectedId = null;
 			} else {
-				emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: !email.is_read } : e));
+				emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: markRead, unread_count: markRead ? 0 : (e.message_count ?? 1) } : e));
 			}
 		} catch {}
 	}

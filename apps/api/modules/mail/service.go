@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/mail"
+	"strconv"
 	"strings"
 	"time"
 
@@ -254,7 +255,35 @@ func (s *Service) GetFolders(ctx context.Context, userID, accountID int64) ([]sc
 	return folders, nil
 }
 
-func (s *Service) GetEmailsByFolderType(ctx context.Context, userID, accountID int64, folderType string, page, limit int, unreadOnly bool) ([]schemas.Email, int64, error) {
+// Conversation is one collapsed thread within a folder: the latest message
+// stands in for the group, plus thread-level aggregates the list view needs.
+type Conversation struct {
+	Email        schemas.Email
+	MessageCount int
+	UnreadCount  int
+	EmailIDs     []int64
+}
+
+// conversationRow is the raw scan target: the representative email columns plus
+// the window aggregates computed over each conversation partition.
+type conversationRow struct {
+	schemas.Email
+	ConvCount   int    `gorm:"column:conv_count"`
+	ConvUnread  int    `gorm:"column:conv_unread"`
+	ConvStarred bool   `gorm:"column:conv_starred"`
+	ConvAttach  bool   `gorm:"column:conv_attach"`
+	ConvIDs     string `gorm:"column:conv_ids"`
+}
+
+// conversationPartition groups a folder's messages into threads. Messages with
+// no thread id each form their own singleton (keyed by id), so unrelated mail is
+// never lumped together.
+const conversationPartition = "COALESCE(NULLIF(thread_id, ''), 'msg:' || id::text)"
+
+// GetConversationsByFolderType returns one row per conversation in a folder,
+// newest-first, paginated by conversation. Collapsing happens in SQL via window
+// functions so pagination stays correct even when a thread spans pages.
+func (s *Service) GetConversationsByFolderType(ctx context.Context, userID, accountID int64, folderType string, page, limit int, unreadOnly bool) ([]Conversation, int64, error) {
 	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
 		return nil, 0, err
 	}
@@ -264,29 +293,75 @@ func (s *Service) GetEmailsByFolderType(ctx context.Context, userID, accountID i
 		return nil, 0, errors.NotFound(fmt.Sprintf("folder type %q not found", folderType))
 	}
 
-	return s.GetEmails(ctx, userID, accountID, folder.ID, page, limit, unreadOnly)
-}
-
-func (s *Service) GetEmails(ctx context.Context, userID, accountID, folderID int64, page, limit int, unreadOnly bool) ([]schemas.Email, int64, error) {
-	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
-		return nil, 0, err
-	}
-
-	offset := (page - 1) * limit
-
-	query := s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("account_id = ? AND folder_id = ?", accountID, folderID)
+	repFilter, havingFilter := "", ""
 	if unreadOnly {
-		query = query.Where("is_read = false")
+		repFilter = " AND agg.conv_unread > 0"
+		havingFilter = " HAVING COUNT(*) FILTER (WHERE NOT is_read) > 0"
 	}
 
 	var total int64
-	query.Count(&total)
-
-	var emails []schemas.Email
-	if err := query.Order("date DESC").Offset(offset).Limit(limit).Find(&emails).Error; err != nil {
-		return nil, 0, errors.Internal("failed to list emails", err)
+	countSQL := "SELECT COUNT(*) FROM (SELECT 1 FROM emails WHERE account_id = ? AND folder_id = ? GROUP BY " +
+		conversationPartition + havingFilter + ") c"
+	if err := s.orm.WithContext(ctx).Raw(countSQL, accountID, folder.ID).Scan(&total).Error; err != nil {
+		return nil, 0, errors.Internal("failed to count conversations", err)
 	}
-	return emails, total, nil
+
+	listSQL := `
+		WITH scoped AS (
+			SELECT id, account_id, folder_id, message_id, thread_id, subject,
+			       from_address, from_name, to_addresses, cc_addresses, date,
+			       is_read, is_starred, has_attachments, in_reply_to, "references",
+			       ` + conversationPartition + ` AS tkey
+			FROM emails
+			WHERE account_id = ? AND folder_id = ?
+		),
+		agg AS (
+			SELECT tkey,
+			       COUNT(*)                            AS conv_count,
+			       COUNT(*) FILTER (WHERE NOT is_read) AS conv_unread,
+			       BOOL_OR(is_starred)                 AS conv_starred,
+			       BOOL_OR(has_attachments)            AS conv_attach,
+			       STRING_AGG(id::text, ',')           AS conv_ids,
+			       MAX(date)                           AS conv_last
+			FROM scoped
+			GROUP BY tkey
+		),
+		rep AS (
+			SELECT DISTINCT ON (tkey)
+			       id, account_id, folder_id, message_id, thread_id, subject,
+			       from_address, from_name, to_addresses, cc_addresses, date,
+			       in_reply_to, "references", tkey
+			FROM scoped
+			ORDER BY tkey, date DESC, id DESC
+		)
+		SELECT rep.id, rep.account_id, rep.folder_id, rep.message_id, rep.thread_id, rep.subject,
+		       rep.from_address, rep.from_name, rep.to_addresses, rep.cc_addresses, rep.date,
+		       rep.in_reply_to, rep."references",
+		       agg.conv_count, agg.conv_unread, agg.conv_starred, agg.conv_attach, agg.conv_ids
+		FROM agg JOIN rep USING (tkey)
+		WHERE TRUE` + repFilter + `
+		ORDER BY agg.conv_last DESC, rep.id DESC
+		LIMIT ? OFFSET ?`
+
+	var rows []conversationRow
+	if err := s.orm.WithContext(ctx).Raw(listSQL, accountID, folder.ID, limit, (page-1)*limit).Scan(&rows).Error; err != nil {
+		return nil, 0, errors.Internal("failed to list conversations", err)
+	}
+
+	conversations := make([]Conversation, len(rows))
+	for i, r := range rows {
+		e := r.Email
+		e.IsRead = r.ConvUnread == 0
+		e.IsStarred = r.ConvStarred
+		e.HasAttachments = r.ConvAttach
+		conversations[i] = Conversation{
+			Email:        e,
+			MessageCount: r.ConvCount,
+			UnreadCount:  r.ConvUnread,
+			EmailIDs:     parseCSVInts(r.ConvIDs),
+		}
+	}
+	return conversations, total, nil
 }
 
 func (s *Service) SearchEmails(ctx context.Context, userID, accountID int64, query string, page, limit int) ([]schemas.Email, int64, error) {
@@ -1190,6 +1265,20 @@ func parseAddressJSON(raw string) []AddressResponse {
 		return []AddressResponse{}
 	}
 	return addrs
+}
+
+func parseCSVInts(s string) []int64 {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]int64, 0, len(parts))
+	for _, p := range parts {
+		if n, err := strconv.ParseInt(strings.TrimSpace(p), 10, 64); err == nil {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 func escapeLikePattern(s string) string {

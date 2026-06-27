@@ -78,6 +78,10 @@ type EmailResponse struct {
 	Attachments    []AttachmentResponse `json:"attachments,omitempty"`
 	InReplyTo      string               `json:"in_reply_to,omitempty"`
 	References     string               `json:"references,omitempty"`
+	// Conversation aggregates, present only on folder-list (collapsed) rows.
+	MessageCount int     `json:"message_count,omitempty"`
+	UnreadCount  int     `json:"unread_count,omitempty"`
+	EmailIDs     []int64 `json:"email_ids,omitempty"`
 }
 
 type AttachmentResponse struct {

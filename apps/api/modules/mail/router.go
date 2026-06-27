@@ -246,15 +246,21 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			}
 			unreadOnly := req.URL.Query().Get("unread") == "true"
 
-			emails, total, err := service.GetEmailsByFolderType(req.Context(), uid, accountID, folderType, page, limit, unreadOnly)
+			conversations, total, err := service.GetConversationsByFolderType(req.Context(), uid, accountID, folderType, page, limit, unreadOnly)
 			if err != nil {
 				httpjson.WriteError(w, err)
 				return
 			}
 
-			resp := make([]EmailResponse, len(emails))
-			for i, e := range emails {
-				resp[i] = emailToResponse(e)
+			resp := make([]EmailResponse, len(conversations))
+			for i, c := range conversations {
+				item := emailToResponse(c.Email)
+				item.MessageCount = c.MessageCount
+				item.UnreadCount = c.UnreadCount
+				if c.MessageCount > 1 {
+					item.EmailIDs = c.EmailIDs
+				}
+				resp[i] = item
 			}
 			httpjson.WriteJSON(w, http.StatusOK, map[string]any{
 				"emails": resp,

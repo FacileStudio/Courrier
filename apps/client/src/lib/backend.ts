@@ -69,6 +69,10 @@ export type EmailMessage = {
 	attachments?: EmailAttachment[];
 	in_reply_to?: string;
 	references?: string;
+	// Conversation aggregates, present only on folder-list (collapsed) rows.
+	message_count?: number;
+	unread_count?: number;
+	email_ids?: number[];
 };
 
 export type EmailAttachment = {

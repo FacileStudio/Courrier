@@ -36,6 +36,7 @@ func ensureSearchIndexes(db *gorm.DB) {
 		"CREATE INDEX IF NOT EXISTS idx_emails_from_address_trgm ON emails USING gin (from_address gin_trgm_ops)",
 		"CREATE INDEX IF NOT EXISTS idx_emails_body_text_trgm ON emails USING gin (body_text gin_trgm_ops)",
 		"CREATE INDEX IF NOT EXISTS idx_emails_account_thread ON emails (account_id, thread_id)",
+		"CREATE INDEX IF NOT EXISTS idx_emails_folder_thread_date ON emails (account_id, folder_id, thread_id, date DESC, id DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_thread_links_account_thread ON thread_links (account_id, thread_id)",
 	}
 

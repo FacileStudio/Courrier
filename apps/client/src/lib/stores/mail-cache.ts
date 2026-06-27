@@ -1,7 +1,7 @@
 import { writable, get } from 'svelte/store';
 import type { EmailMessage } from '$lib/backend';
 
-const CACHE_KEY = 'courrier.mail-cache';
+const CACHE_KEY = 'courrier.mail-cache.v2';
 const CACHE_TTL = 10 * 60 * 1000;
 
 type CacheEntry = {
