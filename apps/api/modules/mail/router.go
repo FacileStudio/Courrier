@@ -264,6 +264,56 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			})
 		})
 
+		r.Get("/search", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
+
+			page, _ := strconv.Atoi(req.URL.Query().Get("page"))
+			if page < 1 {
+				page = 1
+			}
+			limit, _ := strconv.Atoi(req.URL.Query().Get("limit"))
+			if limit < 1 || limit > 100 {
+				limit = 30
+			}
+			query := strings.TrimSpace(req.URL.Query().Get("q"))
+			if query == "" {
+				httpjson.WriteJSON(w, http.StatusOK, map[string]any{
+					"emails": []EmailResponse{},
+					"total":  0,
+					"page":   page,
+					"limit":  limit,
+				})
+				return
+			}
+
+			emails, total, err := service.SearchEmails(req.Context(), uid, accountID, query, page, limit)
+			if err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+
+			resp := make([]EmailResponse, len(emails))
+			for i, e := range emails {
+				resp[i] = emailToResponse(e)
+			}
+			httpjson.WriteJSON(w, http.StatusOK, map[string]any{
+				"emails": resp,
+				"total":  total,
+				"page":   page,
+				"limit":  limit,
+			})
+		})
+
 		r.Get("/emails/{emailId}", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
 			uid, err := strconv.ParseInt(identity.UserID, 10, 64)

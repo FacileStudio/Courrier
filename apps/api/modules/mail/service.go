@@ -258,6 +258,32 @@ func (s *Service) GetEmails(ctx context.Context, userID, accountID, folderID int
 	return emails, total, nil
 }
 
+func (s *Service) SearchEmails(ctx context.Context, userID, accountID int64, query string, page, limit int) ([]schemas.Email, int64, error) {
+	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+	like := "%" + escapeLikePattern(query) + "%"
+
+	q := s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("account_id = ?", accountID).
+		Where("subject ILIKE ? OR from_name ILIKE ? OR from_address ILIKE ? OR body_text ILIKE ?", like, like, like, like)
+
+	var trashFolder schemas.Folder
+	if err := s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeTrash).First(&trashFolder).Error; err == nil {
+		q = q.Where("folder_id != ?", trashFolder.ID)
+	}
+
+	var total int64
+	q.Count(&total)
+
+	var emails []schemas.Email
+	if err := q.Order("date DESC").Offset(offset).Limit(limit).Find(&emails).Error; err != nil {
+		return nil, 0, errors.Internal("failed to search emails", err)
+	}
+	return emails, total, nil
+}
+
 func (s *Service) GetEmail(ctx context.Context, userID, accountID, emailID int64) (schemas.Email, error) {
 	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
 		return schemas.Email{}, err
