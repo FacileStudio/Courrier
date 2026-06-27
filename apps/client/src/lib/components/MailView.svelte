@@ -224,13 +224,7 @@
 		if (!email.is_read) {
 			try {
 				await backend.updateEmail(app.defaultAccountId, email.id, { is_read: true });
-				if (showUnreadOnly) {
-					emails = emails.filter((e) => e.id !== email.id);
-					totalEmails = Math.max(0, totalEmails - 1);
-					selectedId = null;
-				} else {
-					emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: true } : e));
-				}
+				emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: true } : e));
 			} catch {}
 		}
 	}
