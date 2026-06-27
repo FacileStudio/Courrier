@@ -36,21 +36,17 @@
 	}
 
 	const folderLinks = MAIL_FOLDERS;
-
-	const manageLinks: { href: string; label: string; icon: string }[] = [
-		{ href: '/accounts', label: 'Accounts', icon: 'solar:mailbox-linear' },
-		{ href: '/templates', label: 'Templates', icon: 'solar:documents-linear' },
-		{ href: '/spaces', label: 'Spaces', icon: 'solar:users-group-rounded-linear' }
-	];
 </script>
 
 <aside class="sticky top-0 hidden h-[100dvh] w-60 flex-col border-r bg-background md:flex">
-	<div class="flex items-center gap-3 px-5 pt-8 pb-4">
-		<iconify-icon icon="solar:letter-bold-duotone" width="28" class="text-foreground"></iconify-icon>
-		<span class="text-2xl font-bold font-heading tracking-tight">Courrier</span>
-	</div>
+	<div class="flex flex-col gap-2 pt-8 pb-2">
+		<div class="flex items-center gap-3 px-5">
+			<iconify-icon icon="solar:letter-bold-duotone" width="28" class="text-foreground"></iconify-icon>
+			<span class="text-2xl font-bold font-heading tracking-tight">Courrier</span>
+		</div>
 
-	<SpaceSwitcher />
+		<SpaceSwitcher />
+	</div>
 
 	<div class="px-3 py-3">
 		<a
@@ -77,21 +73,6 @@
 				{#if unread > 0}
 					<span class="text-xs font-medium">{unread}</span>
 				{/if}
-			</a>
-		{/each}
-
-		<div class="my-2 h-px bg-border"></div>
-
-		{#each manageLinks as link}
-			{@const active = page.url.pathname === link.href || page.url.pathname.startsWith(link.href + '/')}
-			<a
-				href={link.href}
-				class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors {active
-					? 'bg-foreground text-background font-medium'
-					: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-			>
-				<iconify-icon icon={link.icon} width="16"></iconify-icon>
-				<span class="flex-1">{link.label}</span>
 			</a>
 		{/each}
 	</nav>

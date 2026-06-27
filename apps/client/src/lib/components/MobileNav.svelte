@@ -23,12 +23,22 @@
 
 	const items = [
 		{ href: '/mail', label: 'Mail', icon: 'solar:letter-linear' },
-		{ href: '/accounts', label: 'Accounts', icon: 'solar:mailbox-linear' },
-		{ href: '/templates', label: 'Templates', icon: 'solar:document-linear' }
+		{ href: '/mail/compose', label: 'Compose', icon: 'solar:pen-new-square-linear' }
 	];
 
 	function isActive(href: string) {
 		return page.url.pathname === href || page.url.pathname.startsWith(href + '/');
+	}
+
+	function isItemActive(href: string) {
+		if (href === '/mail/compose') return page.url.pathname === '/mail/compose';
+		if (href === '/mail') {
+			return (
+				page.url.pathname === '/mail' ||
+				(page.url.pathname.startsWith('/mail/') && page.url.pathname !== '/mail/compose')
+			);
+		}
+		return isActive(href);
 	}
 
 	const inboxUnread = $derived(folders.find((f) => f.type === 'inbox')?.unread_count ?? 0);
@@ -42,7 +52,7 @@
 		class="flex items-center gap-1 rounded-full border border-border/40 bg-background/55 p-1.5 shadow-lg shadow-black/10 ring-1 ring-white/10 backdrop-blur-2xl backdrop-saturate-150"
 	>
 		{#each items as item (item.href)}
-			{@const active = isActive(item.href)}
+			{@const active = isItemActive(item.href)}
 			<a
 				href={item.href}
 				aria-label={item.label}
