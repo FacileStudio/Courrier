@@ -19,7 +19,7 @@
 	}
 
 	const userLabel = $derived(user?.name?.trim() || user?.email || '');
-	const profileActive = $derived(isActive('/settings') || isActive('/profile'));
+	const profileActive = $derived(isActive('/settings'));
 
 	const items = [
 		{ href: '/mail', label: 'Mail', icon: 'solar:letter-linear' },

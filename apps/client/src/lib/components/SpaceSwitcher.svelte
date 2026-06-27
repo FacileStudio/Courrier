@@ -46,7 +46,7 @@
 	});
 </script>
 
-{#if !loading && spaces.length > 0}
+{#if !loading}
 	<div class="space-switcher relative px-3 pb-2">
 		<button
 			class="flex w-full items-center gap-2.5 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60"
