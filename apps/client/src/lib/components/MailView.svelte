@@ -119,11 +119,12 @@
 		});
 	}
 
-	function sanitizeHTML(html: string): string {
-		if (!html || !app.defaultAccountId || !selectedId) return html;
-		const resolved = resolveCIDImages(html, app.defaultAccountId, selectedId);
-		return DOMPurify.sanitize(resolved);
-	}
+	const sanitizedBody = $derived.by(() => {
+		const html = selected?.body_html;
+		if (!html || !app.defaultAccountId || !selected) return '';
+		const resolved = resolveCIDImages(html, app.defaultAccountId, selected.id);
+		return DOMPurify.sanitize(resolved).replace(/<img /gi, '<img loading="lazy" decoding="async" ');
+	});
 
 	async function loadEmails() {
 		if (!app.defaultAccountId) return;
@@ -367,6 +368,14 @@
 		} catch {}
 	}
 
+	let syncedAccount = -1;
+	$effect(() => {
+		const accountId = app.defaultAccountId;
+		if (!accountId || accountId === syncedAccount) return;
+		syncedAccount = accountId;
+		void syncAndLoad();
+	});
+
 	$effect(() => {
 		const _folder = folder;
 		const _unreadOnly = showUnreadOnly;
@@ -428,10 +437,6 @@
 			}
 			if (reqId !== loadSeq) return;
 			loading = false;
-
-			if (emails.length === 0 && !_unreadOnly) {
-				await syncAndLoad();
-			}
 		})();
 	});
 
@@ -642,7 +647,7 @@
 			{/if}
 			<div class="flex-1 overflow-auto px-4 py-4 sm:px-6 mail-body-content">
 				{#if selected.body_html}
-					{@html sanitizeHTML(selected.body_html)}
+					{@html sanitizedBody}
 				{:else if selected.body_text}
 					<pre class="whitespace-pre-wrap text-sm">{selected.body_text}</pre>
 				{:else}
