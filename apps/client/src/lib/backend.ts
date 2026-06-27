@@ -54,7 +54,6 @@ export type EmailMessage = {
 	account_id: number;
 	folder_id: number;
 	message_id: string;
-	thread_id: string;
 	subject: string;
 	from_address: string;
 	from_name: string;
