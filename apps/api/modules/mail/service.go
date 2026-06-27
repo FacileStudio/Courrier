@@ -455,13 +455,18 @@ func (s *Service) GetThread(ctx context.Context, userID, accountID int64, thread
 		return nil, errors.Invalid("thread id is required")
 	}
 
+	// Keep the newest 500 (huge threads are rare), then present oldest-first so
+	// the reader and "reply to latest" see the true most-recent message last.
 	var emails []schemas.Email
 	if err := s.orm.WithContext(ctx).
 		Where("account_id = ? AND thread_id = ?", accountID, threadID).
-		Order("date ASC").
+		Order("date DESC").
 		Limit(500).
 		Find(&emails).Error; err != nil {
 		return nil, errors.Internal("failed to load thread", err)
+	}
+	for i, j := 0, len(emails)-1; i < j; i, j = i+1, j-1 {
+		emails[i], emails[j] = emails[j], emails[i]
 	}
 	return emails, nil
 }
@@ -631,6 +636,83 @@ func (s *Service) UpdateEmail(ctx context.Context, userID, accountID, emailID in
 	return email, nil
 }
 
+// SetReadState marks many emails read/unread at once: one DB update, refreshed
+// folder unread counts, and a single IMAP connection that issues one STORE per
+// folder. This is what bulk mark-read and opening a conversation use, so a big
+// thread no longer triggers one IMAP login per message.
+func (s *Service) SetReadState(ctx context.Context, userID, accountID int64, emailIDs []int64, isRead bool) error {
+	account, err := s.getAccountDecrypted(ctx, userID, accountID)
+	if err != nil {
+		return err
+	}
+	if len(emailIDs) == 0 {
+		return nil
+	}
+
+	var emails []schemas.Email
+	if err := s.orm.WithContext(ctx).
+		Select("id", "folder_id", "imap_uid").
+		Where("id IN ? AND account_id = ?", emailIDs, accountID).
+		Find(&emails).Error; err != nil {
+		return errors.Internal("failed to load emails", err)
+	}
+	if len(emails) == 0 {
+		return nil
+	}
+
+	s.orm.WithContext(ctx).Model(&schemas.Email{}).
+		Where("id IN ? AND account_id = ?", emailIDs, accountID).
+		Update("is_read", isRead)
+
+	affected := map[int64]bool{}
+	for _, e := range emails {
+		affected[e.FolderID] = true
+	}
+	for folderID := range affected {
+		var unread int64
+		s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("folder_id = ? AND is_read = false", folderID).Count(&unread)
+		s.orm.WithContext(ctx).Model(&schemas.Folder{}).Where("id = ?", folderID).Update("unread_count", unread)
+	}
+
+	uidsByFolder := map[int64][]imap.UID{}
+	for _, e := range emails {
+		if e.IMAPUID == 0 {
+			continue // locally-created draft/sent row with no server message
+		}
+		uidsByFolder[e.FolderID] = append(uidsByFolder[e.FolderID], imap.UID(e.IMAPUID))
+	}
+
+	go func() {
+		client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+		if err != nil {
+			return
+		}
+		defer func() {
+			client.Logout().Wait()
+			client.Close()
+		}()
+
+		paths := map[int64]string{}
+		var folders []schemas.Folder
+		s.orm.WithContext(context.Background()).Where("account_id = ?", accountID).Find(&folders)
+		for _, f := range folders {
+			paths[f.ID] = f.Path
+		}
+
+		op := imap.StoreFlagsAdd
+		if !isRead {
+			op = imap.StoreFlagsDel
+		}
+		for folderID, uids := range uidsByFolder {
+			if path := paths[folderID]; path != "" {
+				storeFlagsBulk(client, path, uids, op, []imap.Flag{imap.FlagSeen})
+			}
+		}
+	}()
+
+	return nil
+}
+
 func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendRequest) error {
 	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {
@@ -644,7 +726,7 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 		return errors.Invalid("body is required")
 	}
 
-	msgBytes, err := buildMessage(
+	msgBytes, messageID, err := buildMessage(
 		account.Email,
 		account.Name,
 		req.To,
@@ -681,7 +763,8 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 			AccountID:   accountID,
 			SpaceID:     account.SpaceID,
 			FolderID:    sentFolder.ID,
-			ThreadID:    assignThreadID(s.orm.WithContext(ctx), accountID, "", req.InReplyTo, references),
+			MessageID:   messageID,
+			ThreadID:    assignThreadID(s.orm.WithContext(ctx), accountID, messageID, req.InReplyTo, references),
 			Subject:     req.Subject,
 			FromAddress: account.Email,
 			FromName:    account.Name,
@@ -709,7 +792,7 @@ func (s *Service) SaveDraft(ctx context.Context, userID, accountID int64, req Se
 		return schemas.Email{}, err
 	}
 
-	msgBytes, err := buildMessage(
+	msgBytes, messageID, err := buildMessage(
 		account.Email,
 		account.Name,
 		req.To,
@@ -735,7 +818,8 @@ func (s *Service) SaveDraft(ctx context.Context, userID, accountID int64, req Se
 		AccountID:   accountID,
 		SpaceID:     account.SpaceID,
 		FolderID:    draftsFolder.ID,
-		ThreadID:    assignThreadID(s.orm.WithContext(ctx), accountID, "", req.InReplyTo, references),
+		MessageID:   messageID,
+		ThreadID:    assignThreadID(s.orm.WithContext(ctx), accountID, messageID, req.InReplyTo, references),
 		Subject:     req.Subject,
 		FromAddress: account.Email,
 		FromName:    account.Name,

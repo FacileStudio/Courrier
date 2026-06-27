@@ -561,11 +561,13 @@
 					{/each}
 				</div>
 			{:else if emails.length === 0}
-				<div class="flex flex-col items-center justify-center h-full text-muted-foreground mail-fade-in">
+				<div class="flex h-full flex-col items-center justify-center px-6 text-center text-muted-foreground mail-fade-in">
 					{#if searchMode}
-						<p class="text-sm">No messages match “{debouncedQuery.trim()}”</p>
+						<Search class="h-8 w-8 text-muted-foreground/40" />
+						<p class="mt-3 text-sm font-medium">No messages match “{debouncedQuery.trim()}”</p>
 					{:else}
-						<p class="text-sm">{showUnreadOnly ? `No unread emails in ${folderLabel}` : `No emails in ${folderLabel}`}</p>
+						<Mail class="h-8 w-8 text-muted-foreground/40" />
+						<p class="mt-3 text-sm font-medium">{showUnreadOnly ? `No unread emails in ${folderLabel}` : `No emails in ${folderLabel}`}</p>
 					{/if}
 				</div>
 			{:else}

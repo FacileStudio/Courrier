@@ -49,9 +49,11 @@ func main() {
 		appLogger.Error("failed to run migrations", slog.Any("error", err))
 		return
 	}
-	if err := mail.BackfillThreads(db); err != nil {
-		appLogger.Warn("thread backfill failed", slog.Any("error", err))
-	}
+	go func() {
+		if err := mail.BackfillThreads(db); err != nil {
+			appLogger.Warn("thread backfill failed", slog.Any("error", err))
+		}
+	}()
 	if len(appEnv.EncryptionKey) > 0 {
 		if err := crypto.MigrateAccountPasswords(db, appEnv.EncryptionKey, appLogger); err != nil {
 			appLogger.Warn("credential migration failed", slog.Any("error", err))

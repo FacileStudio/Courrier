@@ -126,9 +126,9 @@
 			try {
 				const result = await backend.getThread(accountId, threadId);
 				if (reqId !== loadSeq) return;
-				// Prefer the already-loaded copy of the opened message (it may carry a body).
-				const merged = result.emails.map((m) => (m.id === seedId ? { ...m, ...email } : m));
-				messages = merged.length > 0 ? merged : [email];
+				// Use the thread rows as-is: they carry real per-message read state and
+				// bodies; the list representative omits bodies and holds aggregate state.
+				messages = result.emails.length > 0 ? result.emails : [email];
 				// Expand the opened message; if it is not the newest, expand the newest too.
 				const newest = messages[messages.length - 1];
 				const next = new Set<number>([seedId]);

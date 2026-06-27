@@ -92,7 +92,10 @@ func sendImplicitTLS(addr, host, user, password, from string, to []string, msg [
 	return c.Quit()
 }
 
-func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject, bodyText, bodyHTML, inReplyTo string, references []string, attachments []AttachmentUpload) ([]byte, error) {
+// buildMessage builds the RFC822 message and returns its bytes plus the
+// generated Message-ID, so callers can persist it and thread outbound mail
+// against the replies it later receives.
+func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject, bodyText, bodyHTML, inReplyTo string, references []string, attachments []AttachmentUpload) ([]byte, string, error) {
 	var buf bytes.Buffer
 
 	var h gomail.Header
@@ -107,8 +110,9 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 	}
 
 	if err := h.GenerateMessageIDWithHostname("courrier.local"); err != nil {
-		return nil, err
+		return nil, "", err
 	}
+	messageID := h.Get("Message-Id")
 
 	if inReplyTo != "" {
 		h.SetMsgIDList("In-Reply-To", []string{inReplyTo})
@@ -121,15 +125,15 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 		if bodyHTML == "" {
 			w, err := gomail.CreateSingleInlineWriter(&buf, h)
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			if _, err := io.WriteString(w, bodyText); err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			if err := w.Close(); err != nil {
-				return nil, err
+				return nil, "", err
 			}
-			return buf.Bytes(), nil
+			return buf.Bytes(), messageID, nil
 		}
 
 		if bodyText == "" {
@@ -138,15 +142,15 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 
 		iw, err := gomail.CreateInlineWriter(&buf, h)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if err := writeAlternativeParts(iw, bodyText, bodyHTML); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if err := iw.Close(); err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		return buf.Bytes(), nil
+		return buf.Bytes(), messageID, nil
 	}
 
 	if bodyText == "" && bodyHTML != "" {
@@ -155,32 +159,32 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 
 	mw, err := gomail.CreateWriter(&buf, h)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if bodyHTML != "" {
 		altPart, err := mw.CreateInline()
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if err := writeAlternativeParts(altPart, bodyText, bodyHTML); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if err := altPart.Close(); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	} else {
 		var textHeader gomail.InlineHeader
 		textHeader.SetContentType("text/plain", map[string]string{"charset": "utf-8"})
 		tw, err := mw.CreateSingleInline(textHeader)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if _, err := io.WriteString(tw, bodyText); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if err := tw.Close(); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
@@ -190,27 +194,27 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 		attHeader.SetFilename(attachments[i].Filename)
 		aw, err := mw.CreateAttachment(attHeader)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		reader, err := attachments[i].Reader()
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if _, err := io.Copy(aw, reader); err != nil {
 			reader.Close()
-			return nil, err
+			return nil, "", err
 		}
 		reader.Close()
 		if err := aw.Close(); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
 	if err := mw.Close(); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return buf.Bytes(), nil
+	return buf.Bytes(), messageID, nil
 }
 
 func writeAlternativeParts(iw *gomail.InlineWriter, bodyText, bodyHTML string) error {

@@ -612,6 +612,23 @@ func storeFlags(client *imapclient.Client, mailbox string, uid imap.UID, op imap
 	return storeCmd.Close()
 }
 
+// storeFlagsBulk applies a flag change to many messages in one mailbox with a
+// single SELECT + STORE, instead of one round-trip (and connection) per message.
+func storeFlagsBulk(client *imapclient.Client, mailbox string, uids []imap.UID, op imap.StoreFlagsOp, flags []imap.Flag) error {
+	if len(uids) == 0 {
+		return nil
+	}
+	if _, err := client.Select(mailbox, nil).Wait(); err != nil {
+		return fmt.Errorf("SELECT %q failed: %w", mailbox, err)
+	}
+	storeCmd := client.Store(imap.UIDSetNum(uids...), &imap.StoreFlags{
+		Op:     op,
+		Silent: true,
+		Flags:  flags,
+	}, nil)
+	return storeCmd.Close()
+}
+
 func moveMessage(client *imapclient.Client, srcMailbox string, uid imap.UID, destMailbox string) error {
 	_, err := client.Select(srcMailbox, nil).Wait()
 	if err != nil {

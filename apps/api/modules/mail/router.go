@@ -597,20 +597,14 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 					return
 				}
 			case "mark_read":
-				isRead := true
-				for _, emailID := range body.EmailIDs {
-					if _, err := service.UpdateEmail(req.Context(), uid, accountID, emailID, UpdateEmailRequest{IsRead: &isRead}); err != nil {
-						httpjson.WriteError(w, err)
-						return
-					}
+				if err := service.SetReadState(req.Context(), uid, accountID, body.EmailIDs, true); err != nil {
+					httpjson.WriteError(w, err)
+					return
 				}
 			case "mark_unread":
-				isRead := false
-				for _, emailID := range body.EmailIDs {
-					if _, err := service.UpdateEmail(req.Context(), uid, accountID, emailID, UpdateEmailRequest{IsRead: &isRead}); err != nil {
-						httpjson.WriteError(w, err)
-						return
-					}
+				if err := service.SetReadState(req.Context(), uid, accountID, body.EmailIDs, false); err != nil {
+					httpjson.WriteError(w, err)
+					return
 				}
 			default:
 				httpjson.WriteError(w, errors.Invalid("unknown action"))

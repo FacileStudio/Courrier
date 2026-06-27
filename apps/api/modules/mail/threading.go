@@ -90,7 +90,11 @@ func assignThreadID(db *gorm.DB, accountID int64, messageID, inReplyTo, referenc
 	}
 
 	var threadID string
-	_ = db.Transaction(func(tx *gorm.DB) error {
+	// Concurrent syncs of one account run sequentially in practice (folders
+	// sync one at a time), so read-committed is sufficient; a bridging message
+	// self-heals any split. If the transaction fails, return "" rather than a
+	// thread id with no backing links.
+	if err := db.Transaction(func(tx *gorm.DB) error {
 		var existing []string
 		tx.Model(&schemas.ThreadLink{}).
 			Where("account_id = ? AND message_id IN ?", accountID, related).
@@ -137,27 +141,32 @@ func assignThreadID(db *gorm.DB, accountID int64, messageID, inReplyTo, referenc
 			Columns:   []clause.Column{{Name: "account_id"}, {Name: "message_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"thread_id"}),
 		}).Create(&links).Error
-	})
+	}); err != nil {
+		return ""
+	}
 
 	return threadID
 }
 
 // BackfillThreads assigns thread ids to any emails stored before threading
-// existed. Oldest-first so roots are processed before their replies. Idempotent:
-// once thread_id is populated a row is skipped on subsequent runs.
+// existed. Idempotent: once thread_id is populated a row is skipped on
+// subsequent runs. Processing order is irrelevant — union-find anchors each
+// thread on its References root regardless of arrival order. Selects only the
+// header columns and works in primary-key batches so a large legacy mailbox
+// never loads message bodies into memory; meant to run in the background.
 func BackfillThreads(db *gorm.DB) error {
-	var emails []schemas.Email
-	if err := db.
+	var batch []schemas.Email
+	return db.
+		Model(&schemas.Email{}).
+		Select("id", "account_id", "message_id", "in_reply_to", "references").
 		Where("thread_id = '' OR thread_id IS NULL").
-		Order("date ASC").
-		Find(&emails).Error; err != nil {
-		return err
-	}
-	for _, e := range emails {
-		tid := assignThreadID(db, e.AccountID, e.MessageID, e.InReplyTo, e.References)
-		if tid != "" {
-			db.Model(&schemas.Email{}).Where("id = ?", e.ID).Update("thread_id", tid)
-		}
-	}
-	return nil
+		FindInBatches(&batch, 500, func(tx *gorm.DB, _ int) error {
+			for _, e := range batch {
+				tid := assignThreadID(db, e.AccountID, e.MessageID, e.InReplyTo, e.References)
+				if tid != "" {
+					db.Model(&schemas.Email{}).Where("id = ?", e.ID).Update("thread_id", tid)
+				}
+			}
+			return nil
+		}).Error
 }
