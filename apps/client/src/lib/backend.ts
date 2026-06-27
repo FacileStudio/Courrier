@@ -206,6 +206,12 @@ export const backend = {
 			`/api/accounts/${accountId}/mail/folders/${folderType}/emails?${params}`
 		);
 	},
+	searchEmails(accountId: number, query: string, page = 1, limit = 30) {
+		const params = new URLSearchParams({ q: query, page: String(page), limit: String(limit) });
+		return apiFetch<{ emails: EmailMessage[]; total: number; page: number; limit: number }>(
+			`/api/accounts/${accountId}/mail/search?${params}`
+		);
+	},
 	getEmail(accountId: number, emailId: number) {
 		return apiFetch<EmailMessage>(`/api/accounts/${accountId}/mail/emails/${emailId}`);
 	},

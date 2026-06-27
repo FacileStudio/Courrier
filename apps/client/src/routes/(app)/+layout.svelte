@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount, setContext } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { backend, type UserProfile, type MailAccount, type Folder } from '$lib/backend';
 	import { spaceStore } from '$lib/stores/space.svelte';
+	import { searchStore } from '$lib/stores/search.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import MobileNav from '$lib/components/MobileNav.svelte';
 
@@ -67,6 +69,20 @@
 	$effect(() => {
 		spaceStore.active;
 		if (loaded) refreshAccounts();
+	});
+
+	$effect(() => {
+		async function handleKeydown(e: KeyboardEvent) {
+			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+				e.preventDefault();
+				if (!page.url.pathname.startsWith('/mail')) {
+					await goto('/mail');
+				}
+				searchStore.requestFocus();
+			}
+		}
+		window.addEventListener('keydown', handleKeydown);
+		return () => window.removeEventListener('keydown', handleKeydown);
 	});
 </script>
 
