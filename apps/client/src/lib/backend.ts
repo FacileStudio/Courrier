@@ -54,6 +54,7 @@ export type EmailMessage = {
 	account_id: number;
 	folder_id: number;
 	message_id: string;
+	thread_id?: string;
 	subject: string;
 	from_address: string;
 	from_name: string;
@@ -213,6 +214,11 @@ export const backend = {
 	},
 	getEmail(accountId: number, emailId: number) {
 		return apiFetch<EmailMessage>(`/api/accounts/${accountId}/mail/emails/${emailId}`);
+	},
+	getThread(accountId: number, threadId: string) {
+		return apiFetch<{ emails: EmailMessage[] }>(
+			`/api/accounts/${accountId}/mail/threads/${encodeURIComponent(threadId)}`
+		);
 	},
 	updateEmail(accountId: number, emailId: number, data: { is_read?: boolean; is_starred?: boolean }) {
 		return apiFetch<EmailMessage>(`/api/accounts/${accountId}/mail/emails/${emailId}`, {

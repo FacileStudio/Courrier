@@ -2,8 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { getContext } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
-	import DOMPurify from 'dompurify';
-	import { backend, type EmailMessage, type EmailAttachment, type MailAccount } from '$lib/backend';
+	import { backend, type EmailMessage, type MailAccount } from '$lib/backend';
 	import { mailCache } from '$lib/stores/mail-cache';
 	import { searchStore } from '$lib/stores/search.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -11,8 +10,9 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as Resizable from '$lib/components/ui/resizable';
 	import { toast } from 'svelte-sonner';
-	import { RefreshCw, Paperclip, Download, Reply, ReplyAll, Forward, Loader2, Trash2, Archive, Mail, ArrowLeft, Search, X } from 'lucide-svelte';
+	import { RefreshCw, Reply, ReplyAll, Forward, Loader2, Trash2, Archive, Mail, ArrowLeft, Search, X } from 'lucide-svelte';
 	import EmailItem from '$lib/components/EmailItem.svelte';
+	import ThreadView from '$lib/components/ThreadView.svelte';
 	import BulkActionBar from '$lib/components/BulkActionBar.svelte';
 	import DeleteConfirmDialog from '$lib/components/DeleteConfirmDialog.svelte';
 	import MailFolderSwitcher from '$lib/components/MailFolderSwitcher.svelte';
@@ -60,7 +60,10 @@
 	let loadSeq = 0;
 	let seenFocusSeq = searchStore.focusSeq;
 
+	let threadMessages = $state<EmailMessage[]>([]);
+
 	const selected = $derived(emails.find((e) => e.id === selectedId) ?? null);
+	const replyTarget = $derived(threadMessages.length > 0 ? threadMessages[threadMessages.length - 1] : selected);
 	const hasMore = $derived(emails.length < totalEmails);
 	const selectionActive = $derived(checkedIds.size > 0);
 	const allChecked = $derived(emails.length > 0 && emails.every((e) => checkedIds.has(e.id)));
@@ -121,19 +124,6 @@
 			seenFocusSeq = searchStore.focusSeq;
 			inputEl?.focus();
 		}
-	});
-
-	function resolveCIDImages(html: string, accountId: number, emailId: number): string {
-		return html.replace(/src=["']cid:([^"']+)["']/gi, (_match, cid) => {
-			return `src="${backend.getCIDImageUrl(accountId, emailId, cid)}"`;
-		});
-	}
-
-	const sanitizedBody = $derived.by(() => {
-		const html = selected?.body_html;
-		if (!html || !app.defaultAccountId || !selected) return '';
-		const resolved = resolveCIDImages(html, app.defaultAccountId, selected.id);
-		return DOMPurify.sanitize(resolved).replace(/<img /gi, '<img loading="lazy" decoding="async" ');
 	});
 
 	async function loadEmails() {
@@ -223,14 +213,8 @@
 
 	async function openEmail(email: EmailMessage) {
 		selectedId = email.id;
+		threadMessages = [];
 		if (!app.defaultAccountId) return;
-
-		if (!email.body_text && !email.body_html) {
-			try {
-				const full = await backend.getEmail(app.defaultAccountId, email.id);
-				emails = emails.map((e) => (e.id === email.id ? full : e));
-			} catch {}
-		}
 
 		if (!email.is_read) {
 			try {
@@ -248,17 +232,6 @@
 		if (diffDays < 1) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 		if (diffDays < 7) return date.toLocaleDateString('fr-FR', { weekday: 'short' });
 		return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-	}
-
-	function formatFileSize(bytes: number): string {
-		if (bytes < 1024) return `${bytes} B`;
-		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-	}
-
-	async function downloadAttachment(attachment: EmailAttachment) {
-		if (!app.defaultAccountId || !selected) return;
-		await backend.downloadAttachment(app.defaultAccountId, selected.id, attachment.id, attachment.filename);
 	}
 
 	async function handleBulkDelete() {
@@ -611,18 +584,23 @@
 	<div class="flex h-full flex-col">
 		{#if selected}
 			<div class="border-b px-4 py-4 sm:px-6 mail-detail-header">
-				<h1 class="text-xl font-semibold">{selected.subject || '(no subject)'}</h1>
+				<div class="flex items-center gap-2">
+					<h1 class="text-xl font-semibold">{selected.subject || '(no subject)'}</h1>
+					{#if threadMessages.length > 1}
+						<span class="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{threadMessages.length}</span>
+					{/if}
+				</div>
 				<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
 					<span class="font-medium text-foreground">{selected.from_name || selected.from_address}</span>
 					<span>&lt;{selected.from_address}&gt;</span>
 					<div class="ml-auto flex items-center gap-1">
-						<Button variant="ghost" size="icon" aria-label="Reply" class="h-7 w-7" onclick={() => goto(`/mail/compose?reply=${selected!.id}&accountId=${app.defaultAccountId}`)}>
+						<Button variant="ghost" size="icon" aria-label="Reply" class="h-7 w-7" onclick={() => goto(`/mail/compose?reply=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}>
 							<Reply class="h-4 w-4" />
 						</Button>
-						<Button variant="ghost" size="icon" aria-label="Reply all" class="h-7 w-7" onclick={() => goto(`/mail/compose?replyall=${selected!.id}&accountId=${app.defaultAccountId}`)}>
+						<Button variant="ghost" size="icon" aria-label="Reply all" class="h-7 w-7" onclick={() => goto(`/mail/compose?replyall=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}>
 							<ReplyAll class="h-4 w-4" />
 						</Button>
-						<Button variant="ghost" size="icon" aria-label="Forward" class="h-7 w-7" onclick={() => goto(`/mail/compose?forward=${selected!.id}&accountId=${app.defaultAccountId}`)}>
+						<Button variant="ghost" size="icon" aria-label="Forward" class="h-7 w-7" onclick={() => goto(`/mail/compose?forward=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}>
 							<Forward class="h-4 w-4" />
 						</Button>
 						<div class="mx-1 h-4 w-px bg-border"></div>
@@ -638,39 +616,10 @@
 					</div>
 				</div>
 			</div>
-			{#if selected.attachments && selected.attachments.length > 0}
-				<div class="border-b px-4 py-3 sm:px-6 mail-attachments">
-					<div class="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-						<Paperclip class="h-4 w-4" />
-						<span>{selected.attachments.length} attachment{selected.attachments.length > 1 ? 's' : ''}</span>
-					</div>
-					<div class="flex flex-wrap gap-2">
-						{#each selected.attachments as attachment}
-							<Button
-								variant="outline"
-								size="sm"
-								class="gap-2 text-xs"
-								onclick={() => downloadAttachment(attachment)}
-							>
-								<Download class="h-3.5 w-3.5" />
-								<span class="max-w-48 truncate">{attachment.filename}</span>
-								<span class="text-muted-foreground">({formatFileSize(attachment.size)})</span>
-							</Button>
-						{/each}
-					</div>
-				</div>
-			{/if}
-			<div class="flex-1 overflow-auto px-4 py-4 sm:px-6 mail-body-content">
-				{#if selected.body_html}
-					{@html sanitizedBody}
-				{:else if selected.body_text}
-					<pre class="whitespace-pre-wrap text-sm">{selected.body_text}</pre>
-				{:else}
-					<div class="flex items-center gap-2 text-sm text-muted-foreground">
-						<Loader2 class="h-4 w-4 animate-spin" />
-						<span>Loading message body...</span>
-					</div>
-				{/if}
+			<div class="flex-1 overflow-auto">
+				{#key selected.id}
+					<ThreadView accountId={app.defaultAccountId!} email={selected} onthread={(m) => (threadMessages = m)} />
+				{/key}
 			</div>
 		{:else}
 			<div class="flex flex-1 items-center justify-center text-muted-foreground">
@@ -717,14 +666,6 @@
 			animation: mail-slide-in 180ms ease-out both;
 		}
 
-		.mail-body-content {
-			animation: mail-fade-in 200ms ease-out 60ms both;
-		}
-
-		.mail-attachments {
-			animation: mail-slide-down 180ms ease-out both;
-		}
-
 		.mail-fade-in {
 			animation: mail-fade-in 200ms ease-out both;
 		}
@@ -758,17 +699,6 @@
 		to {
 			opacity: 1;
 			transform: translateX(0);
-		}
-	}
-
-	@keyframes mail-slide-down {
-		from {
-			opacity: 0;
-			transform: translateY(-4px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
 		}
 	}
 

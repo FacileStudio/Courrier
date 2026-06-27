@@ -1,11 +1,13 @@
 package mail
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"io"
+	"net/textproto"
 	"net/url"
 	"strings"
 
@@ -15,6 +17,26 @@ import (
 
 	"api/schemas"
 )
+
+// referencesSection fetches just the References header alongside envelopes — the
+// envelope exposes In-Reply-To but not References, which is the load-bearing
+// header for threading. Fetching only this field keeps the sync cheap.
+var referencesSection = &imap.FetchItemBodySection{
+	Specifier:    imap.PartSpecifierHeader,
+	HeaderFields: []string{"References"},
+	Peek:         true,
+}
+
+// messageReferences pulls the (whitespace-collapsed) References header out of a
+// fetched message, or "" when the sender omitted it.
+func messageReferences(msg *imapclient.FetchMessageBuffer) string {
+	raw := msg.FindBodySection(referencesSection)
+	if len(raw) == 0 {
+		return ""
+	}
+	hdr, _ := textproto.NewReader(bufio.NewReader(bytes.NewReader(raw))).ReadMIMEHeader()
+	return strings.Join(strings.Fields(hdr.Get("References")), " ")
+}
 
 func connectIMAP(host string, port int, user, password string) (*imapclient.Client, error) {
 	addr := fmt.Sprintf("%s:%d", host, port)
@@ -112,6 +134,7 @@ func fetchEnvelopes(client *imapclient.Client, mailbox string, limit int) ([]*im
 		BodyStructure: &imap.FetchItemBodyStructure{
 			Extended: false,
 		},
+		BodySection: []*imap.FetchItemBodySection{referencesSection},
 	})
 	msgs, err := fetchCmd.Collect()
 	if err != nil {

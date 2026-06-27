@@ -63,6 +63,7 @@ type EmailResponse struct {
 	AccountID      int64                `json:"account_id"`
 	FolderID       int64                `json:"folder_id"`
 	MessageID      string               `json:"message_id"`
+	ThreadID       string               `json:"thread_id,omitempty"`
 	Subject        string               `json:"subject"`
 	FromAddress    string               `json:"from_address"`
 	FromName       string               `json:"from_name"`

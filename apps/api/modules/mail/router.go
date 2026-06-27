@@ -264,6 +264,35 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			})
 		})
 
+		r.Get("/threads/{threadId}", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
+			threadID := chi.URLParam(req, "threadId")
+			if decoded, derr := url.PathUnescape(threadID); derr == nil {
+				threadID = decoded
+			}
+
+			emails, err := service.GetThread(req.Context(), uid, accountID, threadID)
+			if err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			resp := make([]EmailResponse, len(emails))
+			for i, e := range emails {
+				resp[i] = emailToResponse(e)
+			}
+			httpjson.WriteJSON(w, http.StatusOK, map[string]any{"emails": resp})
+		})
+
 		r.Get("/search", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
 			uid, err := strconv.ParseInt(identity.UserID, 10, 64)

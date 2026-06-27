@@ -175,12 +175,15 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 
 		env := msg.Envelope
 		attachments := extractAttachments(msg.BodyStructure, 0)
+		references := messageReferences(msg)
+		inReplyTo := strings.Join(env.InReplyTo, " ")
 
 		email := schemas.Email{
 			AccountID:      accountID,
 			SpaceID:        account.SpaceID,
 			FolderID:       folderID,
 			MessageID:      env.MessageID,
+			ThreadID:       assignThreadID(s.orm.WithContext(ctx), accountID, env.MessageID, inReplyTo, references),
 			Subject:        env.Subject,
 			FromAddress:    firstAddr(env.From),
 			FromName:       firstName(env.From),
@@ -190,7 +193,8 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 			IsRead:         containsFlag(msg.Flags, imap.FlagSeen),
 			IsStarred:      containsFlag(msg.Flags, imap.FlagFlagged),
 			HasAttachments: len(attachments) > 0,
-			InReplyTo:      strings.Join(env.InReplyTo, " "),
+			InReplyTo:      inReplyTo,
+			References:     references,
 			IMAPUID:        uint32(msg.UID),
 		}
 
@@ -363,6 +367,28 @@ func (s *Service) GetEmailWithAttachments(ctx context.Context, userID, accountID
 	s.orm.WithContext(ctx).Where("email_id = ?", email.ID).Find(&attachments)
 
 	return email, attachments, nil
+}
+
+// GetThread returns every message in a conversation, oldest-first, across all
+// folders of the account. Bodies are whatever is cached; the client lazy-loads
+// a message's full body via GetEmail when it expands that message.
+func (s *Service) GetThread(ctx context.Context, userID, accountID int64, threadID string) ([]schemas.Email, error) {
+	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
+		return nil, err
+	}
+	if threadID == "" {
+		return nil, errors.Invalid("thread id is required")
+	}
+
+	var emails []schemas.Email
+	if err := s.orm.WithContext(ctx).
+		Where("account_id = ? AND thread_id = ?", accountID, threadID).
+		Order("date ASC").
+		Limit(500).
+		Find(&emails).Error; err != nil {
+		return nil, errors.Internal("failed to load thread", err)
+	}
+	return emails, nil
 }
 
 func (s *Service) DownloadAttachment(w http.ResponseWriter, req *http.Request, userID, accountID, emailID, attachmentID int64) {
@@ -575,10 +601,12 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 
 	var sentFolder schemas.Folder
 	if s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeSent).First(&sentFolder).Error == nil {
+		references := strings.Join(req.References, " ")
 		email := schemas.Email{
 			AccountID:   accountID,
 			SpaceID:     account.SpaceID,
 			FolderID:    sentFolder.ID,
+			ThreadID:    assignThreadID(s.orm.WithContext(ctx), accountID, "", req.InReplyTo, references),
 			Subject:     req.Subject,
 			FromAddress: account.Email,
 			FromName:    account.Name,
@@ -588,7 +616,7 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 			BodyText:    req.Body,
 			BodyHTML:    req.BodyHTML,
 			InReplyTo:   req.InReplyTo,
-			References:  strings.Join(req.References, " "),
+			References:  references,
 			IsRead:      true,
 		}
 		s.orm.WithContext(ctx).Create(&email)
@@ -627,10 +655,12 @@ func (s *Service) SaveDraft(ctx context.Context, userID, accountID int64, req Se
 		return schemas.Email{}, errors.NotFound("drafts folder not found — sync account first")
 	}
 
+	references := strings.Join(req.References, " ")
 	email := schemas.Email{
 		AccountID:   accountID,
 		SpaceID:     account.SpaceID,
 		FolderID:    draftsFolder.ID,
+		ThreadID:    assignThreadID(s.orm.WithContext(ctx), accountID, "", req.InReplyTo, references),
 		Subject:     req.Subject,
 		FromAddress: account.Email,
 		FromName:    account.Name,
@@ -640,7 +670,7 @@ func (s *Service) SaveDraft(ctx context.Context, userID, accountID int64, req Se
 		BodyText:    req.Body,
 		BodyHTML:    req.BodyHTML,
 		InReplyTo:   req.InReplyTo,
-		References:  strings.Join(req.References, " "),
+		References:  references,
 		IsRead:      true,
 	}
 	if err := s.orm.WithContext(ctx).Create(&email).Error; err != nil {
@@ -1099,6 +1129,7 @@ func emailToResponse(e schemas.Email, attachments ...schemas.Attachment) EmailRe
 		AccountID:      e.AccountID,
 		FolderID:       e.FolderID,
 		MessageID:      e.MessageID,
+		ThreadID:       e.ThreadID,
 		Subject:        e.Subject,
 		FromAddress:    e.FromAddress,
 		FromName:       e.FromName,

@@ -11,6 +11,7 @@ func Migrate(db *gorm.DB) error {
 		&Account{},
 		&Folder{},
 		&Email{},
+		&ThreadLink{},
 		&Attachment{},
 		&EmailTemplate{},
 		&Space{},
@@ -34,6 +35,8 @@ func ensureSearchIndexes(db *gorm.DB) {
 		"CREATE INDEX IF NOT EXISTS idx_emails_from_name_trgm ON emails USING gin (from_name gin_trgm_ops)",
 		"CREATE INDEX IF NOT EXISTS idx_emails_from_address_trgm ON emails USING gin (from_address gin_trgm_ops)",
 		"CREATE INDEX IF NOT EXISTS idx_emails_body_text_trgm ON emails USING gin (body_text gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_emails_account_thread ON emails (account_id, thread_id)",
+		"CREATE INDEX IF NOT EXISTS idx_thread_links_account_thread ON thread_links (account_id, thread_id)",
 	}
 
 	for _, stmt := range statements {
