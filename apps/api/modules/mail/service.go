@@ -204,6 +204,33 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 		}
 	}
 
+	const prefetchLimit = 20
+	start := len(msgs) - prefetchLimit
+	if start < 0 {
+		start = 0
+	}
+	for i := len(msgs) - 1; i >= start; i-- {
+		msg := msgs[i]
+		if msg.Envelope == nil {
+			continue
+		}
+		var row schemas.Email
+		if s.orm.WithContext(ctx).Where("folder_id = ? AND imap_uid = ?", folderID, msg.UID).First(&row).Error != nil {
+			continue
+		}
+		if row.BodyText != "" || row.BodyHTML != "" {
+			continue
+		}
+		textBody, htmlBody, err := fetchMessageBodyParts(client, folder.Path, msg.UID, msg.BodyStructure)
+		if err != nil || (textBody == "" && htmlBody == "") {
+			continue
+		}
+		s.orm.WithContext(ctx).Model(&row).Updates(map[string]any{
+			"body_text": textBody,
+			"body_html": htmlBody,
+		})
+	}
+
 	var unreadCount int64
 	s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("folder_id = ? AND is_read = false", folderID).Count(&unreadCount)
 	s.orm.WithContext(ctx).Model(&folder).Update("unread_count", unreadCount)
@@ -310,7 +337,7 @@ func (s *Service) GetEmail(ctx context.Context, userID, accountID, emailID int64
 					client.Logout().Wait()
 					client.Close()
 				}()
-				textBody, htmlBody, err := fetchMessageBody(client, folder.Path, imap.UID(email.IMAPUID))
+				textBody, htmlBody, err := fetchMessageBodySmart(client, folder.Path, imap.UID(email.IMAPUID))
 				if err == nil {
 					email.BodyText = textBody
 					email.BodyHTML = htmlBody

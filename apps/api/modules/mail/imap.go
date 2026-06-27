@@ -151,6 +151,142 @@ func fetchMessageBody(client *imapclient.Client, mailbox string, uid imap.UID) (
 	return parseMessageBody(raw)
 }
 
+type textPartRef struct {
+	path     []int
+	encoding string
+	charset  string
+}
+
+func selectTextParts(bs imap.BodyStructure) (textPlain, htmlPart *textPartRef) {
+	if bs == nil {
+		return nil, nil
+	}
+	if _, ok := bs.(*imap.BodyStructureSinglePart); ok {
+		return nil, nil
+	}
+	bs.Walk(func(path []int, part imap.BodyStructure) bool {
+		sp, ok := part.(*imap.BodyStructureSinglePart)
+		if !ok {
+			return true
+		}
+		if sp.Filename() != "" {
+			return true
+		}
+		if disp := sp.Disposition(); disp != nil && strings.EqualFold(disp.Value, "attachment") {
+			return true
+		}
+		newRef := func() *textPartRef {
+			p := make([]int, len(path))
+			copy(p, path)
+			return &textPartRef{path: p, encoding: sp.Encoding, charset: sp.Params["charset"]}
+		}
+		switch sp.MediaType() {
+		case "text/plain":
+			if textPlain == nil {
+				textPlain = newRef()
+			}
+		case "text/html":
+			if htmlPart == nil {
+				htmlPart = newRef()
+			}
+		}
+		return true
+	})
+	return textPlain, htmlPart
+}
+
+func decodePartContent(data []byte, encoding, charset string) string {
+	decoded, err := decodeTransferEncoding(data, encoding)
+	if err != nil {
+		decoded = data
+	}
+	cs := strings.ToLower(strings.TrimSpace(charset))
+	if cs == "" || cs == "utf-8" || cs == "us-ascii" {
+		return string(decoded)
+	}
+	if gomessage.CharsetReader != nil {
+		if r, err := gomessage.CharsetReader(cs, bytes.NewReader(decoded)); err == nil {
+			if converted, err := io.ReadAll(r); err == nil {
+				return string(converted)
+			}
+		}
+	}
+	return string(decoded)
+}
+
+func fetchMessageBodyParts(client *imapclient.Client, mailbox string, uid imap.UID, bs imap.BodyStructure) (string, string, error) {
+	textRef, htmlRef := selectTextParts(bs)
+	if textRef == nil && htmlRef == nil {
+		return fetchMessageBody(client, mailbox, uid)
+	}
+
+	if _, err := client.Select(mailbox, nil).Wait(); err != nil {
+		return "", "", fmt.Errorf("SELECT %q failed: %w", mailbox, err)
+	}
+
+	var sections []*imap.FetchItemBodySection
+	var textSection, htmlSection *imap.FetchItemBodySection
+	if textRef != nil {
+		textSection = &imap.FetchItemBodySection{Part: textRef.path, Peek: true}
+		sections = append(sections, textSection)
+	}
+	if htmlRef != nil {
+		htmlSection = &imap.FetchItemBodySection{Part: htmlRef.path, Peek: true}
+		sections = append(sections, htmlSection)
+	}
+
+	uidSet := imap.UIDSetNum(uid)
+	fetchCmd := client.Fetch(uidSet, &imap.FetchOptions{
+		BodySection: sections,
+	})
+	msgs, err := fetchCmd.Collect()
+	if err != nil {
+		return "", "", fmt.Errorf("FETCH body parts failed: %w", err)
+	}
+	if len(msgs) == 0 {
+		return "", "", fmt.Errorf("message not found")
+	}
+
+	msg := msgs[0]
+	var textBody, htmlBody string
+	if textSection != nil {
+		if data := msg.FindBodySection(textSection); data != nil {
+			textBody = decodePartContent(data, textRef.encoding, textRef.charset)
+		}
+	}
+	if htmlSection != nil {
+		if data := msg.FindBodySection(htmlSection); data != nil {
+			htmlBody = decodePartContent(data, htmlRef.encoding, htmlRef.charset)
+		}
+	}
+
+	if textBody == "" && htmlBody == "" {
+		return fetchMessageBody(client, mailbox, uid)
+	}
+	return textBody, htmlBody, nil
+}
+
+func fetchMessageBodySmart(client *imapclient.Client, mailbox string, uid imap.UID) (string, string, error) {
+	if _, err := client.Select(mailbox, nil).Wait(); err != nil {
+		return fetchMessageBody(client, mailbox, uid)
+	}
+
+	uidSet := imap.UIDSetNum(uid)
+	fetchCmd := client.Fetch(uidSet, &imap.FetchOptions{
+		BodyStructure: &imap.FetchItemBodyStructure{Extended: true},
+	})
+	msgs, err := fetchCmd.Collect()
+	if err != nil || len(msgs) == 0 || msgs[0].BodyStructure == nil {
+		return fetchMessageBody(client, mailbox, uid)
+	}
+
+	textBody, htmlBody, err := fetchMessageBodyParts(client, mailbox, uid, msgs[0].BodyStructure)
+	if err != nil {
+		return fetchMessageBody(client, mailbox, uid)
+	}
+	return textBody, htmlBody, nil
+}
+
 func parseMessageBody(raw []byte) (string, string, error) {
 	entity, err := gomessage.Read(strings.NewReader(string(raw)))
 	if err != nil {
