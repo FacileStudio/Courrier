@@ -29,9 +29,18 @@
 <div class="flex h-full flex-col">
 	<div class="border-b border-border px-4 py-4 md:px-8 md:py-5">
 		<div class="flex items-center justify-between">
-			<div>
-				<h1 class="text-lg font-semibold">Templates</h1>
-				<p class="mt-0.5 text-sm text-muted-foreground">Reusable email templates</p>
+			<div class="flex items-center gap-3">
+				<a
+					href="/settings"
+					class="text-muted-foreground transition-colors hover:text-foreground"
+					aria-label="Back to settings"
+				>
+					<iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
+				</a>
+				<div>
+					<h1 class="text-lg font-semibold">Templates</h1>
+					<p class="mt-0.5 text-sm text-muted-foreground">Reusable email templates</p>
+				</div>
 			</div>
 			<a
 				href="/templates/new"

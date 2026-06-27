@@ -236,7 +236,16 @@
 <div class="flex flex-col gap-0 h-full">
 	<div>
 		<div class="px-6 pt-6 pb-0">
-			<h1 class="text-2xl font-semibold">Settings</h1>
+			<div class="flex items-center gap-3">
+				<a
+					href="/settings"
+					class="text-muted-foreground transition-colors hover:text-foreground"
+					aria-label="Back to settings"
+				>
+					<iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
+				</a>
+				<h1 class="text-2xl font-semibold">Settings</h1>
+			</div>
 			<p class="text-sm text-muted-foreground mt-1">Manage your account and mail settings.</p>
 		</div>
 		<div class="flex items-center gap-1 px-6 pt-4 pb-0">

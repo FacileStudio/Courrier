@@ -30,9 +30,18 @@
 <div class="flex h-full flex-col">
 	<div class="border-b border-border px-4 py-4 md:px-8 md:py-5">
 		<div class="flex items-center justify-between">
-			<div>
-				<h1 class="text-lg font-semibold">Accounts</h1>
-				<p class="mt-0.5 text-sm text-muted-foreground">Manage your email accounts</p>
+			<div class="flex items-center gap-3">
+				<a
+					href="/settings"
+					class="text-muted-foreground transition-colors hover:text-foreground"
+					aria-label="Back to settings"
+				>
+					<iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
+				</a>
+				<div>
+					<h1 class="text-lg font-semibold">Accounts</h1>
+					<p class="mt-0.5 text-sm text-muted-foreground">Manage your email accounts</p>
+				</div>
 			</div>
 			<a
 				href="/accounts/new"

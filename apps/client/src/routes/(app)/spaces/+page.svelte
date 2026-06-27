@@ -35,9 +35,18 @@
 
 <div class="flex h-full flex-col">
 	<div class="flex items-center justify-between border-b border-border px-4 py-4 md:px-8 md:py-5">
-		<div>
-			<h1 class="text-lg font-semibold">Espaces</h1>
-			<p class="mt-1 text-sm text-muted-foreground">Collaborez avec votre équipe dans des espaces partagés.</p>
+		<div class="flex items-center gap-3">
+			<a
+				href="/settings"
+				class="text-muted-foreground transition-colors hover:text-foreground"
+				aria-label="Retour aux réglages"
+			>
+				<iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
+			</a>
+			<div>
+				<h1 class="text-lg font-semibold">Espaces</h1>
+				<p class="mt-1 text-sm text-muted-foreground">Collaborez avec votre équipe dans des espaces partagés.</p>
+			</div>
 		</div>
 		<a
 			href="/spaces/new"
