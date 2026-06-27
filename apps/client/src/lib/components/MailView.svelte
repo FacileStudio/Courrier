@@ -522,7 +522,7 @@
 						class="h-8 gap-1.5 px-2 text-xs {showUnreadOnly ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'}"
 						onclick={() => { showUnreadOnly = !showUnreadOnly; }}
 					>
-						<Mail class="h-3.5 w-3.5" />
+						<Mail class="h-4 w-4" />
 						Unread
 					</Button>
 					<Button variant="ghost" size="icon" aria-label="Refresh" class="h-8 w-8" onclick={syncAndLoad} disabled={syncing}>
