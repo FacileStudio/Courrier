@@ -14,6 +14,10 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
 	gomessage "github.com/emersion/go-message"
+	// Registers decoders for non-UTF-8 charsets (iso-8859-1, windows-1252, …)
+	// by setting gomessage.CharsetReader; without this, decodePartContent and
+	// go-imap envelope parsing fall back to raw bytes and mangle accents.
+	_ "github.com/emersion/go-message/charset"
 
 	"api/schemas"
 )
