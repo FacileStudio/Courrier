@@ -19,23 +19,25 @@ type OIDCConfig struct {
 }
 
 type Config struct {
-	DatabaseURL        string
-	Port               string
-	CORSAllowedOrigins []string
-	LogLevel           string
-	StorageDir         string
-	OIDC               *OIDCConfig
-	SSOOnly              bool
-	ResourceTokenSecret  []byte
-	EncryptionKey        []byte
+	DatabaseURL         string
+	Port                string
+	CORSAllowedOrigins  []string
+	LogLevel            string
+	StorageDir          string
+	OIDC                *OIDCConfig
+	SSOOnly             bool
+	ResourceTokenSecret []byte
+	EncryptionKey       []byte
+	JournalURL          string
+	JournalToken        string
 }
 
 func Load() (Config, error) {
 	env := Config{
-		DatabaseURL: valueOrDefault("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/courrier?sslmode=disable"),
-		Port:        valueOrDefault("PORT", "4000"),
-		LogLevel:    valueOrDefault("LOG_LEVEL", "info"),
-		StorageDir:  valueOrDefault("STORAGE_DIR", "./data"),
+		DatabaseURL:        valueOrDefault("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/courrier?sslmode=disable"),
+		Port:               valueOrDefault("PORT", "4000"),
+		LogLevel:           valueOrDefault("LOG_LEVEL", "info"),
+		StorageDir:         valueOrDefault("STORAGE_DIR", "./data"),
 		CORSAllowedOrigins: csvOrDefault("DOMAINS", []string{}),
 	}
 
@@ -51,6 +53,8 @@ func Load() (Config, error) {
 	}
 
 	env.SSOOnly = strings.ToLower(os.Getenv("SSO_ONLY")) == "true"
+	env.JournalURL = os.Getenv("JOURNAL_URL")
+	env.JournalToken = os.Getenv("JOURNAL_TOKEN")
 
 	if issuer := os.Getenv("OIDC_ISSUER"); issuer != "" {
 		clientID := os.Getenv("OIDC_CLIENT_ID")
