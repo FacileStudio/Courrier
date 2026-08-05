@@ -94,7 +94,7 @@ func extensionFromFilename(name string) string {
 }
 
 func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service, rtSecret []byte) {
-	router.Get("/api/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}", func(w http.ResponseWriter, req *http.Request) {
+	router.Get("/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}", func(w http.ResponseWriter, req *http.Request) {
 		var userID string
 
 		if token := req.URL.Query().Get("token"); token != "" && len(rtSecret) > 0 {
@@ -149,7 +149,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		service.ServeCIDImage(w, req, uid, accountID, emailID, cid)
 	})
 
-	router.Route("/api/accounts/{accountId}/mail", func(r chi.Router) {
+	router.Route("/accounts/{accountId}/mail", func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
 
 		r.With(middleware.RateLimit(5, time.Minute)).Post("/sync", func(w http.ResponseWriter, req *http.Request) {
@@ -617,7 +617,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
-		r.With(middleware.RateLimit(5, time.Minute)).Post("/api/mail/test-connection", func(w http.ResponseWriter, req *http.Request) {
+		r.With(middleware.RateLimit(5, time.Minute)).Post("/mail/test-connection", func(w http.ResponseWriter, req *http.Request) {
 			var body TestConnectionRequest
 			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
 				httpjson.WriteError(w, err)
@@ -631,7 +631,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 	})
 
-	router.Route("/api/templates", func(r chi.Router) {
+	router.Route("/templates", func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
 		r.Use(middleware.RateLimit(30, time.Minute))
 

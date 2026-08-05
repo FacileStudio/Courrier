@@ -53,7 +53,7 @@ func clearSessionCookie(w http.ResponseWriter, r *http.Request) {
 func RegisterRoutes(router chi.Router, service *Service, appEnv env.Config) {
 	oidcEnabled := appEnv.OIDC != nil
 
-	router.Route("/api/auth", func(router chi.Router) {
+	router.Route("/auth", func(router chi.Router) {
 		router.Get("/config", func(w http.ResponseWriter, r *http.Request) {
 			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{
 				"sso_only":     appEnv.SSOOnly,
