@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"api/schemas"
+	"github.com/FacileStudio/Courrier/apps/api/schemas"
 )
 
 var msgIDToken = regexp.MustCompile(`<[^<>]+>`)

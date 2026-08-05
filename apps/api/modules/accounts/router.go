@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"api/internal/authcontext"
-	"api/internal/errors"
-	"api/internal/httpjson"
-	"api/internal/middleware"
-	"api/modules/auth"
-	"api/schemas"
+	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
+	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
+	"github.com/FacileStudio/Courrier/apps/api/internal/httpjson"
+	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
+	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
+	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
 	"github.com/go-chi/chi/v5"
 )

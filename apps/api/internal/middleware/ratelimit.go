@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"api/internal/errors"
-	"api/internal/httpjson"
+	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
+	"github.com/FacileStudio/Courrier/apps/api/internal/httpjson"
 )
 
 type visitor struct {

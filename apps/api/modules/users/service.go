@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"api/internal/authcrypto"
-	"api/internal/errors"
-	"api/schemas"
+	"github.com/FacileStudio/Courrier/apps/api/internal/authcrypto"
+	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
+	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
 	"gorm.io/gorm"
 )

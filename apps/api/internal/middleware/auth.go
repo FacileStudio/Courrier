@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"api/internal/authcontext"
-	"api/internal/errors"
-	"api/internal/httpjson"
+	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
+	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
+	"github.com/FacileStudio/Courrier/apps/api/internal/httpjson"
 )
 
 type Authenticator interface {

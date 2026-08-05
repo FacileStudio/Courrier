@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"api/internal/errors"
-	"api/schemas"
+	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
+	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
 	"gorm.io/gorm"
 )

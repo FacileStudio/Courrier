@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"api/internal/authcrypto"
-	"api/internal/crypto"
-	"api/internal/errors"
-	"api/internal/oidcavatar"
-	"api/schemas"
+	"github.com/FacileStudio/Courrier/apps/api/internal/authcrypto"
+	"github.com/FacileStudio/Courrier/apps/api/internal/crypto"
+	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
+	"github.com/FacileStudio/Courrier/apps/api/internal/oidcavatar"
+	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"

@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"api/internal/authcontext"
-	"api/internal/env"
-	"api/internal/errors"
-	"api/internal/httpjson"
-	"api/internal/middleware"
-	"api/internal/resourcetoken"
+	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
+	"github.com/FacileStudio/Courrier/apps/api/internal/env"
+	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
+	"github.com/FacileStudio/Courrier/apps/api/internal/httpjson"
+	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
+	"github.com/FacileStudio/Courrier/apps/api/internal/resourcetoken"
 
 	"github.com/go-chi/chi/v5"
 )
