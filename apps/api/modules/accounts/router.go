@@ -3,6 +3,7 @@ package accounts
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
@@ -140,7 +141,7 @@ func toResponse(a schemas.Account) AccountResponse {
 		SMTPUser:  a.SMTPUser,
 		Signature: a.Signature,
 		IsDefault: a.IsDefault,
-		CreatedAt: a.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt: a.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt: a.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: a.UpdatedAt.Format(time.RFC3339),
 	}
 }

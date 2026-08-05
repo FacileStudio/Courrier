@@ -1292,7 +1292,7 @@ func emailToResponse(e schemas.Email, attachments ...schemas.Attachment) EmailRe
 		Subject:        e.Subject,
 		FromAddress:    e.FromAddress,
 		FromName:       e.FromName,
-		Date:           e.Date.Format("2006-01-02T15:04:05Z"),
+		Date:           e.Date.Format(time.RFC3339),
 		BodyText:       e.BodyText,
 		BodyHTML:       e.BodyHTML,
 		IsRead:         e.IsRead,
