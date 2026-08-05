@@ -3,10 +3,14 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { backend } from '$lib/backend';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { LogIn, UserPlus, ExternalLink } from 'lucide-svelte';
+
+	const inputClass =
+		'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
+	const labelClass = 'text-sm font-medium leading-none';
+	const primaryButtonClass =
+		'inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50';
+	const outlineButtonClass =
+		'inline-flex h-10 w-full items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50';
 
 	let tab = $state<'login' | 'register'>('login');
 	let email = $state('');
@@ -98,23 +102,25 @@
 				<div class="h-40"></div>
 			{:else}
 				{#if !ssoOnly}
-					<div class="mb-6 flex rounded-lg border border-border bg-muted p-1 gap-1">
+					<div class="mb-6 flex rounded-lg border border-border bg-muted p-1 gap-1" role="tablist">
 						<button
+							type="button"
+							role="tab"
+							aria-selected={tab === 'login'}
 							class="flex-1 rounded-md py-1.5 text-sm font-medium transition-colors {tab === 'login'
 								? 'bg-background text-foreground shadow-sm'
 								: 'text-muted-foreground hover:text-foreground'}"
 							onclick={() => { tab = 'login'; message = ''; }}
-						>
-							Log in
-						</button>
+						>Log in</button>
 						<button
+							type="button"
+							role="tab"
+							aria-selected={tab === 'register'}
 							class="flex-1 rounded-md py-1.5 text-sm font-medium transition-colors {tab === 'register'
 								? 'bg-background text-foreground shadow-sm'
 								: 'text-muted-foreground hover:text-foreground'}"
 							onclick={() => { tab = 'register'; message = ''; }}
-						>
-							Register
-						</button>
+						>Register</button>
 					</div>
 
 					<form
@@ -122,28 +128,44 @@
 						class="space-y-4"
 					>
 						<div class="space-y-1.5">
-							<Label for="email">Email</Label>
-							<Input id="email" type="email" bind:value={email} placeholder="you@example.com" required />
+							<label for="email" class={labelClass}>Email</label>
+							<input
+								id="email"
+								type="email"
+								bind:value={email}
+								placeholder="you@example.com"
+								autocomplete="email"
+								required
+								disabled={busy}
+								class={inputClass}
+							/>
 						</div>
 
 						<div class="space-y-1.5">
-							<Label for="password">Password</Label>
-							<Input id="password" type="password" bind:value={password} placeholder="••••••••" required />
+							<label for="password" class={labelClass}>Password</label>
+							<input
+								id="password"
+								type="password"
+								bind:value={password}
+								placeholder="••••••••"
+								autocomplete={tab === 'register' ? 'new-password' : 'current-password'}
+								required
+								disabled={busy}
+								class={inputClass}
+							/>
 						</div>
 
 						{#if message}
-							<p class="text-sm text-destructive">{message}</p>
+							<p class="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+								{message}
+							</p>
 						{/if}
 
-						<Button type="submit" class="w-full gap-2" disabled={busy}>
-							{#if tab === 'register'}
-								<UserPlus class="h-4 w-4" />
-								Create account
-							{:else}
-								<LogIn class="h-4 w-4" />
-								Log in
-							{/if}
-						</Button>
+						<button type="submit" disabled={busy} class={primaryButtonClass}>
+							{busy
+								? tab === 'register' ? 'Creating account…' : 'Logging in…'
+								: tab === 'register' ? 'Create account' : 'Log in'}
+						</button>
 					</form>
 				{/if}
 
@@ -157,10 +179,7 @@
 					{/if}
 
 					<a href="{backend.baseUrl}/api/auth/oidc" class="block">
-						<Button variant="outline" class="w-full gap-2" type="button">
-							<ExternalLink class="h-4 w-4" />
-							Continue with SSO
-						</Button>
+						<button type="button" class={outlineButtonClass}>Continue with SSO</button>
 					</a>
 				{/if}
 			{/if}
