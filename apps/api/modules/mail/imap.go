@@ -19,7 +19,7 @@ import (
 	// go-imap envelope parsing fall back to raw bytes and mangle accents.
 	_ "github.com/emersion/go-message/charset"
 
-	"api/schemas"
+	"github.com/FacileStudio/Courrier/apps/api/schemas"
 )
 
 // referencesSection fetches just the References header alongside envelopes — the

@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"api/internal/crypto"
-	"api/internal/resourcetoken"
+	"github.com/FacileStudio/Courrier/apps/api/internal/crypto"
+	"github.com/FacileStudio/Courrier/apps/api/internal/resourcetoken"
 )
 
 type OIDCConfig struct {

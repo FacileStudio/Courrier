@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"api/internal/authcontext"
-	"api/internal/errors"
+	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
+	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
 )
 
 type Controller struct {
