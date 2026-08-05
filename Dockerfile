@@ -8,7 +8,7 @@ RUN bun run build
 FROM golang:1.24-alpine AS api-build
 WORKDIR /app
 COPY apps/api/ .
-RUN go build -o /courrier .
+RUN go build -mod=vendor -trimpath -ldflags="-s -w" -o /courrier .
 
 FROM gcr.io/distroless/static-debian12
 COPY --from=api-build /courrier /courrier

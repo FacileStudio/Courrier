@@ -15,7 +15,6 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/internal/database"
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
-	"github.com/FacileStudio/Courrier/apps/api/internal/spa"
 	"github.com/FacileStudio/Courrier/apps/api/modules/accounts"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
@@ -30,6 +29,7 @@ import (
 	"github.com/FacileStudio/tronc/httpx"
 	"github.com/FacileStudio/tronc/logger"
 	troncmiddleware "github.com/FacileStudio/tronc/middleware"
+	"github.com/FacileStudio/tronc/spa"
 )
 
 func main() {
@@ -123,12 +123,9 @@ func main() {
 	settings.RegisterRoutes(router, settingsService, authService)
 	spaces.RegisterRoutes(router, spaceService, authService)
 
-	clientDir := os.Getenv("CLIENT_DIR")
-	if clientDir == "" {
-		clientDir = "./client"
-	}
-	if info, err := os.Stat(clientDir); err == nil && info.IsDir() {
-		router.Handle("/*", middleware.Gzip(spa.Handler(clientDir)))
+	clientDir := spa.DirFromEnv()
+	if spa.Available(clientDir) {
+		router.Handle("/*", middleware.Gzip(spa.Handler(spa.Config{Dir: clientDir})))
 		appLogger.Info("serving client", slog.String("dir", clientDir))
 	}
 
