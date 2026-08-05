@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -23,6 +24,8 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/modules/users"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/FacileStudio/Journal/sdk/journal"
 	"github.com/FacileStudio/tronc/health"
 	"github.com/FacileStudio/tronc/healthcheck"
@@ -37,11 +40,15 @@ func main() {
 		return
 	}
 
+	os.Exit(run())
+}
+
+func run() int {
 	appEnv, err := env.Load()
 	appLogger := logger.New(logger.Config{})
 	if err != nil {
 		appLogger.Error("failed to load config", slog.Any("error", err))
-		return
+		return 1
 	}
 	var journalClient *journal.Client
 	appLogger = logger.New(logger.Config{
@@ -61,35 +68,33 @@ func main() {
 	db, err := database.Open(appEnv.DatabaseURL)
 	if err != nil {
 		appLogger.Error("failed to open database", slog.Any("error", err))
-		return
+		return 1
 	}
 
 	if err := schemas.Migrate(db); err != nil {
 		appLogger.Error("failed to run migrations", slog.Any("error", err))
-		return
+		return 1
 	}
 	go func() {
 		if err := mail.BackfillThreads(db); err != nil {
 			appLogger.Warn("thread backfill failed", slog.Any("error", err))
 		}
 	}()
-	if len(appEnv.EncryptionKey) > 0 {
-		if err := crypto.MigrateAccountPasswords(db, appEnv.EncryptionKey, appLogger); err != nil {
-			appLogger.Warn("credential migration failed", slog.Any("error", err))
-		}
-		if err := crypto.MigrateOIDCTokens(db, appEnv.EncryptionKey, appLogger); err != nil {
-			appLogger.Warn("OIDC token migration failed", slog.Any("error", err))
-		}
+	if err := crypto.MigrateAccountPasswords(db, appEnv.EncryptionKey, appLogger); err != nil {
+		appLogger.Warn("credential migration failed", slog.Any("error", err))
+	}
+	if err := crypto.MigrateOIDCTokens(db, appEnv.EncryptionKey, appLogger); err != nil {
+		appLogger.Warn("OIDC token migration failed", slog.Any("error", err))
 	}
 
 	if err := os.MkdirAll(filepath.Join(appEnv.StorageDir, "avatars"), 0o755); err != nil {
 		appLogger.Error("failed to prepare storage", slog.Any("error", err))
-		return
+		return 1
 	}
 	sqlDB, err := db.DB()
 	if err != nil {
 		appLogger.Error("failed to access database handle", slog.Any("error", err))
-		return
+		return 1
 	}
 	defer func() {
 		if err := sqlDB.Close(); err != nil {
@@ -114,14 +119,17 @@ func main() {
 	router.Use(middleware.SecurityHeaders)
 
 	health.Mount(router, health.DB(sqlDB))
-	router.Handle("/api/files/*", http.StripPrefix("/api/files/", http.FileServer(http.Dir(appEnv.StorageDir))))
 
-	auth.RegisterRoutes(router, authService, appEnv)
-	accounts.RegisterRoutes(router, accountService, authService)
-	mail.RegisterRoutes(router, mailService, authService, appEnv.ResourceTokenSecret)
-	users.RegisterRoutes(router, userService, authService)
-	settings.RegisterRoutes(router, settingsService, authService)
-	spaces.RegisterRoutes(router, spaceService, authService)
+	router.Route("/api", func(r chi.Router) {
+		r.Handle("/files/*", http.StripPrefix("/api/files/", http.FileServer(http.Dir(appEnv.StorageDir))))
+
+		auth.RegisterRoutes(r, authService, appEnv)
+		accounts.RegisterRoutes(r, accountService, authService)
+		mail.RegisterRoutes(r, mailService, authService, appEnv.ResourceTokenSecret)
+		users.RegisterRoutes(r, userService, authService)
+		settings.RegisterRoutes(r, settingsService, authService)
+		spaces.RegisterRoutes(r, spaceService, authService)
+	})
 
 	clientDir := spa.DirFromEnv()
 	if spa.Available(clientDir) {
@@ -129,7 +137,7 @@ func main() {
 		appLogger.Info("serving client", slog.String("dir", clientDir))
 	}
 
-	addr := ":" + appEnv.Port
+	addr := ":" + strconv.Itoa(appEnv.Port)
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           router,
@@ -151,6 +159,7 @@ func main() {
 	case err := <-serverErrCh:
 		if !errors.Is(err, http.ErrServerClosed) {
 			appLogger.Error("server stopped", slog.Any("error", err))
+			return 1
 		}
 	case <-shutdownSignal.Done():
 		appLogger.Info("server shutting down")
@@ -158,8 +167,10 @@ func main() {
 		defer cancel()
 		if err := server.Shutdown(shutdownContext); err != nil {
 			appLogger.Error("server shutdown failed", slog.Any("error", err))
-			return
+			return 1
 		}
 		appLogger.Info("server stopped")
 	}
+
+	return 0
 }

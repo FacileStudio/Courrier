@@ -2,9 +2,8 @@ package env
 
 import (
 	"fmt"
-	"os"
-	"strconv"
-	"strings"
+
+	troncenv "github.com/FacileStudio/tronc/env"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/crypto"
 	"github.com/FacileStudio/Courrier/apps/api/internal/resourcetoken"
@@ -19,55 +18,51 @@ type OIDCConfig struct {
 }
 
 type Config struct {
-	DatabaseURL         string
-	Port                string
-	CORSAllowedOrigins  []string
-	LogLevel            string
+	troncenv.Core
 	StorageDir          string
 	OIDC                *OIDCConfig
 	SSOOnly             bool
 	ResourceTokenSecret []byte
 	EncryptionKey       []byte
-	JournalURL          string
-	JournalToken        string
 }
 
 func Load() (Config, error) {
-	env := Config{
-		DatabaseURL:        valueOrDefault("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/courrier?sslmode=disable"),
-		Port:               valueOrDefault("PORT", "4000"),
-		LogLevel:           valueOrDefault("LOG_LEVEL", "info"),
-		StorageDir:         valueOrDefault("STORAGE_DIR", "./data"),
-		CORSAllowedOrigins: csvOrDefault("DOMAINS", []string{}),
+	core, err := troncenv.LoadCore()
+	if err != nil {
+		return Config{}, err
 	}
-
-	port, err := strconv.Atoi(env.Port)
-	if err != nil || port < 1 || port > 65535 {
+	if core.Port < 1 || core.Port > 65535 {
 		return Config{}, fmt.Errorf("PORT must be a valid TCP port")
 	}
-	if err := validateOrigins(env.CORSAllowedOrigins); err != nil {
+
+	cfg := Config{
+		Core:       core,
+		StorageDir: troncenv.String("STORAGE_DIR", "./data"),
+	}
+
+	encryptionKey, err := troncenv.Required("ENCRYPTION_KEY")
+	if err != nil {
 		return Config{}, err
 	}
-	if err := validateLogLevel(env.LogLevel); err != nil {
+	cfg.ResourceTokenSecret = resourcetoken.DeriveSecret(encryptionKey)
+	cfg.EncryptionKey = crypto.DeriveKey(encryptionKey)
+
+	if cfg.SSOOnly, err = troncenv.Bool("SSO_ONLY", false); err != nil {
 		return Config{}, err
 	}
 
-	env.SSOOnly = strings.ToLower(os.Getenv("SSO_ONLY")) == "true"
-	env.JournalURL = os.Getenv("JOURNAL_URL")
-	env.JournalToken = os.Getenv("JOURNAL_TOKEN")
-
-	if issuer := os.Getenv("OIDC_ISSUER"); issuer != "" {
-		clientID := os.Getenv("OIDC_CLIENT_ID")
-		clientSecret := os.Getenv("OIDC_CLIENT_SECRET")
-		redirectURL := os.Getenv("OIDC_REDIRECT_URL")
+	if issuer := troncenv.String("OIDC_ISSUER", ""); issuer != "" {
+		clientID := troncenv.String("OIDC_CLIENT_ID", "")
+		clientSecret := troncenv.String("OIDC_CLIENT_SECRET", "")
+		redirectURL := troncenv.String("OIDC_REDIRECT_URL", "")
 		if clientID == "" || clientSecret == "" || redirectURL == "" {
 			return Config{}, fmt.Errorf("OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, and OIDC_REDIRECT_URL are required when OIDC_ISSUER is set")
 		}
-		successURL := os.Getenv("OIDC_SUCCESS_URL")
-		if successURL == "" && len(env.CORSAllowedOrigins) > 0 {
-			successURL = env.CORSAllowedOrigins[0]
+		successURL := troncenv.String("OIDC_SUCCESS_URL", "")
+		if successURL == "" && len(cfg.CORSAllowedOrigins) > 0 {
+			successURL = cfg.CORSAllowedOrigins[0]
 		}
-		env.OIDC = &OIDCConfig{
+		cfg.OIDC = &OIDCConfig{
 			Issuer:       issuer,
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
@@ -76,60 +71,5 @@ func Load() (Config, error) {
 		}
 	}
 
-	if ek := os.Getenv("ENCRYPTION_KEY"); ek != "" {
-		env.ResourceTokenSecret = resourcetoken.DeriveSecret(ek)
-		env.EncryptionKey = crypto.DeriveKey(ek)
-	}
-
-	return env, nil
-}
-
-func valueOrDefault(key string, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
-func csvOrDefault(key string, fallback []string) []string {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
-	}
-
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			out = append(out, part)
-		}
-	}
-	if len(out) == 0 {
-		return []string{}
-	}
-	return out
-}
-
-func validateOrigins(origins []string) error {
-	for _, origin := range origins {
-		if origin == "*" {
-			continue
-		}
-		if strings.HasPrefix(origin, "http://") || strings.HasPrefix(origin, "https://") {
-			continue
-		}
-		return fmt.Errorf("DOMAINS contains invalid origin %q", origin)
-	}
-
-	return nil
-}
-
-func validateLogLevel(level string) error {
-	switch strings.ToLower(level) {
-	case "debug", "info", "warn", "error":
-		return nil
-	default:
-		return fmt.Errorf("LOG_LEVEL must be one of debug, info, warn, error")
-	}
+	return cfg, nil
 }

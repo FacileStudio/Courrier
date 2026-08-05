@@ -69,13 +69,14 @@ docker compose up db -d             # Just PostgreSQL for local dev
 
 Core variables (see `.env.example` for full list):
 
-- `DATABASE_URL` -- PostgreSQL connection string (default: local postgres)
-- `PORT` -- API port (default `4000`)
+- `DATABASE_URL` -- PostgreSQL connection string (**required**, no default)
+- `PORT` -- API port (default `8080`; the compose service and `.env.example` pin it to `4000`)
 - `LOG_LEVEL` -- `debug`, `info`, `warn`, `error`
 - `STORAGE_DIR` -- File storage (default `./data`)
-- `ENCRYPTION_KEY` -- 32+ char key for encrypting IMAP/SMTP credentials at rest
+- `APP_ENV` -- `development`, `staging`, `production` (default `development`)
+- `ENCRYPTION_KEY` -- **required**; 32+ char key for encrypting IMAP/SMTP credentials at rest. The API exits 1 without it
 - `CLIENT_DIR` -- Path to SvelteKit build output (default `./client`); the Go binary serves these files as the frontend
-- `DOMAINS` -- Comma-separated allowed CORS origins (optional; only needed if deploying the client separately from the API)
+- `CORS_ALLOWED_ORIGINS` -- Comma-separated allowed CORS origins (optional; only needed if deploying the client separately from the API). Legacy names `DOMAINS`, `ALLOWED_ORIGINS`, `DOMAIN`, `CORS_ORIGINS`, `TRUSTED_ORIGINS`, `CLIENT_ORIGIN` are still read as fallbacks
 - `OIDC_*` -- OpenID Connect config (optional)
 - `SSO_ONLY` -- Hide password auth when `true`
 
@@ -85,15 +86,19 @@ Client dev only (in `apps/client/.env`):
 
 ## Key Endpoints
 
-- `GET /health`, `GET /ready` -- Health and readiness probes
-- `GET /files/*` -- Static file serving (avatars)
-- Auth: `/auth/register`, `/auth/login`, `/auth/config`, `/auth/oidc/*`
-- Accounts: `/accounts` (CRUD for IMAP/SMTP mail accounts)
-- Mail: `/accounts/{id}/mail/sync`, `/accounts/{id}/mail/folders`, `/accounts/{id}/mail/folders/{type}/emails`, `/accounts/{id}/mail/emails/{id}`, `/accounts/{id}/mail/send`
-- Connection test: `POST /mail/test-connection`
-- Users: `/users/me`, `/users`
-- Settings: `/settings/`
-- Spaces: `/spaces` (CRUD), `/spaces/{id}/members` (member management), `/spaces/{id}/leave`
+- `GET /health`, `GET /ready` -- Health and readiness probes (outside `/api`)
+- `GET /api/files/*` -- Static file serving (avatars)
+- Auth: `/api/auth/register`, `/api/auth/login`, `/api/auth/config`, `/api/auth/oidc/*`
+- Accounts: `/api/accounts` (CRUD for IMAP/SMTP mail accounts)
+- Mail: `/api/accounts/{id}/mail/sync`, `/api/accounts/{id}/mail/folders`, `/api/accounts/{id}/mail/folders/{type}/emails`, `/api/accounts/{id}/mail/emails/{id}`, `/api/accounts/{id}/mail/send`
+- Connection test: `POST /api/mail/test-connection`
+- Users: `/api/users/me`, `/api/users`
+- Settings: `/api/settings/`
+- Spaces: `/api/spaces` (CRUD), `/api/spaces/{id}/members` (member management), `/api/spaces/{id}/leave`
+
+Every API route is registered inside a single `router.Route("/api", ...)` in `main.go`; the
+modules declare relative prefixes (`/auth`, `/accounts`, ...). That subtree is what makes an
+unknown `/api/*` path return 404 instead of falling through to the SPA catch-all.
 
 ## Conventions
 
