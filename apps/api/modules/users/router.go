@@ -3,9 +3,9 @@ package users
 import (
 	"net/http"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/httpjson"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
+	"github.com/FacileStudio/tronc/httpjson"
 
 	"github.com/go-chi/chi/v5"
 )

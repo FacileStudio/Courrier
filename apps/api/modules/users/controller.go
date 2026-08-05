@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
-	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
+	"github.com/FacileStudio/tronc/errors"
 )
 
 type Controller struct {

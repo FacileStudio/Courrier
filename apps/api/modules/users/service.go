@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/authcrypto"
-	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
+	"github.com/FacileStudio/tronc/errors"
 
 	"gorm.io/gorm"
 )

@@ -13,9 +13,9 @@ import (
 	"github.com/emersion/go-imap/v2"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/crypto"
-	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
-	"github.com/FacileStudio/Courrier/apps/api/internal/httpjson"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
+	"github.com/FacileStudio/tronc/errors"
+	"github.com/FacileStudio/tronc/httpjson"
 
 	"gorm.io/gorm"
 )
