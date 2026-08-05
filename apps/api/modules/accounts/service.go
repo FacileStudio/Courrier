@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/crypto"
-	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
+	"github.com/FacileStudio/tronc/errors"
 
 	"gorm.io/gorm"
 )

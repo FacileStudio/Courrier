@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
-	"github.com/FacileStudio/Courrier/apps/api/internal/errors"
-	"github.com/FacileStudio/Courrier/apps/api/internal/httpjson"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/internal/resourcetoken"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
+	"github.com/FacileStudio/tronc/errors"
+	"github.com/FacileStudio/tronc/httpjson"
 
 	"github.com/go-chi/chi/v5"
 )
