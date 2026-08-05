@@ -19,8 +19,8 @@ services:
     build:
       context: .
       network: host
-    ports:
-      - "${PORT:-4000}:4000"
+    expose:
+      - "4000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-courrier}?sslmode=disable
       PORT: "4000"
