@@ -660,8 +660,8 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 					Subject:   t.Subject,
 					BodyHTML:  t.BodyHTML,
 					BodyText:  t.BodyText,
-					CreatedAt: t.CreatedAt.Format("2006-01-02T15:04:05Z"),
-					UpdatedAt: t.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+					CreatedAt: t.CreatedAt.Format(time.RFC3339),
+					UpdatedAt: t.UpdatedAt.Format(time.RFC3339),
 				}
 			}
 			httpjson.WriteJSON(w, http.StatusOK, map[string]any{"templates": resp})
@@ -692,8 +692,8 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 				Subject:   tmpl.Subject,
 				BodyHTML:  tmpl.BodyHTML,
 				BodyText:  tmpl.BodyText,
-				CreatedAt: tmpl.CreatedAt.Format("2006-01-02T15:04:05Z"),
-				UpdatedAt: tmpl.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+				CreatedAt: tmpl.CreatedAt.Format(time.RFC3339),
+				UpdatedAt: tmpl.UpdatedAt.Format(time.RFC3339),
 			})
 		})
 
@@ -727,8 +727,8 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 				Subject:   tmpl.Subject,
 				BodyHTML:  tmpl.BodyHTML,
 				BodyText:  tmpl.BodyText,
-				CreatedAt: tmpl.CreatedAt.Format("2006-01-02T15:04:05Z"),
-				UpdatedAt: tmpl.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+				CreatedAt: tmpl.CreatedAt.Format(time.RFC3339),
+				UpdatedAt: tmpl.UpdatedAt.Format(time.RFC3339),
 			})
 		})
 
