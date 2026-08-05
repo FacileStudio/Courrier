@@ -26,7 +26,6 @@ apps/
     internal/             Shared infra (database, middleware, logger, env, errors, etc.)
     schemas/              GORM models and migrations (auto-run on startup)
     vendor/               Vendored Go dependencies
-    Dockerfile            Per-app Dockerfile (dev/separate deploys)
   client/                 SvelteKit frontend
     src/
       routes/             SvelteKit file-based routing
@@ -35,7 +34,6 @@ apps/
       lib/
         backend.ts        API client (fetch wrapper)
         components/       App components + shadcn-svelte ui/ primitives
-    Dockerfile            Per-app Dockerfile (dev/separate deploys)
 ```
 
 ## Commands
@@ -108,4 +106,4 @@ Client dev only (in `apps/client/.env`):
 - **IMAP/SMTP credentials** are encrypted at rest using AES-GCM with `ENCRYPTION_KEY`.
 - Avatar uploads are stored on disk at `STORAGE_DIR/avatars/` and served under `/files/`.
 - **Local dev** still uses two processes: `go run .` (API on :4000) + `bun run dev` (client on :5173 with `VITE_API_BASE_URL=http://localhost:4000`).
-- **Per-app Dockerfiles** exist in `apps/api/` and `apps/client/` for dev or separate deployment scenarios. The root `Dockerfile` is the unified production build.
+- **One Dockerfile** at the repo root builds the whole app (bun build + go build -> distroless). There are no per-app Dockerfiles; local dev runs the two processes directly.

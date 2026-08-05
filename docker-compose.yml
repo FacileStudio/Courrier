@@ -18,8 +18,30 @@ services:
     restart: unless-stopped
     build:
       context: .
+      dockerfile: Dockerfile
     expose:
       - "4000"
+    networks:
+      - default
+      - dokploy-network
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: dokploy-network
+      traefik.http.routers.courrier-web.rule: "Host(`courrier.facile.studio`)"
+      traefik.http.routers.courrier-web.entrypoints: web
+      traefik.http.routers.courrier-web.middlewares: redirect-to-https@file
+      traefik.http.routers.courrier-web.service: courrier-svc
+      traefik.http.routers.courrier-secure.rule: "Host(`courrier.facile.studio`)"
+      traefik.http.routers.courrier-secure.entrypoints: websecure
+      traefik.http.routers.courrier-secure.tls.certresolver: letsencrypt
+      traefik.http.routers.courrier-secure.service: courrier-svc
+      traefik.http.services.courrier-svc.loadbalancer.server.port: "4000"
+    healthcheck:
+      test: ["CMD", "/courrier", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-courrier}?sslmode=disable
       PORT: "4000"
@@ -46,3 +68,7 @@ volumes:
     name: courrier_db_data
   api_data:
     name: courrier_api_data
+
+networks:
+  dokploy-network:
+    external: true
