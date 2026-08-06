@@ -14,6 +14,7 @@ import (
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/crypto"
 	"github.com/FacileStudio/Courrier/apps/api/internal/database"
+	documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/modules/accounts"
@@ -25,8 +26,10 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
 	"github.com/go-chi/chi/v5"
+	"gorm.io/gorm"
 
 	"github.com/FacileStudio/Journal/sdk/journal"
+	"github.com/FacileStudio/tronc/apiref"
 	"github.com/FacileStudio/tronc/health"
 	"github.com/FacileStudio/tronc/healthcheck"
 	"github.com/FacileStudio/tronc/httpx"
@@ -41,6 +44,64 @@ func main() {
 	}
 
 	os.Exit(run())
+}
+
+func referenceConfig() apiref.Config {
+	return apiref.Config{
+		Title:       "Courrier API",
+		Description: "Self-hosted email client for creative studios.",
+		Servers:     []string{"/api"},
+		Registry: documentation.Response{
+			Modules: []documentation.Module{
+				auth.Documentation,
+				accounts.Documentation,
+				mail.Documentation,
+				users.Documentation,
+				settings.Documentation,
+				spaces.Documentation,
+			},
+		},
+	}
+}
+
+func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger *slog.Logger) chi.Router {
+	authService := auth.NewService(db, appEnv.StorageDir, appLogger, appEnv.EncryptionKey)
+	accountService := accounts.NewService(db, appEnv.EncryptionKey)
+	mailService := mail.NewService(db, appEnv.EncryptionKey)
+	userService := users.NewService(db, appEnv.StorageDir)
+	settingsService := settings.NewService(db)
+	spaceService := spaces.NewService(db)
+
+	router := httpx.NewRouter(httpx.Config{
+		Logger: appLogger,
+		CORS: troncmiddleware.CORSConfig{
+			AllowedOrigins:   appEnv.CORSAllowedOrigins,
+			AllowCredentials: true,
+		},
+	})
+	router.Use(middleware.SecurityHeaders)
+
+	health.Mount(router, dbCheck)
+	apiref.Mount(router, referenceConfig())
+
+	router.Route("/api", func(r chi.Router) {
+		r.Handle("/files/*", http.StripPrefix("/api/files/", http.FileServer(http.Dir(appEnv.StorageDir))))
+
+		auth.RegisterRoutes(r, authService, appEnv)
+		accounts.RegisterRoutes(r, accountService, authService)
+		mail.RegisterRoutes(r, mailService, authService, appEnv.ResourceTokenSecret)
+		users.RegisterRoutes(r, userService, authService)
+		settings.RegisterRoutes(r, settingsService, authService)
+		spaces.RegisterRoutes(r, spaceService, authService)
+	})
+
+	clientDir := spa.DirFromEnv()
+	if spa.Available(clientDir) {
+		router.Handle("/*", middleware.Gzip(spa.Handler(spa.Config{Dir: clientDir})))
+		appLogger.Info("serving client", slog.String("dir", clientDir))
+	}
+
+	return router
 }
 
 func run() int {
@@ -102,40 +163,7 @@ func run() int {
 		}
 	}()
 
-	authService := auth.NewService(db, appEnv.StorageDir, appLogger, appEnv.EncryptionKey)
-	accountService := accounts.NewService(db, appEnv.EncryptionKey)
-	mailService := mail.NewService(db, appEnv.EncryptionKey)
-	userService := users.NewService(db, appEnv.StorageDir)
-	settingsService := settings.NewService(db)
-	spaceService := spaces.NewService(db)
-
-	router := httpx.NewRouter(httpx.Config{
-		Logger: appLogger,
-		CORS: troncmiddleware.CORSConfig{
-			AllowedOrigins:   appEnv.CORSAllowedOrigins,
-			AllowCredentials: true,
-		},
-	})
-	router.Use(middleware.SecurityHeaders)
-
-	health.Mount(router, health.DB(sqlDB))
-
-	router.Route("/api", func(r chi.Router) {
-		r.Handle("/files/*", http.StripPrefix("/api/files/", http.FileServer(http.Dir(appEnv.StorageDir))))
-
-		auth.RegisterRoutes(r, authService, appEnv)
-		accounts.RegisterRoutes(r, accountService, authService)
-		mail.RegisterRoutes(r, mailService, authService, appEnv.ResourceTokenSecret)
-		users.RegisterRoutes(r, userService, authService)
-		settings.RegisterRoutes(r, settingsService, authService)
-		spaces.RegisterRoutes(r, spaceService, authService)
-	})
-
-	clientDir := spa.DirFromEnv()
-	if spa.Available(clientDir) {
-		router.Handle("/*", middleware.Gzip(spa.Handler(spa.Config{Dir: clientDir})))
-		appLogger.Info("serving client", slog.String("dir", clientDir))
-	}
+	router := buildRouter(db, health.DB(sqlDB), appEnv, appLogger)
 
 	addr := ":" + strconv.Itoa(appEnv.Port)
 	server := &http.Server{
