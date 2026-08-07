@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
@@ -14,21 +13,20 @@ type Authenticator interface {
 	Authenticate(context context.Context, authorization string) (string, any, error)
 }
 
+// extractToken reads the session credential from the cookie first, then the
+// Authorization header.
+//
+// It deliberately does not read a ?token= query parameter. That path existed
+// with a deprecation warning and nothing used it — the client sends
+// credentials: 'include' on every request — but a credential in a URL is
+// copied into access logs, Referer headers, browser history and any proxy in
+// between, and the warning made it no less true.
 func extractToken(r *http.Request) string {
 	if c, err := r.Cookie("session"); err == nil && c.Value != "" {
 		return c.Value
 	}
 
-	if h := r.Header.Get("Authorization"); h != "" {
-		return h
-	}
-
-	if t := r.URL.Query().Get("token"); t != "" {
-		slog.Warn("auth via query param is deprecated, use cookie or header")
-		return t
-	}
-
-	return ""
+	return r.Header.Get("Authorization")
 }
 
 func RequireAuth(authService Authenticator) func(http.Handler) http.Handler {
