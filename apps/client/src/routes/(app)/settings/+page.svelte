@@ -274,7 +274,10 @@
 							</div>
 						{/if}
 						{#if app.user?.avatar_source === 'oidc'}
-							<p class="text-xs text-muted-foreground">Avatar synced from SSO</p>
+							<p class="text-xs text-muted-foreground max-w-xs">
+								Your photo comes from single sign-on. Change it there and it updates here within
+								a few minutes.
+							</p>
 						{/if}
 					</div>
 
