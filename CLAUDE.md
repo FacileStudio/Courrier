@@ -109,6 +109,16 @@ unknown `/api/*` path return 404 instead of falling through to the SPA catch-all
 - **shadcn-svelte** provides the UI component primitives in `src/lib/components/ui/`.
 - **Svelte 5 runes** are enforced (`$state`, `$props`, `$derived`, `$effect`).
 - **IMAP/SMTP credentials** are encrypted at rest using AES-GCM with `ENCRYPTION_KEY`.
-- Avatar uploads are stored on disk at `STORAGE_DIR/avatars/` and served under `/files/`.
+- **Avatars have two sources and one derived value.** `oidc_picture_url` is written by the
+  OIDC sync but only when the `picture` claim starts with `https://` (Authentik returns a
+  `data:image/svg+xml` placeholder of the user's initials otherwise, so a non-empty claim is
+  not a photo). `avatar_upload_path` is written by upload, stored at `STORAGE_DIR/avatars/`
+  and served under `/api/files/`. What the client renders is `schemas.User.Avatar()` — SSO
+  photo, else the upload, else nothing — never a stored third copy. Uploading is *rejected*
+  while an SSO photo exists, and clearing removes only the upload. `avatar_url` and
+  `avatar_source` remain as unread columns until a later release drops them.
+- **Database-backed tests need Postgres.** `TEST_DATABASE_URL` points at a scratch database
+  (`github.com/FacileStudio/tronc/testdb` gives each test binary its own schema); without it
+  those tests skip loudly. SQLite is not an option here — the gate rejects the driver.
 - **Local dev** still uses two processes: `go run .` (API on :4000) + `bun run dev` (client on :5173 with `VITE_API_BASE_URL=http://localhost:4000`).
 - **One Dockerfile** at the repo root builds the whole app (bun build + go build -> distroless). There are no per-app Dockerfiles; local dev runs the two processes directly.

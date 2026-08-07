@@ -22,7 +22,11 @@ func Migrate(db *gorm.DB) error {
 
 	ensureSearchIndexes(db)
 
-	return backfillAvatarURLs(db)
+	if err := backfillAvatarURLs(db); err != nil {
+		return err
+	}
+
+	return backfillAvatarSources(db)
 }
 
 func ensureSearchIndexes(db *gorm.DB) {
@@ -53,4 +57,58 @@ func backfillAvatarURLs(db *gorm.DB) error {
 		Where("avatar_url LIKE ?", "/files/%").
 		Update("avatar_url", gorm.Expr("'/api/files/' || substring(avatar_url from 8)")).
 		Error
+}
+
+// backfillAvatarSources moves the two real avatar sources onto the columns that now own
+// them: the uploaded file onto avatar_upload_path, and a Porte photo — and only a Porte
+// photo — onto oidc_picture_url. The rendered value is derived from those two by
+// User.Avatar; nothing stores a third copy that can drift.
+//
+// The filename decides which rows are uploads, not avatar_source. That column was added
+// after the upload feature, so the oldest uploaded avatars have it empty, and keying on
+// avatar_source = 'upload' quietly drops their picture. persistAvatarFile has always named
+// uploads "user-<id>-<nanos>" and the old OIDC download named its copies "oidc-<id>-<nanos>",
+// so anything that is not an oidc- copy is somebody's upload and is kept. Both the current
+// /api/files/ prefix and the legacy /files/ one are accepted, so this is correct whether or
+// not backfillAvatarURLs has already run.
+//
+// The oidc- copies are the ones with nothing to preserve: oidc_picture_url already holds the
+// URL that replaces them. They are left on the volume rather than deleted here — a migration
+// that removes files has to be right the first time.
+//
+// The second statement is the one that is easy to miss. The old sync stored profile.Picture
+// verbatim, so every user without a photo in Authentik has a data:image/svg+xml blob sitting
+// in oidc_picture_url. Under the new rule that column means "there is an SSO photo", so a
+// stale blob would suppress the upload fallback and render Authentik's initials instead of
+// ours. Blanking it is what makes the column mean what Avatar assumes it means.
+//
+// avatar_url and avatar_source stay in the table, unread, until the next release drops them.
+// Expanding first means a rollback is redeploying the old binary, not restoring a backup.
+func backfillAvatarSources(db *gorm.DB) error {
+	if db.Migrator().HasColumn(&User{}, "avatar_url") {
+		if err := db.Exec(
+			`UPDATE users
+			    SET avatar_upload_path = regexp_replace(avatar_url, '^/(api/)?files/', '')
+			  WHERE coalesce(avatar_url, '') <> ''
+			    AND avatar_url !~ '^/(api/)?files/avatars/oidc-'
+			    AND coalesce(avatar_upload_path, '') = ''`).Error; err != nil {
+			return err
+		}
+	}
+
+	// lower() so this agrees with oidcavatar.PhotoURL, which compares the scheme case-insensitively.
+	if err := db.Exec(
+		`UPDATE users
+		    SET oidc_picture_url = ''
+		  WHERE coalesce(oidc_picture_url, '') <> ''
+		    AND lower(oidc_picture_url) NOT LIKE 'https://%'`).Error; err != nil {
+		return err
+	}
+
+	// A NULL here would fail to scan into the plain string the model declares.
+	return db.Exec(
+		`UPDATE users
+		    SET avatar_upload_path = coalesce(avatar_upload_path, ''),
+		        oidc_picture_url = coalesce(oidc_picture_url, '')
+		  WHERE avatar_upload_path IS NULL OR oidc_picture_url IS NULL`).Error
 }

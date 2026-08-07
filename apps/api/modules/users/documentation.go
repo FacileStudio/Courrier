@@ -66,12 +66,12 @@ var Documentation = documentation.Module{
 			Method:       "POST",
 			Path:         "/users/me/avatar",
 			Summary:      "Upload the current user's avatar",
-			Description:  "Stores a new avatar file for the authenticated user and returns the updated profile.",
+			Description:  "Stores a new avatar file for the authenticated user and returns the updated profile. Uploading is the fallback for users with no photo in SSO; it is rejected while one is set there.",
 			Auth:         "bearer token required",
 			RequestBody:  "multipart/form-data with avatar file",
 			ResponseBody: "MeResponse",
 			Errors: []documentation.Error{
-				{Status: 400, Code: "invalid_argument", Description: "Missing file or unsupported image type."},
+				{Status: 400, Code: "invalid_argument", Description: "Missing file, unsupported image type, or the photo is managed in SSO."},
 				{Status: 401, Code: "unauthenticated", Description: "Authorization header is missing or invalid."},
 				{Status: 404, Code: "not_found", Description: "The authenticated user no longer exists."},
 				{Status: 413, Code: "resource_exhausted", Description: "Avatar file is too large."},
@@ -82,7 +82,7 @@ var Documentation = documentation.Module{
 			Method:       "DELETE",
 			Path:         "/users/me/avatar",
 			Summary:      "Remove the current user's avatar",
-			Description:  "Deletes the stored avatar file and returns the updated profile.",
+			Description:  "Deletes the uploaded avatar file and returns the updated profile. A photo coming from SSO is not touched.",
 			Auth:         "bearer token required",
 			ResponseBody: "MeResponse",
 			Errors: []documentation.Error{
