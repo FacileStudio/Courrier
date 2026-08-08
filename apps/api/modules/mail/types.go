@@ -48,6 +48,19 @@ type TestConnectionRequest struct {
 	SMTPPassword string `json:"smtp_password"`
 }
 
+// CheckLeg is one half of a connection check. `Configured` false means the account has no
+// host for that protocol, which is a different answer from "it did not work".
+type CheckLeg struct {
+	Configured bool   `json:"configured"`
+	OK         bool   `json:"ok"`
+	Error      string `json:"error,omitempty"`
+}
+
+type CheckResult struct {
+	IMAP CheckLeg `json:"imap"`
+	SMTP CheckLeg `json:"smtp"`
+}
+
 type FolderResponse struct {
 	ID          int64  `json:"id"`
 	AccountID   int64  `json:"account_id"`
