@@ -1,8 +1,15 @@
 <script lang="ts">
-	import * as ContextMenu from '$lib/components/ui/context-menu';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Reply, Forward, Archive, Trash2, MailOpen, Mail, Star, StarOff } from 'lucide-svelte';
+	import { Avatar, Badge, Checkbox, Divider, icons } from '@facile/muse';
 	import type { EmailMessage } from '$lib/backend';
+
+	/* Glyphs an email client needs that muse's `icons` map has no key for yet. */
+	const mailIcons = {
+		reply: 'solar:reply-linear',
+		forward: 'solar:forward-linear',
+		archive: 'solar:archive-linear',
+		mailOpen: 'solar:letter-opened-linear',
+		star: 'solar:star-linear'
+	};
 
 	let {
 		email,
@@ -32,12 +39,14 @@
 		ontogglestar?: () => void;
 	} = $props();
 
-	function getInitials(name: string) {
-		const parts = name.trim().split(/\s+/).filter(Boolean);
-		if (parts.length === 0) return '?';
-		if (parts.length === 1) return parts[0][0].toUpperCase();
-		return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-	}
+	const MENU_WIDTH = 224;
+	const MENU_HEIGHT = 260;
+
+	let menuOpen = $state(false);
+	let menuX = $state(0);
+	let menuY = $state(0);
+
+	const sender = $derived(email.from_name || email.from_address);
 
 	function formatDate(dateStr: string) {
 		const date = new Date(dateStr);
@@ -54,7 +63,7 @@
 		return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 	}
 
-	function handleClick(e: MouseEvent) {
+	function handleClick() {
 		if (selectionActive) {
 			ontogglecheck();
 			return;
@@ -62,127 +71,164 @@
 		onopen();
 	}
 
-	function handleCheckboxClick(e: MouseEvent) {
+	function handleCheckboxClick(e: Event) {
 		e.stopPropagation();
 		ontogglecheck();
 	}
+
+	function openMenu(e: MouseEvent) {
+		e.preventDefault();
+		menuX = Math.min(e.clientX, Math.max(8, window.innerWidth - MENU_WIDTH - 8));
+		menuY = Math.min(e.clientY, Math.max(8, window.innerHeight - MENU_HEIGHT - 8));
+		menuOpen = true;
+	}
+
+	function run(action?: () => void) {
+		menuOpen = false;
+		action?.();
+	}
 </script>
 
-<ContextMenu.Root>
-	<ContextMenu.Trigger>
-		<!-- svelte-ignore node_invalid_placement_ssr -->
-		<button
-			class="mail-list-item group w-full text-left px-4 py-3 border-b transition-colors hover:bg-muted/50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring
-				{selected ? 'bg-muted' : ''}
-				{checked ? 'bg-primary/5' : ''}
-				{!email.is_read ? 'font-medium' : ''}"
-			onclick={handleClick}
-		>
-			<div class="flex items-center gap-3">
-				<div class="relative flex h-8 w-8 shrink-0 items-center justify-center">
-					{#if selectionActive || checked}
-						<span
-							class="flex h-8 w-8 items-center justify-center cursor-pointer"
-							onclick={handleCheckboxClick}
-							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCheckboxClick(e as any); }}
-							role="checkbox"
-							aria-checked={checked}
-							tabindex={0}
-						>
-							<Checkbox
-								checked={checked}
-								class="h-4 w-4 pointer-events-none"
-							/>
-						</span>
-					{:else}
-						<div
-							class="relative flex h-8 w-8 items-center justify-center"
-						>
-							<div class="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium group-hover:hidden">
-								{getInitials(email.from_name || email.from_address)}
-							</div>
-							<span
-								class="hidden h-8 w-8 items-center justify-center group-hover:flex cursor-pointer"
-								onclick={handleCheckboxClick}
-								onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCheckboxClick(e as any); }}
-								role="checkbox"
-								aria-checked={checked}
-								tabindex={0}
-							>
-								<Checkbox
-									checked={checked}
-									class="h-4 w-4 pointer-events-none"
-								/>
-							</span>
-						</div>
+<svelte:window
+	onkeydown={(e) => {
+		if (menuOpen && e.key === 'Escape') menuOpen = false;
+	}}
+/>
+
+<div class="relative border-b border-fc-border last:border-b-0">
+	<button
+		type="button"
+		class="group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fc-ring
+			{selected ? 'bg-fc-accent text-fc-accent-fg' : checked ? 'bg-fc-surface text-fc-fg' : 'text-fc-fg hover:bg-fc-surface'}"
+		onclick={handleClick}
+		oncontextmenu={openMenu}
+	>
+		<span class="flex size-8 shrink-0 items-center justify-center">
+			{#if selectionActive || checked}
+				<span
+					class="flex size-8 cursor-pointer items-center justify-center"
+					onclick={handleCheckboxClick}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') handleCheckboxClick(e);
+					}}
+					role="checkbox"
+					aria-checked={checked}
+					aria-label="Select conversation"
+					tabindex={0}
+				>
+					<Checkbox {checked} class="pointer-events-none" />
+				</span>
+			{:else}
+				<span class="block group-hover:hidden">
+					<Avatar name={sender} size="sm" />
+				</span>
+				<span
+					class="hidden size-8 cursor-pointer items-center justify-center group-hover:flex"
+					onclick={handleCheckboxClick}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') handleCheckboxClick(e);
+					}}
+					role="checkbox"
+					aria-checked={checked}
+					aria-label="Select conversation"
+					tabindex={0}
+				>
+					<Checkbox {checked} class="pointer-events-none" />
+				</span>
+			{/if}
+		</span>
+
+		<span class="min-w-0 flex-1">
+			<span class="flex items-center justify-between gap-2">
+				<span class="flex min-w-0 items-center gap-1.5">
+					<span class="truncate text-fc-sm {email.is_read ? '' : 'font-semibold'}">{sender}</span>
+					{#if (email.message_count ?? 1) > 1}
+						<Badge tone="neutral" class="tabular-nums">{email.message_count}</Badge>
 					{/if}
-				</div>
-				<div class="min-w-0 flex-1">
-					<div class="flex items-center justify-between gap-2">
-						<span class="flex min-w-0 items-center gap-1.5">
-							<span class="truncate text-sm">{email.from_name || email.from_address}</span>
-							{#if (email.message_count ?? 1) > 1}
-								<span class="shrink-0 rounded-full bg-muted px-1.5 text-xs font-medium tabular-nums text-muted-foreground">{email.message_count}</span>
-							{/if}
-						</span>
-						<span class="shrink-0 text-xs text-muted-foreground">{formatDate(email.date)}</span>
-					</div>
-					<p class="truncate text-sm text-muted-foreground">{email.subject || '(no subject)'}</p>
-				</div>
-				{#if !email.is_read}
-					<div class="h-2 w-2 shrink-0 rounded-full bg-primary"></div>
-				{/if}
-			</div>
-		</button>
-	</ContextMenu.Trigger>
-	<ContextMenu.Content class="w-56">
+				</span>
+				<span class="shrink-0 text-fc-xs {selected ? 'text-fc-accent-fg/70' : 'text-fc-fg-muted'}">
+					{formatDate(email.date)}
+				</span>
+			</span>
+			<span
+				class="mt-0.5 block truncate text-fc-sm {selected ? 'text-fc-accent-fg/70' : 'text-fc-fg-muted'}"
+			>
+				{email.subject || '(no subject)'}
+			</span>
+		</span>
+
+		{#if !email.is_read}
+			<span
+				class="size-2 shrink-0 rounded-fc-pill {selected ? 'bg-fc-accent-fg' : 'bg-fc-accent'}"
+				aria-label="Unread"
+			></span>
+		{/if}
+	</button>
+</div>
+
+<!--
+	muse ships no menu primitive (no DropdownMenu, ContextMenu or Popover), so the row menu is
+	local: a floating surface on muse tokens, dismissed by Escape, by a click anywhere else and
+	by a second right-click. Everything inside it is a muse component.
+-->
+{#if menuOpen}
+	<div
+		class="fixed inset-0 z-40"
+		role="presentation"
+		onclick={() => (menuOpen = false)}
+		oncontextmenu={(e) => {
+			e.preventDefault();
+			menuOpen = false;
+		}}
+	></div>
+	<div
+		class="fixed z-50 w-56 rounded-fc-md border border-fc-border bg-fc-component p-1 shadow-lg"
+		style="left: {menuX}px; top: {menuY}px"
+		role="menu"
+		tabindex="-1"
+	>
+		{#snippet item(label: string, icon: string, action: () => void, danger = false)}
+			<button
+				type="button"
+				role="menuitem"
+				class="flex w-full items-center gap-2.5 rounded-fc-sm px-2.5 py-2 text-left text-fc-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fc-ring
+					{danger
+					? 'text-fc-danger hover:bg-fc-danger/10'
+					: 'text-fc-fg-muted hover:bg-fc-surface hover:text-fc-fg'}"
+				onclick={() => run(action)}
+			>
+				<iconify-icon {icon} width="16" height="16" class="block size-4 shrink-0"></iconify-icon>
+				{label}
+			</button>
+		{/snippet}
+
 		{#if onreply}
-			<ContextMenu.Item class="gap-2" onclick={onreply}>
-				<Reply class="h-4 w-4" />
-				Reply
-			</ContextMenu.Item>
+			{@render item('Reply', mailIcons.reply, onreply)}
 		{/if}
 		{#if onforward}
-			<ContextMenu.Item class="gap-2" onclick={onforward}>
-				<Forward class="h-4 w-4" />
-				Forward
-			</ContextMenu.Item>
+			{@render item('Forward', mailIcons.forward, onforward)}
 		{/if}
-		<ContextMenu.Separator />
+		{#if onreply || onforward}
+			<Divider class="my-1" />
+		{/if}
 		{#if ontoggleread}
-			<ContextMenu.Item class="gap-2" onclick={ontoggleread}>
-				{#if email.is_read}
-					<Mail class="h-4 w-4" />
-					Mark as unread
-				{:else}
-					<MailOpen class="h-4 w-4" />
-					Mark as read
-				{/if}
-			</ContextMenu.Item>
+			{@render item(
+				email.is_read ? 'Mark as unread' : 'Mark as read',
+				email.is_read ? icons.mail : mailIcons.mailOpen,
+				ontoggleread
+			)}
 		{/if}
 		{#if ontogglestar}
-			<ContextMenu.Item class="gap-2" onclick={ontogglestar}>
-				{#if email.is_starred}
-					<StarOff class="h-4 w-4" />
-					Unstar
-				{:else}
-					<Star class="h-4 w-4" />
-					Star
-				{/if}
-			</ContextMenu.Item>
+			{@render item(email.is_starred ? 'Unstar' : 'Star', mailIcons.star, ontogglestar)}
 		{/if}
-		<ContextMenu.Separator />
+		{#if onarchive || ondelete}
+			<Divider class="my-1" />
+		{/if}
 		{#if onarchive}
-			<ContextMenu.Item class="gap-2" onclick={onarchive}>
-				<Archive class="h-4 w-4" />
-				Archive
-			</ContextMenu.Item>
+			{@render item('Archive', mailIcons.archive, onarchive)}
 		{/if}
 		{#if ondelete}
-			<ContextMenu.Item class="gap-2 text-destructive focus:text-destructive" onclick={ondelete}>
-				<Trash2 class="h-4 w-4" />
-				Delete
-			</ContextMenu.Item>
+			{@render item('Delete', icons.remove, ondelete, true)}
 		{/if}
-	</ContextMenu.Content>
-</ContextMenu.Root>
+	</div>
+{/if}

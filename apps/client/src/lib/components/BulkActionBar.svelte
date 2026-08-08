@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Trash2, Archive, MailOpen, MailX, X } from 'lucide-svelte';
+	import { Badge, IconButton, icons } from '@facile/muse';
 
 	let {
 		count = 0,
@@ -19,37 +18,70 @@
 		onmarkunread: () => void;
 		onclear: () => void;
 	} = $props();
+
+	/* Glyphs an email client needs that muse's `icons` map has no key for yet. */
+	const mailIcons = {
+		archive: 'solar:archive-linear',
+		mailOpen: 'solar:letter-opened-linear',
+		mailUnread: 'solar:letter-unread-linear'
+	};
 </script>
 
 {#if count > 0}
-	<div class="bulk-action-bar flex items-center gap-1.5 border-b bg-muted/50 px-3 py-1.5">
-		<span class="shrink-0 text-xs font-medium">{count}</span>
-		<div class="flex items-center gap-0.5 overflow-hidden">
-			<Button variant="ghost" size="icon" class="h-7 w-7 shrink-0" onclick={onarchive} disabled={loading} title="Archive">
-				<Archive class="h-3.5 w-3.5" />
-			</Button>
-			<Button variant="ghost" size="icon" class="h-7 w-7 shrink-0" onclick={onmarkread} disabled={loading} title="Mark read">
-				<MailOpen class="h-3.5 w-3.5" />
-			</Button>
-			<Button variant="ghost" size="icon" class="h-7 w-7 shrink-0" onclick={onmarkunread} disabled={loading} title="Mark unread">
-				<MailX class="h-3.5 w-3.5" />
-			</Button>
-			<Button variant="ghost" size="icon" class="h-7 w-7 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10" onclick={ondelete} disabled={loading} title="Delete">
-				<Trash2 class="h-3.5 w-3.5" />
-			</Button>
+	<div class="bulk-action-bar flex items-center gap-2 border-b border-fc-border bg-fc-surface px-3 py-1.5">
+		<Badge tone="accent" class="shrink-0 tabular-nums">{count}</Badge>
+		<div class="flex min-w-0 items-center gap-0.5">
+			<IconButton
+				variant="ghost"
+				aria-label="Archive"
+				title="Archive"
+				disabled={loading}
+				onclick={onarchive}
+			>
+				<iconify-icon icon={mailIcons.archive} width="18" height="18" class="block size-4.5"
+				></iconify-icon>
+			</IconButton>
+			<IconButton
+				variant="ghost"
+				aria-label="Mark as read"
+				title="Mark as read"
+				disabled={loading}
+				onclick={onmarkread}
+			>
+				<iconify-icon icon={mailIcons.mailOpen} width="18" height="18" class="block size-4.5"
+				></iconify-icon>
+			</IconButton>
+			<IconButton
+				variant="ghost"
+				aria-label="Mark as unread"
+				title="Mark as unread"
+				disabled={loading}
+				onclick={onmarkunread}
+			>
+				<iconify-icon icon={mailIcons.mailUnread} width="18" height="18" class="block size-4.5"
+				></iconify-icon>
+			</IconButton>
+			<IconButton
+				variant="danger"
+				aria-label="Delete"
+				title="Delete"
+				disabled={loading}
+				onclick={ondelete}
+			>
+				<iconify-icon icon={icons.remove} width="18" height="18" class="block size-4.5"
+				></iconify-icon>
+			</IconButton>
 		</div>
-		<div class="ml-auto">
-			<Button variant="ghost" size="icon" class="h-6 w-6 shrink-0" onclick={onclear}>
-				<X class="h-3 w-3" />
-			</Button>
-		</div>
+		<IconButton variant="ghost" aria-label="Clear selection" class="ml-auto" onclick={onclear}>
+			<iconify-icon icon={icons.close} width="18" height="18" class="block size-4.5"></iconify-icon>
+		</IconButton>
 	</div>
 {/if}
 
 <style>
 	@media (prefers-reduced-motion: no-preference) {
 		.bulk-action-bar {
-			animation: bar-slide-in 150ms ease-out both;
+			animation: bar-slide-in 150ms var(--ease-fc, ease-out) both;
 		}
 	}
 

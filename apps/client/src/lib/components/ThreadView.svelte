@@ -1,8 +1,7 @@
 <script lang="ts">
 	import DOMPurify from 'dompurify';
 	import { backend, type EmailMessage, type EmailAttachment } from '$lib/backend';
-	import { Button } from '$lib/components/ui/button';
-	import { Paperclip, Download, Loader2, ChevronDown } from 'lucide-svelte';
+	import { Avatar, Button, Spinner, icons } from '@facile/muse';
 
 	let {
 		accountId,
@@ -13,6 +12,11 @@
 		email: EmailMessage;
 		onthread?: (messages: EmailMessage[]) => void;
 	} = $props();
+
+	/* Glyphs an email client needs that muse's `icons` map has no key for yet. */
+	const mailIcons = {
+		paperclip: 'solar:paperclip-linear'
+	};
 
 	let messages = $state<EmailMessage[]>([]);
 	let expanded = $state<Set<number>>(new Set());
@@ -50,13 +54,6 @@
 		if (bytes < 1024) return `${bytes} B`;
 		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-	}
-
-	function initials(msg: EmailMessage): string {
-		const parts = (msg.from_name || msg.from_address || '?').trim().split(/\s+/).filter(Boolean);
-		if (parts.length === 0) return '?';
-		if (parts.length === 1) return parts[0][0].toUpperCase();
-		return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 	}
 
 	async function ensureBody(msg: EmailMessage) {
@@ -150,38 +147,53 @@
 </script>
 
 <div class="flex flex-col">
-	{#each messages as msg, i (msg.id)}
+	{#each messages as msg (msg.id)}
 		{@const isOpen = expanded.has(msg.id)}
-		<div class="border-b last:border-b-0">
+		<div class="border-b border-fc-border last:border-b-0">
 			<button
 				type="button"
-				class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-6"
+				class="flex w-full items-center gap-3 px-4 py-3 text-left text-fc-fg transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fc-ring sm:px-6"
 				onclick={() => toggle(msg)}
 				aria-expanded={isOpen}
 			>
-				<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
-					{initials(msg)}
+				<span class="shrink-0">
+					<Avatar name={msg.from_name || msg.from_address || '?'} size="sm" />
 				</span>
 				<span class="min-w-0 flex-1">
 					<span class="flex items-center justify-between gap-2">
-						<span class="truncate text-sm {msg.is_read ? '' : 'font-semibold'}">
+						<span class="truncate text-fc-sm {msg.is_read ? '' : 'font-semibold'}">
 							{msg.from_name || msg.from_address}
 						</span>
-						<span class="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+						<span class="flex shrink-0 items-center gap-2 text-fc-xs text-fc-fg-muted">
 							{#if !msg.is_read}
-								<span class="h-2 w-2 rounded-full bg-primary"></span>
+								<span class="size-2 rounded-fc-pill bg-fc-accent"></span>
 							{/if}
 							{#if msg.has_attachments}
-								<Paperclip class="h-3.5 w-3.5" />
+								<iconify-icon
+									icon={mailIcons.paperclip}
+									width="14"
+									height="14"
+									class="block size-3.5"
+									aria-label="Has attachments"
+								></iconify-icon>
 							{/if}
 							<span>{formatDate(msg.date)}</span>
-							<ChevronDown class="h-4 w-4 transition-transform {isOpen ? 'rotate-180' : ''}" />
+							<iconify-icon
+								icon={icons.chevronDown}
+								width="16"
+								height="16"
+								class="block size-4 transition-transform {isOpen ? 'rotate-180' : ''}"
+							></iconify-icon>
 						</span>
 					</span>
 					{#if !isOpen}
-						<span class="mt-0.5 block truncate text-xs text-muted-foreground">{snippet(msg) || msg.from_address}</span>
+						<span class="mt-0.5 block truncate text-fc-xs text-fc-fg-muted">
+							{snippet(msg) || msg.from_address}
+						</span>
 					{:else}
-						<span class="mt-0.5 block truncate text-xs text-muted-foreground">to {msg.to_addresses.map((a) => a.name || a.email).join(', ')}</span>
+						<span class="mt-0.5 block truncate text-fc-xs text-fc-fg-muted">
+							to {msg.to_addresses.map((a) => a.name || a.email).join(', ')}
+						</span>
 					{/if}
 				</span>
 			</button>
@@ -189,16 +201,25 @@
 			{#if isOpen}
 				<div class="px-4 pb-5 sm:px-6">
 					{#if msg.attachments && msg.attachments.length > 0}
-						<div class="mb-3 flex flex-wrap items-center gap-2">
-							<span class="flex items-center gap-1.5 text-xs text-muted-foreground">
-								<Paperclip class="h-3.5 w-3.5" />
+						<div class="mb-4 flex flex-wrap items-center gap-2">
+							<span class="flex items-center gap-1.5 text-fc-xs text-fc-fg-muted">
+								<iconify-icon
+									icon={mailIcons.paperclip}
+									width="14"
+									height="14"
+									class="block size-3.5"
+								></iconify-icon>
 								{msg.attachments.length} attachment{msg.attachments.length > 1 ? 's' : ''}
 							</span>
-							{#each msg.attachments as attachment}
-								<Button variant="outline" size="sm" class="gap-2 text-xs" onclick={() => downloadAttachment(msg, attachment)}>
-									<Download class="h-3.5 w-3.5" />
+							{#each msg.attachments as attachment (attachment.id)}
+								<Button
+									variant="outline"
+									size="sm"
+									icon={icons.download}
+									onclick={() => downloadAttachment(msg, attachment)}
+								>
 									<span class="max-w-48 truncate">{attachment.filename}</span>
-									<span class="text-muted-foreground">({formatFileSize(attachment.size)})</span>
+									<span class="text-fc-fg-muted">({formatFileSize(attachment.size)})</span>
 								</Button>
 							{/each}
 						</div>
@@ -207,14 +228,14 @@
 					{#if msg.body_html}
 						<div class="mail-body-content">{@html sanitize(msg)}</div>
 					{:else if msg.body_text}
-						<pre class="whitespace-pre-wrap text-sm">{msg.body_text}</pre>
+						<pre class="whitespace-pre-wrap font-fc-body text-fc-sm text-fc-fg">{msg.body_text}</pre>
 					{:else if loadingBodies.has(msg.id)}
-						<div class="flex items-center gap-2 text-sm text-muted-foreground">
-							<Loader2 class="h-4 w-4 animate-spin" />
+						<div class="flex items-center gap-3 text-fc-sm text-fc-fg-muted">
+							<Spinner size="sm" />
 							<span>Loading message…</span>
 						</div>
 					{:else}
-						<p class="text-sm text-muted-foreground">(empty message)</p>
+						<p class="text-fc-sm text-fc-fg-muted">(empty message)</p>
 					{/if}
 				</div>
 			{/if}
@@ -222,8 +243,8 @@
 	{/each}
 
 	{#if loadingThread && messages.length <= 1}
-		<div class="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground sm:px-6">
-			<Loader2 class="h-3.5 w-3.5 animate-spin" />
+		<div class="flex items-center gap-3 px-4 py-3 text-fc-xs text-fc-fg-muted sm:px-6">
+			<Spinner size="sm" label="Loading conversation" />
 			<span>Loading conversation…</span>
 		</div>
 	{/if}

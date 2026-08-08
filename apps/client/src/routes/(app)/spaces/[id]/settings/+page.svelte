@@ -2,9 +2,21 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import {
+		Alert,
+		Button,
+		ConfirmModal,
+		EmptyState,
+		Field,
+		Input,
+		SettingsSection,
+		Skeleton,
+		Textarea,
+		icons,
+		toast
+	} from '@facile/muse';
 	import { backend, type Space } from '$lib/backend';
 	import { spaceStore } from '$lib/stores/space.svelte';
-	import { toast } from 'svelte-sonner';
 
 	const spaceId = $derived(page.params.id as string);
 
@@ -13,9 +25,9 @@
 	let name = $state('');
 	let description = $state('');
 	let saving = $state(false);
-	let message = $state('');
+	let nameError = $state('');
 	let confirmDelete = $state(false);
-	let deleting = $state(false);
+	let deleteError = $state('');
 
 	onMount(async () => {
 		await loadSpace();
@@ -34,143 +46,119 @@
 	}
 
 	async function saveSettings() {
+		if (!name.trim()) {
+			nameError = 'Le nom est requis';
+			return;
+		}
+
 		saving = true;
-		message = '';
+		nameError = '';
 		try {
 			space = await backend.updateSpace(spaceId, {
 				name: name.trim(),
 				description: description.trim()
 			});
-			message = 'Paramètres enregistrés';
 			if (spaceStore.active?.id === spaceId) {
 				spaceStore.set({ id: space.id, name: space.name, role: space.role });
 			}
-		} catch (e: any) {
-			message = e.message || 'Impossible d\'enregistrer';
+			toast.success('Paramètres enregistrés');
+		} catch (err) {
+			nameError = err instanceof Error ? err.message : "Impossible d'enregistrer";
 		}
 		saving = false;
-		setTimeout(() => { message = ''; }, 3000);
 	}
 
 	async function deleteSpace() {
-		deleting = true;
+		deleteError = '';
 		try {
 			await backend.deleteSpace(spaceId);
-			if (spaceStore.active?.id === spaceId) {
-				spaceStore.clear();
-			}
-			toast.success('Espace supprimé');
-			goto('/spaces');
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Impossible de supprimer l\'espace');
+			deleteError = err instanceof Error ? err.message : "Impossible de supprimer l'espace";
+			throw err;
 		}
-		deleting = false;
-		confirmDelete = false;
+		if (spaceStore.active?.id === spaceId) {
+			spaceStore.clear();
+		}
+		await goto('/spaces');
+		toast.success('Espace supprimé');
 	}
 
-	let isOwner = $derived(space?.role === 'owner');
+	const isOwner = $derived(space?.role === 'owner');
 </script>
 
 <svelte:head>
 	<title>Paramètres — {space?.name ?? 'Espace'} — Courrier</title>
 </svelte:head>
 
-<div class="flex h-full flex-col">
-	<div class="border-b border-border px-4 py-4 md:px-8 md:py-5">
-		<div class="flex items-center gap-3">
-			<a href="/spaces/{spaceId}" class="text-muted-foreground transition-colors hover:text-foreground" aria-label="Retour à l'espace">
-				<iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
-			</a>
-			<div>
-				<h1 class="text-lg font-semibold">Paramètres de l'espace</h1>
-				{#if space}
-					<p class="mt-0.5 text-sm text-muted-foreground">{space.name}</p>
-				{/if}
-			</div>
-		</div>
-	</div>
-
-	<div class="flex-1 overflow-auto px-4 py-6 md:px-8">
+<div class="h-full overflow-auto px-4 py-6 md:px-8">
+	<div class="mx-auto flex max-w-2xl flex-col gap-10">
 		{#if loading}
-			<div class="flex items-center justify-center py-20">
-				<div class="h-6 w-6 animate-spin rounded-full border-2 border-foreground border-t-transparent"></div>
+			<div class="flex flex-col gap-4">
+				<Skeleton class="h-8 w-56" />
+				<Skeleton class="h-56 w-full" />
 			</div>
 		{:else if !space}
-			<div class="flex flex-col items-center justify-center py-20 text-center">
-				<p class="text-sm text-muted-foreground">Espace introuvable ou accès refusé.</p>
-			</div>
+			<EmptyState
+				icon={icons.warning}
+				title="Espace introuvable"
+				description="Il a peut-être été supprimé, ou votre accès a été retiré."
+			>
+				<Button variant="outline" href="/spaces" icon={icons.chevronLeft}>Retour aux espaces</Button>
+			</EmptyState>
 		{:else}
-			<div class="max-w-xl space-y-8">
-				<div class="space-y-4">
-					<h2 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Général</h2>
-					<div>
-						<label for="space-name" class="mb-1.5 block text-sm font-medium">Nom</label>
-						<input
-							id="space-name"
-							type="text"
-							bind:value={name}
-							class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-						/>
-					</div>
-					<div>
-						<label for="space-desc" class="mb-1.5 block text-sm font-medium">Description</label>
-						<textarea
-							id="space-desc"
-							bind:value={description}
-							rows="3"
-							class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-						></textarea>
-					</div>
-					<div class="flex items-center gap-3">
-						<button
-							class="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-							onclick={saveSettings}
-							disabled={saving}
-						>
-							{saving ? 'Enregistrement...' : 'Enregistrer'}
-						</button>
-						{#if message}
-							<span class="text-sm text-muted-foreground">{message}</span>
-						{/if}
-					</div>
+			<div class="flex flex-wrap items-start justify-between gap-4">
+				<div class="flex min-w-0 flex-col gap-1">
+					<h1 class="text-fc-2xl font-semibold text-fc-fg">Paramètres de l'espace</h1>
+					<p class="text-fc-sm text-fc-fg-muted">{space.name}</p>
 				</div>
-
-				{#if isOwner}
-					<div class="space-y-4 border-t border-border pt-8">
-						<h2 class="text-sm font-semibold uppercase tracking-wider text-destructive">Zone de danger</h2>
-						<p class="text-sm text-muted-foreground">
-							Supprimer un espace retire tous les membres. Les données associées deviendront non-assignées.
-						</p>
-						{#if confirmDelete}
-							<div class="flex items-center gap-3">
-								<button
-									class="inline-flex h-9 items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
-									onclick={deleteSpace}
-									disabled={deleting}
-								>
-									<iconify-icon icon="solar:trash-bin-2-linear" width="16"></iconify-icon>
-									{deleting ? 'Suppression...' : 'Confirmer la suppression'}
-								</button>
-								<button
-									class="inline-flex h-9 items-center rounded-md border border-border px-4 text-sm font-medium transition-colors hover:bg-accent"
-									onclick={() => confirmDelete = false}
-								>
-									Annuler
-								</button>
-							</div>
-						{:else}
-							<button
-								class="inline-flex h-9 items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
-								onclick={() => confirmDelete = true}
-								disabled={deleting}
-							>
-								<iconify-icon icon="solar:trash-bin-2-linear" width="16"></iconify-icon>
-								Supprimer l'espace
-							</button>
-						{/if}
-					</div>
-				{/if}
+				<Button variant="ghost" href="/spaces/{spaceId}" icon={icons.chevronLeft}>Espace</Button>
 			</div>
+
+			<SettingsSection title="Général" description="Ce que les membres voient de cet espace.">
+				<Field label="Nom" error={nameError}>
+					<Input bind:value={name} placeholder="ex. Équipe Marketing" />
+				</Field>
+				<Field label="Description" helper="Optionnel — à quoi sert cet espace ?">
+					<Textarea bind:value={description} rows={3} />
+				</Field>
+				<div>
+					<Button icon={icons.check} disabled={saving} onclick={saveSettings}>
+						{saving ? 'Enregistrement…' : 'Enregistrer'}
+					</Button>
+				</div>
+			</SettingsSection>
+
+			{#if isOwner}
+				<SettingsSection
+					title="Zone de danger"
+					description="Supprimer cet espace est immédiat et définitif."
+				>
+					<p class="text-fc-sm text-fc-fg-muted">
+						Tous les membres perdent leur accès, et les comptes mail rattachés à cet espace
+						disparaissent de la liste : ils ne sont ni supprimés ni rendus personnels, ils ne sont
+						simplement plus rattachés à rien. Les identifiants IMAP/SMTP restent en base.
+					</p>
+					<div>
+						<Button variant="danger" icon={icons.remove} onclick={() => (confirmDelete = true)}>
+							Supprimer l'espace
+						</Button>
+					</div>
+				</SettingsSection>
+			{/if}
 		{/if}
 	</div>
 </div>
+
+<ConfirmModal
+	bind:open={confirmDelete}
+	tone="danger"
+	title="Supprimer « {space?.name ?? 'cet espace'} » ?"
+	description="Tous les membres perdent leur accès, et les comptes mail rattachés à cet espace quittent la liste — ils ne réapparaissent pas dans vos comptes personnels. Cette action est définitive."
+	confirmLabel="Supprimer l'espace"
+	onConfirm={deleteSpace}
+	onCancel={() => (deleteError = '')}
+>
+	{#if deleteError}
+		<Alert tone="danger">{deleteError}</Alert>
+	{/if}
+</ConfirmModal>

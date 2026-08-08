@@ -182,6 +182,10 @@
 						<button type="button" class={outlineButtonClass}>Continue with SSO</button>
 					</a>
 				{/if}
+
+				{#if ssoOnly && !oidcEnabled}
+					<p class="text-sm text-destructive">SSO is not configured. Contact your administrator.</p>
+				{/if}
 			{/if}
 		</div>
 	</div>

@@ -1,8 +1,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import {
+		Avatar,
+		Badge,
+		Button,
+		ConfirmModal,
+		EmptyState,
+		Field,
+		Input,
+		Select,
+		Skeleton,
+		Table,
+		icons,
+		toast
+	} from '@facile/muse';
 	import { backend, type SpaceMember, type Space } from '$lib/backend';
-	import { toast } from 'svelte-sonner';
+	import { roleLabel, roleTone } from '../../roles';
 
 	const spaceId = $derived(page.params.id as string);
 
@@ -13,6 +27,9 @@
 	let addRole = $state('member');
 	let addError = $state('');
 	let adding = $state(false);
+
+	let pendingRemoval = $state<SpaceMember | null>(null);
+	let confirmOpen = $state(false);
 
 	onMount(async () => {
 		await loadData();
@@ -34,6 +51,11 @@
 		loading = false;
 	}
 
+	async function refreshMembers() {
+		const res = await backend.listSpaceMembers(spaceId);
+		members = res.members ?? [];
+	}
+
 	async function addMember() {
 		const uid = parseInt(addUserId, 10);
 		if (isNaN(uid)) {
@@ -47,10 +69,10 @@
 			await backend.addSpaceMember(spaceId, { user_id: uid, role: addRole });
 			addUserId = '';
 			addRole = 'member';
-			const res = await backend.listSpaceMembers(spaceId);
-			members = res.members ?? [];
-		} catch (e: any) {
-			addError = e.message || 'Impossible d\'ajouter le membre';
+			await refreshMembers();
+			toast.success('Membre ajouté');
+		} catch (err) {
+			addError = err instanceof Error ? err.message : "Impossible d'ajouter le membre";
 		}
 		adding = false;
 	}
@@ -58,157 +80,171 @@
 	async function updateRole(memberId: string, role: string) {
 		try {
 			await backend.updateSpaceMember(spaceId, memberId, { role });
-			const res = await backend.listSpaceMembers(spaceId);
-			members = res.members ?? [];
+			await refreshMembers();
+			toast.success('Rôle mis à jour');
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Impossible de mettre à jour le rôle');
+			toast.danger(err instanceof Error ? err.message : 'Impossible de mettre à jour le rôle');
+			await refreshMembers();
 		}
 	}
 
-	async function removeMember(memberId: string) {
+	function askRemove(member: SpaceMember) {
+		pendingRemoval = member;
+		confirmOpen = true;
+	}
+
+	async function removeMember() {
+		const member = pendingRemoval;
+		if (!member) return;
 		try {
-			await backend.removeSpaceMember(spaceId, memberId);
-			members = members.filter(m => m.id !== memberId);
+			await backend.removeSpaceMember(spaceId, member.id);
+			members = members.filter((m) => m.id !== member.id);
+			toast.success('Membre retiré');
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Impossible de retirer le membre');
+			toast.danger(err instanceof Error ? err.message : 'Impossible de retirer le membre');
 		}
+		pendingRemoval = null;
 	}
 
-	function roleBadgeClass(role: string): string {
-		switch (role) {
-			case 'owner': return 'bg-amber-500/10 text-amber-600';
-			case 'admin': return 'bg-blue-500/10 text-blue-600';
-			default: return 'bg-muted text-muted-foreground';
-		}
-	}
-
-	let isOwnerOrAdmin = $derived(space?.role === 'owner' || space?.role === 'admin');
-	let isOwner = $derived(space?.role === 'owner');
+	const isOwnerOrAdmin = $derived(space?.role === 'owner' || space?.role === 'admin');
+	const isOwner = $derived(space?.role === 'owner');
 </script>
 
 <svelte:head>
 	<title>Membres — {space?.name ?? 'Espace'} — Courrier</title>
 </svelte:head>
 
-<div class="flex h-full flex-col">
-	<div class="border-b border-border px-4 py-4 md:px-8 md:py-5">
-		<div class="flex items-center gap-3">
-			<a href="/spaces/{spaceId}" class="text-muted-foreground transition-colors hover:text-foreground" aria-label="Retour à l'espace">
-				<iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
-			</a>
-			<div>
-				<h1 class="text-lg font-semibold">Membres</h1>
-				{#if space}
-					<p class="mt-0.5 text-sm text-muted-foreground">{space.name}</p>
-				{/if}
-			</div>
-		</div>
-	</div>
-
-	<div class="flex-1 overflow-auto px-4 py-6 md:px-8">
+<div class="h-full overflow-auto px-4 py-6 md:px-8">
+	<div class="mx-auto flex max-w-4xl flex-col gap-10">
 		{#if loading}
-			<div class="flex items-center justify-center py-20">
-				<div class="h-6 w-6 animate-spin rounded-full border-2 border-foreground border-t-transparent"></div>
+			<div class="flex flex-col gap-4">
+				<Skeleton class="h-8 w-56" />
+				<Skeleton class="h-40 w-full" />
 			</div>
 		{:else if !space}
-			<div class="flex flex-col items-center justify-center py-20 text-center">
-				<p class="text-sm text-muted-foreground">Espace introuvable ou accès refusé.</p>
-			</div>
+			<EmptyState
+				icon={icons.warning}
+				title="Espace introuvable"
+				description="Il a peut-être été supprimé, ou votre accès a été retiré."
+			>
+				<Button variant="outline" href="/spaces" icon={icons.chevronLeft}>Retour aux espaces</Button>
+			</EmptyState>
 		{:else}
-			<div class="max-w-2xl space-y-8">
-				{#if isOwnerOrAdmin}
-					<div class="space-y-3">
-						<h2 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Ajouter un membre</h2>
-						<div class="flex items-end gap-2">
-							<div class="flex-1">
-								<label for="user-id" class="mb-1.5 block text-sm font-medium">ID utilisateur</label>
-								<input
-									id="user-id"
-									type="text"
-									bind:value={addUserId}
-									placeholder="Entrez l'ID utilisateur"
-									class="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								/>
-							</div>
-							<div class="w-32">
-								<label for="add-role" class="mb-1.5 block text-sm font-medium">Rôle</label>
-								<select
-									id="add-role"
-									bind:value={addRole}
-									class="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								>
-									<option value="member">Membre</option>
-									<option value="admin">Admin</option>
-								</select>
-							</div>
-							<button
-								class="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-								onclick={addMember}
-								disabled={adding}
-							>
-								{adding ? 'Ajout...' : 'Ajouter'}
-							</button>
-						</div>
-						{#if addError}
-							<p class="text-sm text-destructive">{addError}</p>
-						{/if}
-					</div>
-				{/if}
-
-				<div class="space-y-3">
-					<h2 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-						{members.length} membre{members.length !== 1 ? 's' : ''}
-					</h2>
-
-					{#each members as member}
-						<div class="flex items-center justify-between rounded-lg border border-border p-3">
-							<div class="flex items-center gap-3">
-								<div
-									class="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold"
-								>
-									{(member.name || member.email || '?').slice(0, 2).toUpperCase()}
-								</div>
-								<div>
-									<p class="text-sm font-medium">{member.name || member.email}</p>
-									{#if member.name}
-										<p class="text-xs text-muted-foreground">{member.email}</p>
-									{/if}
-								</div>
-							</div>
-							<div class="flex items-center gap-2">
-								{#if member.role === 'owner'}
-									<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {roleBadgeClass('owner')}">
-										owner
-									</span>
-								{:else if isOwnerOrAdmin}
-									<select
-										value={member.role}
-										onchange={(e) => updateRole(member.id, (e.target as HTMLSelectElement).value)}
-										class="h-8 rounded-md border border-border bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-									>
-										<option value="member">Membre</option>
-										<option value="admin">Admin</option>
-										{#if isOwner}
-											<option value="owner">Owner</option>
-										{/if}
-									</select>
-									<button
-										class="inline-flex h-8 items-center rounded-md px-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
-										onclick={() => removeMember(member.id)}
-										aria-label="Retirer le membre"
-									>
-										<iconify-icon icon="solar:trash-bin-2-linear" width="14"></iconify-icon>
-									</button>
-								{:else}
-									<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {roleBadgeClass(member.role)}">
-										{member.role}
-									</span>
-								{/if}
-							</div>
-						</div>
-					{/each}
+			<div class="flex flex-wrap items-start justify-between gap-4">
+				<div class="flex min-w-0 flex-col gap-1">
+					<h1 class="text-fc-2xl font-semibold text-fc-fg">Membres</h1>
+					<p class="text-fc-sm text-fc-fg-muted">{space.name}</p>
 				</div>
+				<Button variant="ghost" href="/spaces/{spaceId}" icon={icons.chevronLeft}>Espace</Button>
 			</div>
+
+			{#if isOwnerOrAdmin}
+				<section class="flex flex-col gap-4">
+					<div class="flex flex-col gap-1">
+						<h2 class="text-fc-lg font-semibold text-fc-fg">Ajouter un membre</h2>
+						<p class="text-fc-sm text-fc-fg-muted">
+							Un membre voit les comptes mail rattachés à cet espace.
+						</p>
+					</div>
+					<div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+						<div class="min-w-0 flex-1">
+							<Field label="ID utilisateur" error={addError}>
+								<Input bind:value={addUserId} placeholder="ex. 42" />
+							</Field>
+						</div>
+						<Field label="Rôle">
+							<Select bind:value={addRole} class="min-w-36">
+								<option value="member">Membre</option>
+								<option value="admin">Admin</option>
+							</Select>
+						</Field>
+						<Button icon={icons.plus} size="lg" disabled={adding} onclick={addMember}>
+							{adding ? 'Ajout…' : 'Ajouter'}
+						</Button>
+					</div>
+				</section>
+			{/if}
+
+			<section class="flex flex-col gap-4">
+				<h2 class="text-fc-lg font-semibold text-fc-fg">
+					{members.length} membre{members.length !== 1 ? 's' : ''}
+				</h2>
+
+				{#if members.length === 0}
+					<EmptyState
+						icon={icons.usersGroup}
+						title="Personne ici pour l'instant"
+						description="Ajoutez un coéquipier au-dessus et il verra cet espace immédiatement."
+					/>
+				{:else}
+					<Table>
+						<thead>
+							<tr>
+								<th scope="col">Membre</th>
+								<th scope="col">Rôle</th>
+								<th scope="col"><span class="sr-only">Actions</span></th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each members as member (member.id)}
+								<tr>
+									<td>
+										<div class="flex min-w-0 items-center gap-3">
+											<Avatar name={member.name || member.email} size="sm" />
+											<div class="min-w-0">
+												<p class="truncate font-medium text-fc-fg">{member.name || member.email}</p>
+												{#if member.name}
+													<p class="truncate text-fc-xs text-fc-fg-muted">{member.email}</p>
+												{/if}
+											</div>
+										</div>
+									</td>
+									<td>
+										{#if member.role === 'owner' || !isOwnerOrAdmin}
+											<Badge tone={roleTone(member.role)}>{roleLabel(member.role)}</Badge>
+										{:else}
+											<Select
+												value={member.role}
+												class="min-w-32"
+												aria-label="Rôle de {member.name || member.email}"
+												onchange={(e) => updateRole(member.id, (e.currentTarget as HTMLSelectElement).value)}
+											>
+												<option value="member">Membre</option>
+												<option value="admin">Admin</option>
+												{#if isOwner}
+													<option value="owner">Propriétaire</option>
+												{/if}
+											</Select>
+										{/if}
+									</td>
+									<td>
+										{#if member.role !== 'owner' && isOwnerOrAdmin}
+											<Button
+												variant="ghost-danger"
+												size="sm"
+												icon={icons.remove}
+												onclick={() => askRemove(member)}
+											>
+												Retirer
+											</Button>
+										{/if}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</Table>
+				{/if}
+			</section>
 		{/if}
 	</div>
 </div>
+
+<ConfirmModal
+	bind:open={confirmOpen}
+	tone="danger"
+	title="Retirer {pendingRemoval?.name || pendingRemoval?.email || 'ce membre'} ?"
+	description="Cette personne perd l'accès à l'espace et aux comptes mail qui y sont rattachés. Son propre compte Courrier et ses boîtes personnelles ne sont pas touchés."
+	confirmLabel="Retirer le membre"
+	onConfirm={removeMember}
+	onCancel={() => (pendingRemoval = null)}
+/>
