@@ -1,23 +1,39 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { getContext } from 'svelte';
+	import type { Attachment } from 'svelte/attachments';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { backend, type EmailMessage, type MailAccount } from '$lib/backend';
 	import { mailCache } from '$lib/stores/mail-cache';
 	import { searchStore } from '$lib/stores/search.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Input } from '$lib/components/ui/input';
+	import {
+		Badge,
+		Button,
+		Checkbox,
+		ConfirmModal,
+		EmptyState,
+		IconButton,
+		Input,
+		Skeleton,
+		Spinner,
+		icons,
+		toast
+	} from '@facile/muse';
 	import * as Resizable from '$lib/components/ui/resizable';
-	import { toast } from 'svelte-sonner';
-	import { RefreshCw, Reply, ReplyAll, Forward, Loader2, Trash2, Archive, Mail, ArrowLeft, Search, X } from 'lucide-svelte';
 	import EmailItem from '$lib/components/EmailItem.svelte';
 	import ThreadView from '$lib/components/ThreadView.svelte';
 	import BulkActionBar from '$lib/components/BulkActionBar.svelte';
-	import DeleteConfirmDialog from '$lib/components/DeleteConfirmDialog.svelte';
 	import MailFolderSwitcher from '$lib/components/MailFolderSwitcher.svelte';
 
 	let { folder }: { folder: string } = $props();
+
+	/* Glyphs an email client needs that muse's `icons` map has no key for yet. */
+	const mailIcons = {
+		reply: 'solar:reply-linear',
+		replyAll: 'solar:multiple-forward-left-linear',
+		forward: 'solar:forward-linear',
+		archive: 'solar:archive-linear'
+	};
 
 	const app = getContext<{
 		defaultAccountId: number | null;
@@ -57,6 +73,14 @@
 	let searchQuery = $state('');
 	let debouncedQuery = $state('');
 	let inputEl = $state<HTMLInputElement | null>(null);
+	/* muse's `Input` renders the <input> itself and exposes no element binding, so the node
+	   comes back through an attachment — the same trick muse's own ConfirmModal uses. */
+	const captureInput: Attachment<HTMLInputElement> = (node) => {
+		inputEl = node;
+		return () => {
+			inputEl = null;
+		};
+	};
 	let loadSeq = 0;
 	let seenFocusSeq = searchStore.focusSeq;
 
@@ -68,6 +92,7 @@
 	const selectionActive = $derived(checkedIds.size > 0);
 	const allChecked = $derived(emails.length > 0 && emails.every((e) => checkedIds.has(e.id)));
 	const searchMode = $derived(debouncedQuery.trim() !== '');
+	const deleteCount = $derived(deleteTarget.length);
 	const LIMIT = 30;
 
 	let animatedKeys = new Set<string>();
@@ -265,7 +290,7 @@
 			deleteTarget = [];
 			toast.success(isTrash ? `${count} permanently deleted` : `${count} moved to trash`);
 		} catch {
-			toast.error('Failed to delete');
+			toast.danger('Failed to delete');
 		}
 		bulkLoading = false;
 	}
@@ -283,7 +308,7 @@
 			checkedIds = new Set();
 			toast.success(`${ids.length} archived`);
 		} catch {
-			toast.error('Failed to archive');
+			toast.danger('Failed to archive');
 		}
 		bulkLoading = false;
 	}
@@ -303,7 +328,7 @@
 			}
 			checkedIds = new Set();
 		} catch {
-			toast.error('Failed to mark as read');
+			toast.danger('Failed to mark as read');
 		}
 		bulkLoading = false;
 	}
@@ -317,7 +342,7 @@
 			emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: false, unread_count: e.message_count ?? 1 } : e));
 			checkedIds = new Set();
 		} catch {
-			toast.error('Failed to mark as unread');
+			toast.danger('Failed to mark as unread');
 		}
 		bulkLoading = false;
 	}
@@ -337,7 +362,7 @@
 			if (selectedId === emailId) selectedId = null;
 			toast.success('Archived');
 		} catch {
-			toast.error('Failed to archive');
+			toast.danger('Failed to archive');
 		}
 	}
 
@@ -461,73 +486,104 @@
 	});
 </script>
 
-<DeleteConfirmDialog bind:open={deleteDialogOpen} count={deleteTarget.length} permanent={isTrash} onconfirm={confirmDelete} />
+<ConfirmModal
+	bind:open={deleteDialogOpen}
+	tone="danger"
+	icon={icons.remove}
+	title={isTrash
+		? `Permanently delete ${deleteCount === 1 ? 'this email' : `${deleteCount} emails`}?`
+		: `Delete ${deleteCount === 1 ? 'this email' : `${deleteCount} emails`}?`}
+	description={isTrash
+		? `This cannot be undone. ${deleteCount === 1 ? 'This email' : 'These emails'} will be permanently removed.`
+		: `${deleteCount === 1 ? 'This email' : 'These emails'} will be moved to Trash. You can restore ${deleteCount === 1 ? 'it' : 'them'} from there.`}
+	confirmLabel="Delete"
+	onConfirm={confirmDelete}
+/>
 
 {#snippet listPane()}
 	<div class="flex h-full flex-col">
-		<div class="border-b">
-			<div class="px-4 pt-3 pb-2">
-				<div class="relative">
-					<Search class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-					<Input
-						bind:ref={inputEl}
-						bind:value={searchQuery}
-						onkeydown={onSearchKeydown}
-						placeholder="Search all mail…"
-						aria-label="Search all mail"
-						aria-keyshortcuts="Meta+K Control+K"
-						class="h-9 pl-8 pr-12"
-					/>
-					{#if searchQuery}
-						<button
-							type="button"
-							aria-label="Clear search"
-							class="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-							onclick={clearSearch}
-						>
-							<X class="h-3.5 w-3.5" />
-						</button>
-					{:else}
-						<kbd
-							class="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground md:flex"
-						>⌘K</kbd>
-					{/if}
-				</div>
+		<div class="flex flex-col gap-3 border-b border-fc-border px-4 py-3">
+			<div class="relative">
+				<iconify-icon
+					icon={icons.search}
+					width="16"
+					height="16"
+					class="pointer-events-none absolute left-3 top-1/2 block size-4 -translate-y-1/2 text-fc-fg-muted"
+				></iconify-icon>
+				<Input
+					{@attach captureInput}
+					bind:value={searchQuery}
+					onkeydown={onSearchKeydown}
+					placeholder="Search all mail…"
+					aria-label="Search all mail"
+					aria-keyshortcuts="Meta+K Control+K"
+					class="pl-9 pr-14 text-fc-sm"
+				/>
+				{#if searchQuery}
+					<IconButton
+						variant="ghost"
+						aria-label="Clear search"
+						class="absolute right-0 top-0"
+						onclick={clearSearch}
+					>
+						<iconify-icon icon={icons.close} width="16" height="16" class="block size-4"
+						></iconify-icon>
+					</IconButton>
+				{:else}
+					<kbd
+						class="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center rounded-fc-xs bg-fc-surface px-1.5 py-0.5 text-fc-xs font-medium text-fc-fg-muted md:flex"
+						>⌘K</kbd
+					>
+				{/if}
 			</div>
-			<div class="flex items-center justify-between px-4 pb-3">
-				<div class="flex items-center gap-2">
+			<div class="flex items-center justify-between gap-2">
+				<div class="flex min-w-0 items-center gap-2">
 					{#if emails.length > 0}
-						<button
+						<Checkbox
+							checked={allChecked}
 							aria-label={allChecked ? 'Deselect all' : 'Select all'}
-							class="flex h-6 w-6 items-center justify-center rounded hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-							onclick={toggleAll}
-						>
-							<Checkbox checked={allChecked} class="h-4 w-4" />
-						</button>
+							onchange={toggleAll}
+							class="size-8 shrink-0 justify-center"
+						/>
 					{/if}
 					{#if searchMode}
-						<h2 class="text-lg font-semibold">Search</h2>
-						<span class="text-sm text-muted-foreground">{totalEmails} result{totalEmails === 1 ? '' : 's'}</span>
+						<h2 class="truncate text-fc-lg font-semibold text-fc-fg">Search</h2>
+						<span class="shrink-0 text-fc-sm text-fc-fg-muted">
+							{totalEmails} result{totalEmails === 1 ? '' : 's'}
+						</span>
 					{:else}
-						<h2 class="hidden text-lg font-semibold md:block">{folderLabel}</h2>
-						<div class="md:hidden">
+						<h2 class="hidden truncate text-fc-lg font-semibold text-fc-fg md:block">{folderLabel}</h2>
+						<div class="min-w-0 md:hidden">
 							<MailFolderSwitcher folders={app.folders} />
 						</div>
 					{/if}
 				</div>
-				<div class="flex items-center gap-1">
+				<div class="flex shrink-0 items-center gap-1">
 					<Button
-						variant="ghost"
 						size="sm"
-						class="h-8 gap-1.5 px-2 text-xs {showUnreadOnly ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'}"
-						onclick={() => { showUnreadOnly = !showUnreadOnly; }}
+						variant={showUnreadOnly ? 'primary' : 'ghost'}
+						icon={icons.mail}
+						aria-pressed={showUnreadOnly}
+						onclick={() => {
+							showUnreadOnly = !showUnreadOnly;
+						}}
 					>
-						<Mail class="h-4 w-4" />
 						Unread
 					</Button>
-					<Button variant="ghost" size="icon" aria-label="Refresh" class="h-8 w-8" onclick={syncAndLoad} disabled={syncing}>
-						<RefreshCw class="h-4 w-4 {syncing ? 'animate-spin' : ''}" />
-					</Button>
+					<IconButton
+						variant="ghost"
+						aria-label="Refresh"
+						title="Refresh"
+						disabled={syncing}
+						onclick={syncAndLoad}
+					>
+						<iconify-icon
+							icon={icons.refresh}
+							width="18"
+							height="18"
+							class="block size-4.5 {syncing ? 'animate-spin motion-reduce:animate-none' : ''}"
+						></iconify-icon>
+					</IconButton>
 				</div>
 			</div>
 		</div>
@@ -544,30 +600,41 @@
 
 		<div class="flex-1 overflow-auto" bind:this={listContainer}>
 			{#if loading}
-				<div class="flex flex-col gap-0">
-					{#each Array(5) as _, i}
-						<div class="px-4 py-3 border-b mail-skeleton" style="--delay: {i * 80}ms">
-							<div class="flex items-center gap-3">
-								<div class="h-8 w-8 shrink-0 rounded-full bg-muted skeleton-pulse"></div>
-								<div class="min-w-0 flex-1 space-y-2">
-									<div class="flex items-center justify-between gap-2">
-										<div class="h-3.5 w-28 rounded bg-muted skeleton-pulse"></div>
-										<div class="h-3 w-10 rounded bg-muted skeleton-pulse"></div>
-									</div>
-									<div class="h-3 w-40 rounded bg-muted skeleton-pulse"></div>
-								</div>
+				<!-- Skeleton rows, not a centred spinner: same padding, same avatar size and the
+				     same two text lines as a real row, so nothing moves when the data lands. -->
+				{#each Array(8) as _, i (i)}
+					<div
+						class="mail-skeleton flex items-center gap-3 border-b border-fc-border px-4 py-2.5"
+						style="--delay: {i * 60}ms"
+					>
+						<Skeleton class="size-8 shrink-0 rounded-fc-pill" />
+						<div class="flex min-w-0 flex-1 flex-col gap-1.5">
+							<div class="flex items-center justify-between gap-2">
+								<Skeleton class="h-4 w-28" />
+								<Skeleton class="h-3 w-10" />
 							</div>
+							<Skeleton class="h-3.5 w-48" />
 						</div>
-					{/each}
-				</div>
+					</div>
+				{/each}
 			{:else if emails.length === 0}
-				<div class="flex h-full flex-col items-center justify-center px-6 text-center text-muted-foreground mail-fade-in">
+				<div class="mail-fade-in flex h-full items-center justify-center px-4">
 					{#if searchMode}
-						<Search class="h-8 w-8 text-muted-foreground/40" />
-						<p class="mt-3 text-sm font-medium">No messages match “{debouncedQuery.trim()}”</p>
+						<EmptyState
+							bare
+							icon={icons.search}
+							title="No messages match “{debouncedQuery.trim()}”"
+							description="Try a different sender, subject or word from the body."
+						/>
 					{:else}
-						<Mail class="h-8 w-8 text-muted-foreground/40" />
-						<p class="mt-3 text-sm font-medium">{showUnreadOnly ? `No unread emails in ${folderLabel}` : `No emails in ${folderLabel}`}</p>
+						<EmptyState
+							bare
+							icon={icons.mail}
+							title={showUnreadOnly ? `No unread email in ${folderLabel}` : `No email in ${folderLabel}`}
+							description={showUnreadOnly
+								? 'Everything here has been read.'
+								: 'New messages appear here after a sync.'}
+						/>
 					{/if}
 				</div>
 			{:else}
@@ -591,7 +658,7 @@
 				{/each}
 				{#if loadingMore}
 					<div class="flex items-center justify-center py-4">
-						<Loader2 class="h-4 w-4 animate-spin text-muted-foreground" />
+						<Spinner size="sm" label="Loading more messages" />
 					</div>
 				{/if}
 				<div bind:this={sentinel} class="h-1"></div>
@@ -603,36 +670,66 @@
 {#snippet readingPane()}
 	<div class="flex h-full flex-col">
 		{#if selected}
-			<div class="border-b px-4 py-4 sm:px-6 mail-detail-header">
+			<div class="mail-detail-header flex flex-col gap-2 border-b border-fc-border px-4 py-4 sm:px-6">
 				<div class="flex items-center gap-2">
-					<h1 class="text-xl font-semibold">{selected.subject || '(no subject)'}</h1>
+					<h1 class="text-fc-xl font-semibold text-fc-fg">{selected.subject || '(no subject)'}</h1>
 					{#if threadMessages.length > 1}
-						<span class="rounded-full bg-muted px-1.5 text-xs font-medium tabular-nums text-muted-foreground">{threadMessages.length}</span>
+						<Badge tone="neutral" class="tabular-nums">{threadMessages.length}</Badge>
 					{/if}
 				</div>
-				<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-					<span class="font-medium text-foreground">{selected.from_name || selected.from_address}</span>
+				<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-fc-sm text-fc-fg-muted">
+					<span class="font-medium text-fc-fg">{selected.from_name || selected.from_address}</span>
 					<span>&lt;{selected.from_address}&gt;</span>
 					<div class="ml-auto flex items-center gap-1">
-						<Button variant="ghost" size="icon" aria-label="Reply" class="h-7 w-7" onclick={() => goto(`/mail/compose?reply=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}>
-							<Reply class="h-4 w-4" />
-						</Button>
-						<Button variant="ghost" size="icon" aria-label="Reply all" class="h-7 w-7" onclick={() => goto(`/mail/compose?replyall=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}>
-							<ReplyAll class="h-4 w-4" />
-						</Button>
-						<Button variant="ghost" size="icon" aria-label="Forward" class="h-7 w-7" onclick={() => goto(`/mail/compose?forward=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}>
-							<Forward class="h-4 w-4" />
-						</Button>
-						<div class="mx-1 h-4 w-px bg-border"></div>
+						<IconButton
+							variant="ghost"
+							aria-label="Reply"
+							title="Reply"
+							onclick={() => goto(`/mail/compose?reply=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}
+						>
+							<iconify-icon icon={mailIcons.reply} width="18" height="18" class="block size-4.5"
+							></iconify-icon>
+						</IconButton>
+						<IconButton
+							variant="ghost"
+							aria-label="Reply all"
+							title="Reply all"
+							onclick={() => goto(`/mail/compose?replyall=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}
+						>
+							<iconify-icon icon={mailIcons.replyAll} width="18" height="18" class="block size-4.5"
+							></iconify-icon>
+						</IconButton>
+						<IconButton
+							variant="ghost"
+							aria-label="Forward"
+							title="Forward"
+							onclick={() => goto(`/mail/compose?forward=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}
+						>
+							<iconify-icon icon={mailIcons.forward} width="18" height="18" class="block size-4.5"
+							></iconify-icon>
+						</IconButton>
+						<span class="mx-1 h-5 w-px shrink-0 bg-fc-border"></span>
 						{#if folder !== 'archive'}
-							<Button variant="ghost" size="icon" aria-label="Archive" class="h-7 w-7" onclick={() => handleSingleArchive(selected!.id)}>
-								<Archive class="h-4 w-4" />
-							</Button>
+							<IconButton
+								variant="ghost"
+								aria-label="Archive"
+								title="Archive"
+								onclick={() => handleSingleArchive(selected!.id)}
+							>
+								<iconify-icon icon={mailIcons.archive} width="18" height="18" class="block size-4.5"
+								></iconify-icon>
+							</IconButton>
 						{/if}
-						<Button variant="ghost" size="icon" aria-label="Delete" class="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onclick={() => handleSingleDelete(selected!.id)}>
-							<Trash2 class="h-4 w-4" />
-						</Button>
-						<span class="ml-2 text-xs">{formatDate(selected.date)}</span>
+						<IconButton
+							variant="danger"
+							aria-label="Delete"
+							title="Delete"
+							onclick={() => handleSingleDelete(selected!.id)}
+						>
+							<iconify-icon icon={icons.remove} width="18" height="18" class="block size-4.5"
+							></iconify-icon>
+						</IconButton>
+						<span class="ml-2 shrink-0 text-fc-xs">{formatDate(selected.date)}</span>
 					</div>
 				</div>
 			</div>
@@ -642,8 +739,13 @@
 				{/key}
 			</div>
 		{:else}
-			<div class="flex flex-1 items-center justify-center text-muted-foreground">
-				<p class="text-sm">Select an email to read</p>
+			<div class="flex flex-1 items-center justify-center px-4">
+				<EmptyState
+					bare
+					icon={icons.mail}
+					title="Nothing open"
+					description="Pick a message on the left to read it here."
+				/>
 			</div>
 		{/if}
 	</div>
@@ -661,9 +763,8 @@
 	</Resizable.PaneGroup>
 {:else if selected}
 	<div class="flex h-full flex-col">
-		<div class="flex flex-shrink-0 items-center border-b px-2 py-1.5">
-			<Button variant="ghost" size="sm" class="gap-1.5" onclick={() => (selectedId = null)}>
-				<ArrowLeft class="h-4 w-4" />
+		<div class="flex flex-shrink-0 items-center border-b border-fc-border px-2 py-1.5">
+			<Button variant="ghost" size="sm" icon={icons.chevronLeft} onclick={() => (selectedId = null)}>
 				Back
 			</Button>
 		</div>
@@ -688,10 +789,6 @@
 
 		.mail-fade-in {
 			animation: mail-fade-in 200ms ease-out both;
-		}
-
-		.skeleton-pulse {
-			animation: skeleton-pulse 1.5s ease-in-out infinite;
 		}
 
 		.mail-skeleton {
@@ -719,15 +816,6 @@
 		to {
 			opacity: 1;
 			transform: translateX(0);
-		}
-	}
-
-	@keyframes skeleton-pulse {
-		0%, 100% {
-			opacity: 0.4;
-		}
-		50% {
-			opacity: 0.8;
 		}
 	}
 </style>

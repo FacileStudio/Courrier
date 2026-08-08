@@ -4,16 +4,30 @@
 	import { getContext, onMount, onDestroy } from 'svelte';
 	import { backend, type MailAccount } from '$lib/backend';
 	import { spaceStore } from '$lib/stores/space.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Badge } from '$lib/components/ui/badge';
-	import { toast } from 'svelte-sonner';
-	import { X, SendHorizonal, Paperclip, FileText, Type, LayoutTemplate } from 'lucide-svelte';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import {
+		Badge,
+		Button,
+		EmptyState,
+		Field,
+		IconButton,
+		Input,
+		Modal,
+		Textarea,
+		icons,
+		toast
+	} from '@facile/muse';
 	import type { EmailTemplate } from '$lib/backend';
 	import TiptapEditor from '$lib/components/TiptapEditor.svelte';
 	import AddressInput from '$lib/components/AddressInput.svelte';
+
+	/* Glyphs an email client needs that muse's `icons` map has no key for yet. */
+	const mailIcons = {
+		paperclip: 'solar:paperclip-linear',
+		send: 'solar:plain-linear',
+		template: 'solar:document-text-linear',
+		richText: 'solar:text-square-linear',
+		plainText: 'solar:text-linear'
+	};
 
 	const app = getContext<{
 		defaultAccountId: number | null;
@@ -36,6 +50,7 @@
 
 	let plainTextMode = $state(false);
 	let templates = $state<EmailTemplate[]>([]);
+	let templatesOpen = $state(false);
 
 	let draftId = $state<number | null>(null);
 	let lastSaved = $state<string | null>(null);
@@ -134,6 +149,7 @@
 			initialContent = paragraphs;
 		}
 		bodyPlainText = tmpl.body_text || tmpl.body_html?.replace(/<[^>]*>/g, '') || '';
+		templatesOpen = false;
 	}
 
 	$effect(() => {
@@ -169,7 +185,7 @@
 				references = draft.references ? draft.references.split(/\s+/).filter(Boolean) : [];
 				draftId = parseInt(loadDraftId);
 			} catch {
-				toast.error('Failed to load draft');
+				toast.danger('Failed to load draft');
 			}
 		} else if (emailId && accountId) {
 			try {
@@ -219,7 +235,7 @@
 					initialContent = `<p><br></p>${signatureHtml}<p><br></p>${forwardBlock}`;
 				}
 			} catch {
-				toast.error('Failed to load original email');
+				toast.danger('Failed to load original email');
 			}
 		}
 
@@ -282,7 +298,7 @@
 			toast.success('Email sent');
 			goto('/mail');
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to send');
+			toast.danger(err instanceof Error ? err.message : 'Failed to send');
 		}
 		sending = false;
 	}
@@ -292,138 +308,117 @@
 	<title>Compose — Courrier</title>
 </svelte:head>
 
-<input
-	type="file"
-	multiple
-	class="hidden"
-	bind:this={fileInput}
-	onchange={handleFileSelect}
-/>
+<input type="file" multiple class="hidden" bind:this={fileInput} onchange={handleFileSelect} />
 
 <div class="flex h-full flex-col">
-	<div class="flex items-center justify-between border-b px-6 py-3">
-		<div class="flex items-center gap-3">
-			<h2 class="text-lg font-semibold">New message</h2>
+	<div class="flex items-center justify-between gap-3 border-b border-fc-border px-4 py-3 sm:px-6">
+		<div class="flex min-w-0 items-center gap-3">
+			<h2 class="truncate text-fc-lg font-semibold text-fc-fg">New message</h2>
 			{#if lastSaved}
-				<span class="text-xs text-muted-foreground">Draft saved {lastSaved}</span>
+				<span class="shrink-0 text-fc-xs text-fc-fg-muted">Draft saved {lastSaved}</span>
 			{/if}
 		</div>
-		<div class="flex items-center gap-1">
+		<div class="flex shrink-0 items-center gap-1">
 			{#if templates.length > 0}
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
-						<Button
-							variant="ghost"
-							size="icon"
-							class="h-8 w-8"
-							title="Use template"
-						>
-							<LayoutTemplate class="h-4 w-4" />
-						</Button>
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="end" class="w-56">
-						<DropdownMenu.Label>Templates</DropdownMenu.Label>
-						<DropdownMenu.Separator />
-						{#each templates as tmpl}
-							<DropdownMenu.Item onclick={() => applyTemplate(tmpl)}>
-								<div class="flex flex-col gap-0.5">
-									<span class="text-sm">{tmpl.name}</span>
-									{#if tmpl.subject}
-										<span class="text-xs text-muted-foreground">{tmpl.subject}</span>
-									{/if}
-								</div>
-							</DropdownMenu.Item>
-						{/each}
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
+				<IconButton
+					variant="ghost"
+					aria-label="Use template"
+					title="Use template"
+					onclick={() => (templatesOpen = true)}
+				>
+					<iconify-icon icon={mailIcons.template} width="18" height="18" class="block size-4.5"
+					></iconify-icon>
+				</IconButton>
 			{/if}
-			<Button
+			<IconButton
 				variant="ghost"
-				size="icon"
-				class="h-8 w-8"
+				aria-label={plainTextMode ? 'Switch to rich text' : 'Switch to plain text'}
 				title={plainTextMode ? 'Switch to rich text' : 'Switch to plain text'}
 				onclick={togglePlainText}
 			>
-				{#if plainTextMode}
-					<Type class="h-4 w-4" />
-				{:else}
-					<FileText class="h-4 w-4" />
-				{/if}
-			</Button>
-			<Button
+				<iconify-icon
+					icon={plainTextMode ? mailIcons.richText : mailIcons.plainText}
+					width="18"
+					height="18"
+					class="block size-4.5"
+				></iconify-icon>
+			</IconButton>
+			<IconButton
 				variant="ghost"
-				size="icon"
-				class="h-8 w-8"
+				aria-label="Attach files"
 				title="Attach files"
 				onclick={() => fileInput.click()}
 			>
-				<Paperclip class="h-4 w-4" />
-			</Button>
-			<div class="mx-1 h-4 w-px bg-border"></div>
-			<Button variant="ghost" size="sm" class="gap-1.5" onclick={() => goto('/mail')}>
-				<X class="h-4 w-4" />
-				Cancel
-			</Button>
-			<Button size="sm" class="gap-1.5" disabled={sending || !to.trim() || !app.defaultAccountId} onclick={send}>
-				<SendHorizonal class="h-4 w-4" />
-				{sending ? 'Sending...' : 'Send'}
+				<iconify-icon icon={mailIcons.paperclip} width="18" height="18" class="block size-4.5"
+				></iconify-icon>
+			</IconButton>
+			<span class="mx-1 h-5 w-px shrink-0 bg-fc-border"></span>
+			<Button variant="ghost" size="sm" icon={icons.close} onclick={() => goto('/mail')}>Cancel</Button>
+			<Button
+				size="sm"
+				icon={mailIcons.send}
+				disabled={sending || !to.trim() || !app.defaultAccountId}
+				onclick={send}
+			>
+				{sending ? 'Sending…' : 'Send'}
 			</Button>
 		</div>
 	</div>
 
 	{#if app.accounts.length === 0}
-		<div class="flex flex-1 items-center justify-center text-muted-foreground">
-			<div class="text-center">
-				<p class="text-sm">No mail accounts configured</p>
-				<p class="text-xs mt-1">Add one in Settings first</p>
-			</div>
+		<div class="flex flex-1 items-center justify-center px-4">
+			<EmptyState
+				bare
+				icon={icons.mail}
+				title="No mail account configured"
+				description="Add an IMAP/SMTP account before sending anything."
+			>
+				<Button href="/settings" iconRight={icons.arrow}>Open settings</Button>
+			</EmptyState>
 		</div>
 	{:else}
-		<div class="flex flex-col gap-0 border-b">
-			<div class="flex items-center border-b px-6">
+		<div class="flex flex-col gap-4 border-b border-fc-border px-4 py-4 sm:px-6">
+			<Field label="To">
 				<AddressInput
-					id="to"
-					label="To"
 					value={to}
-					onchange={(v) => { to = v; scheduleDraftSave(); }}
+					onchange={(v) => {
+						to = v;
+						scheduleDraftSave();
+					}}
 					accountId={app.defaultAccountId ?? 0}
 					placeholder="recipient@example.com"
 				/>
-			</div>
-			<div class="flex items-center border-b px-6">
+			</Field>
+			<Field label="Cc">
 				<AddressInput
-					id="cc"
-					label="Cc"
 					value={cc}
-					onchange={(v) => { cc = v; scheduleDraftSave(); }}
+					onchange={(v) => {
+						cc = v;
+						scheduleDraftSave();
+					}}
 					accountId={app.defaultAccountId ?? 0}
 					placeholder="cc@example.com"
 				/>
-			</div>
-			<div class="flex items-center px-6">
-				<Label for="subject" class="w-16 shrink-0 text-sm text-muted-foreground">Subject</Label>
-				<Input
-					id="subject"
-					bind:value={subject}
-					oninput={scheduleDraftSave}
-					placeholder="Subject"
-					class="border-0 shadow-none focus-visible:ring-0 rounded-none"
-				/>
-			</div>
+			</Field>
+			<Field label="Subject">
+				<Input bind:value={subject} oninput={scheduleDraftSave} placeholder="Subject" />
+			</Field>
 		</div>
 
 		{#if attachedFiles.length > 0}
-			<div class="flex flex-wrap gap-2 border-b px-6 py-2">
-				{#each attachedFiles as file, i}
-					<Badge variant="secondary" class="gap-1.5 pr-1">
-						<span class="max-w-[200px] truncate">{file.name}</span>
-						<span class="text-muted-foreground">({formatFileSize(file.size)})</span>
+			<div class="flex flex-wrap gap-2 border-b border-fc-border px-4 py-3 sm:px-6">
+				{#each attachedFiles as file, i (`${file.name}-${i}`)}
+					<Badge tone="neutral" class="max-w-full pr-1">
+						<span class="max-w-48 truncate">{file.name}</span>
+						<span>({formatFileSize(file.size)})</span>
 						<button
 							type="button"
-							class="ml-0.5 rounded-full p-0.5 hover:bg-muted"
+							aria-label="Remove {file.name}"
+							class="flex size-4 shrink-0 items-center justify-center rounded-fc-pill text-fc-fg-muted transition-colors hover:bg-fc-component hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fc-ring"
 							onclick={() => removeFile(i)}
 						>
-							<X class="h-3 w-3" />
+							<iconify-icon icon={icons.close} width="12" height="12" class="block size-3"
+							></iconify-icon>
 						</button>
 					</Badge>
 				{/each}
@@ -432,20 +427,41 @@
 
 		{#if ready}
 			{#if plainTextMode}
-				<div class="flex-1 overflow-auto px-6 py-4">
-					<textarea
+				<div class="flex-1 overflow-auto px-4 py-4 sm:px-6">
+					<Textarea
 						bind:value={bodyPlainText}
 						oninput={scheduleDraftSave}
-						placeholder="Write your message..."
-						class="h-full w-full resize-none bg-transparent text-sm leading-relaxed outline-none"
-					></textarea>
+						placeholder="Write your message…"
+						aria-label="Message body"
+						class="h-full resize-none text-fc-sm"
+					/>
 				</div>
 			{:else}
 				<TiptapEditor
 					content={initialContent}
-					onchange={(html) => { bodyHtml = html; scheduleDraftSave(); }}
+					onchange={(html) => {
+						bodyHtml = html;
+						scheduleDraftSave();
+					}}
 				/>
 			{/if}
 		{/if}
 	{/if}
 </div>
+
+<Modal bind:open={templatesOpen} title="Templates" showClose>
+	<div class="flex flex-col gap-1">
+		{#each templates as tmpl (tmpl.id)}
+			<button
+				type="button"
+				class="flex w-full flex-col items-start gap-0.5 rounded-fc-sm px-3 py-2.5 text-left transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fc-ring"
+				onclick={() => applyTemplate(tmpl)}
+			>
+				<span class="text-fc-sm font-medium text-fc-fg">{tmpl.name}</span>
+				{#if tmpl.subject}
+					<span class="truncate text-fc-xs text-fc-fg-muted">{tmpl.subject}</span>
+				{/if}
+			</button>
+		{/each}
+	</div>
+</Modal>

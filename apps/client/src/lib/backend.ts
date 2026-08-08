@@ -111,6 +111,27 @@ export type SpaceMember = {
 	joined_at: string;
 };
 
+export type AuthConfig = {
+	sso_only: boolean;
+	oidc_enabled: boolean;
+};
+
+export type InstanceSettings = {
+	encryption_key_set: boolean;
+};
+
+export type ApiTokenStatus = {
+	has_token: boolean;
+	name?: string;
+	created_at?: string;
+};
+
+export type ApiTokenCreated = {
+	token: string;
+	name: string;
+	created_at: string;
+};
+
 type ApiErrorPayload = {
 	error?: { message?: string };
 };
@@ -395,5 +416,79 @@ export const backend = {
 		return apiFetch<{ removed: boolean }>(`/api/spaces/${spaceId}/members/${memberId}`, {
 			method: 'DELETE'
 		});
+	},
+
+	authConfig() {
+		return apiFetch<AuthConfig>('/api/auth/config');
+	},
+	instanceSettings() {
+		return apiFetch<{ settings: InstanceSettings }>('/api/settings/').then((r) => r.settings);
+	},
+
+	updateMe(data: { name?: string; email?: string }) {
+		return apiFetch<MeResponse>('/api/users/me', {
+			method: 'PATCH',
+			body: JSON.stringify(data)
+		}).then((r) => normalizeUser(r.user));
+	},
+	clearAvatar() {
+		return apiFetch<MeResponse>('/api/users/me/avatar', { method: 'DELETE' }).then((r) =>
+			normalizeUser(r.user)
+		);
+	},
+
+	/**
+	 * Uploaded over XHR rather than fetch because `UploadProgress` wants a real percentage and
+	 * `fetch` still cannot report request-body progress in any browser.
+	 */
+	uploadAvatar(file: File, onProgress: (percent: number) => void): Promise<UserProfile> {
+		return new Promise((resolve, reject) => {
+			const body = new FormData();
+			body.append('avatar', file);
+
+			const xhr = new XMLHttpRequest();
+			xhr.open('POST', `${backendBaseUrl}/api/users/me/avatar`);
+			xhr.withCredentials = true;
+			xhr.upload.addEventListener('progress', (event) => {
+				if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+			});
+			xhr.addEventListener('error', () =>
+				reject(new Error('Upload failed — the request never arrived'))
+			);
+			xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')));
+			xhr.addEventListener('load', () => {
+				let payload: unknown;
+				try {
+					payload = JSON.parse(xhr.responseText);
+				} catch {
+					payload = undefined;
+				}
+				if (xhr.status >= 200 && xhr.status < 300) {
+					const user = (payload as MeResponse | undefined)?.user;
+					if (!user) {
+						reject(new Error('Upload succeeded but the server sent no profile back'));
+						return;
+					}
+					resolve(normalizeUser(user));
+					return;
+				}
+				const message = (payload as ApiErrorPayload | undefined)?.error?.message;
+				reject(new Error(message || `Upload failed with status ${xhr.status}`));
+			});
+			xhr.send(body);
+		});
+	},
+
+	apiTokenStatus() {
+		return apiFetch<ApiTokenStatus>('/api/users/me/api-token');
+	},
+	createApiToken(name: string) {
+		return apiFetch<ApiTokenCreated>('/api/users/me/api-token', {
+			method: 'POST',
+			body: JSON.stringify({ name })
+		});
+	},
+	deleteApiToken() {
+		return apiFetch<{ deleted: boolean }>('/api/users/me/api-token', { method: 'DELETE' });
 	}
 };
