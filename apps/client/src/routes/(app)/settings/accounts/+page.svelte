@@ -11,12 +11,15 @@
 		Table,
 		icons
 	} from '@facile/muse';
-	import { backend, type MailAccount } from '$lib/backend';
+	import { ApiError, backend, type CheckResult, type MailAccount } from '$lib/backend';
 	import { spaceStore } from '$lib/stores/space.svelte';
 	import AccountDrawer from '$lib/components/settings/AccountDrawer.svelte';
 
-	type ProbeState = 'unchecked' | 'checking' | 'connected' | 'failed';
-	type Probe = { state: ProbeState; error?: string };
+	type Probe =
+		| { state: 'checking' }
+		| { state: 'checked'; result: CheckResult }
+		| { state: 'throttled'; retryAt: number }
+		| { state: 'unreachable'; error: string };
 	type Tone = 'neutral' | 'success' | 'warning' | 'danger';
 
 	const app = getContext<{ refreshAccounts: () => Promise<void> }>('app');
@@ -51,44 +54,91 @@
 	}
 
 	/*
-	 * Connection state is not a boolean, and it is not stored either: nothing in the schema
-	 * remembers whether the last IMAP handshake worked. So "unchecked" is a real, distinct
-	 * state — it says nobody has asked this server anything yet — and an account missing a
-	 * host is a fifth one, because the fix for it is a form field rather than a network.
+	 * Nothing in the schema remembers a handshake, so "not checked yet" is a real state rather
+	 * than a euphemism. The two protocols are reported separately because they fail
+	 * separately — an account whose IMAP is fine and whose SMTP is refusing can read mail and
+	 * not send it, and a single dot for both can only ever describe one of them.
 	 */
-	function status(account: MailAccount): { tone: Tone; label: string; pulse: boolean } {
-		if (!account.imap_host || !account.smtp_host) {
-			const missing = !account.imap_host ? 'IMAP' : 'SMTP';
-			return { tone: 'neutral', label: `No ${missing} server set`, pulse: false };
-		}
+	function legs(account: MailAccount): { tone: Tone; label: string; pulse: boolean }[] {
 		const probe = probes[account.id];
-		switch (probe?.state) {
-			case 'checking':
-				return { tone: 'warning', label: 'Connecting to IMAP…', pulse: true };
-			case 'connected':
-				return { tone: 'success', label: 'IMAP connected', pulse: false };
-			case 'failed':
-				return { tone: 'danger', label: 'IMAP refused the connection', pulse: false };
-			default:
-				return { tone: 'neutral', label: 'Not checked yet', pulse: false };
+
+		if (probe?.state === 'checking') {
+			return [{ tone: 'warning', label: 'Checking…', pulse: true }];
 		}
+		if (probe?.state === 'throttled') {
+			return [{ tone: 'warning', label: `Not checked — ${retryIn(probe)}`, pulse: false }];
+		}
+		if (probe?.state === 'unreachable') {
+			return [{ tone: 'danger', label: 'Courrier could not run the check', pulse: false }];
+		}
+
+		return (['imap', 'smtp'] as const).map((protocol) => {
+			const name = protocol.toUpperCase();
+			const host = protocol === 'imap' ? account.imap_host : account.smtp_host;
+			if (!host) return { tone: 'neutral' as Tone, label: `No ${name} server set`, pulse: false };
+
+			const leg = probe?.state === 'checked' ? probe.result[protocol] : undefined;
+			if (!leg) return { tone: 'neutral' as Tone, label: `${name} not checked yet`, pulse: false };
+			if (leg.ok) return { tone: 'success' as Tone, label: `${name} connected`, pulse: false };
+			return { tone: 'danger' as Tone, label: `${name} ${failureKind(leg.error)}`, pulse: false };
+		});
 	}
 
 	/*
-	 * The stored password never comes back over the wire, so /mail/test-connection cannot be
-	 * used on a saved account. A folder sync is the probe that can: it opens IMAP with the
-	 * decrypted credentials and lists mailboxes without fetching a single message.
+	 * "Refused the connection" was wrong for the commonest failure there is: with a bad
+	 * password the connection is established and it is the *login* that fails. Saying so is
+	 * the difference between checking the port and checking the password.
+	 */
+	function failureKind(error?: string) {
+		return /auth|password|credential|login|invalid/i.test(error ?? '')
+			? 'rejected the credentials'
+			: 'unreachable';
+	}
+
+	/*
+	 * A 429 never reached the mail server, so it says nothing about the account: the legs stay
+	 * unknown and the wait is the whole message. The limiter sends `Retry-After`, and counting
+	 * it down from a ticking clock is what stops the label going stale as it sits on screen.
+	 */
+	let now = $state(Date.now());
+
+	$effect(() => {
+		if (!Object.values(probes).some((probe) => probe.state === 'throttled')) return;
+		const timer = setInterval(() => {
+			now = Date.now();
+			for (const [id, probe] of Object.entries(probes)) {
+				if (probe.state === 'throttled' && probe.retryAt <= now) delete probes[Number(id)];
+			}
+		}, 1000);
+		return () => clearInterval(timer);
+	});
+
+	function retryIn(probe: Extract<Probe, { state: 'throttled' }>) {
+		const seconds = Math.max(0, Math.ceil((probe.retryAt - now) / 1000));
+		return seconds > 0 ? `retry in ${seconds}s` : 'you can retry now';
+	}
+
+	/*
+	 * A failed handshake comes back 200 with the reason in the body — the diagnostic worked,
+	 * the server did not — so a thrown error here means something else entirely: the rate
+	 * limiter, an expired session, a network drop. Those are not the account's fault and must
+	 * not be reported as though they were.
 	 */
 	async function check(account: MailAccount) {
 		probes[account.id] = { state: 'checking' };
 		try {
-			await backend.syncAccount(account.id);
-			probes[account.id] = { state: 'connected' };
-			await app.refreshAccounts();
+			probes[account.id] = { state: 'checked', result: await backend.checkAccount(account.id) };
 		} catch (err) {
+			if (err instanceof ApiError && err.status === 429) {
+				probes[account.id] = {
+					state: 'throttled',
+					retryAt: Date.now() + (err.retryAfter ?? 60) * 1000
+				};
+				return;
+			}
 			probes[account.id] = {
-				state: 'failed',
-				error: err instanceof Error ? err.message : 'The connection failed'
+				state: 'unreachable',
+				error: err instanceof Error ? err.message : 'The check could not be run'
 			};
 		}
 	}
@@ -130,10 +180,26 @@
 		}
 	}
 
+	/*
+	 * The dot names the kind of failure; the server's own words are what someone pastes into a
+	 * search or sends to their host, so they belong here in full, per protocol.
+	 */
 	const failures = $derived(
-		accounts
-			.map((account) => ({ account, probe: probes[account.id] }))
-			.filter((entry) => entry.probe?.state === 'failed' && entry.probe.error)
+		accounts.flatMap((account) => {
+			const probe = probes[account.id];
+			if (probe?.state === 'unreachable') {
+				return [{ key: `${account.id}-run`, account, protocol: '', error: probe.error }];
+			}
+			if (probe?.state !== 'checked') return [];
+			return (['imap', 'smtp'] as const)
+				.filter((protocol) => probe.result[protocol].error)
+				.map((protocol) => ({
+					key: `${account.id}-${protocol}`,
+					account,
+					protocol: protocol.toUpperCase(),
+					error: probe.result[protocol].error as string
+				}));
+		})
 	);
 </script>
 
@@ -173,7 +239,7 @@
 				</thead>
 				<tbody>
 					{#each accounts as account (account.id)}
-						{@const state = status(account)}
+						{@const state = legs(account)}
 						<tr>
 							<td>
 								<div class="flex min-w-0 flex-col gap-1">
@@ -191,7 +257,11 @@
 								</div>
 							</td>
 							<td>
-								<StatusDot tone={state.tone} label={state.label} pulse={state.pulse} />
+								<div class="flex flex-col gap-1">
+									{#each state as leg (leg.label)}
+										<StatusDot tone={leg.tone} label={leg.label} pulse={leg.pulse} />
+									{/each}
+								</div>
 							</td>
 							<td>
 								<div class="flex flex-wrap items-center justify-end gap-1">
@@ -199,7 +269,9 @@
 										variant="ghost"
 										size="sm"
 										icon={icons.plug}
-										disabled={probes[account.id]?.state === 'checking' || !account.imap_host}
+										disabled={probes[account.id]?.state === 'checking' ||
+										probes[account.id]?.state === 'throttled' ||
+										(!account.imap_host && !account.smtp_host)}
 										onclick={() => check(account)}
 									>
 										Check
@@ -243,15 +315,20 @@
 			</Table>
 
 			<p class="text-fc-xs text-fc-fg-muted">
-				Check opens IMAP with the stored password and refreshes the folder list — it never
-				downloads messages. SMTP is only reachable from Test connection inside the account, which
-				needs the passwords typed in.
+				Check signs in to IMAP and SMTP with the stored passwords and hangs up again — it reads
+				no mailboxes and downloads no messages. Each protocol is reported on its own, because
+				an account can read mail perfectly well and still be unable to send it.
 			</p>
 		{/if}
 
-		{#each failures as failure (failure.account.id)}
-			<Alert tone="danger" title={`${failure.account.name} could not connect`}>
-				{failure.probe?.error}
+		{#each failures as failure (failure.key)}
+			<Alert
+				tone="danger"
+				title={failure.protocol
+					? `${failure.account.name} — ${failure.protocol} failed`
+					: `${failure.account.name} could not be checked`}
+			>
+				{failure.error}
 			</Alert>
 		{/each}
 

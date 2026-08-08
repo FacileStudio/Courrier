@@ -60,6 +60,55 @@ func (s *Service) getAccountDecrypted(ctx context.Context, userID, accountID int
 	return account, nil
 }
 
+/*
+CheckAccount answers "can this saved account still talk to its servers", which
+TestConnection cannot: that one needs the passwords in the request body, and the stored
+ones never leave the server. It opens each leg and closes it again — no mailbox listing,
+no message fetch, nothing written.
+
+Both legs always run. Stopping at the first failure is what TestConnection does, and it
+hides the answer people actually need while fixing an account: which half is broken.
+*/
+func (s *Service) CheckAccount(ctx context.Context, userID, accountID int64) (CheckResult, error) {
+	account, err := s.getAccountDecrypted(ctx, userID, accountID)
+	if err != nil {
+		return CheckResult{}, err
+	}
+
+	var result CheckResult
+
+	if account.IMAPHost != "" {
+		port := account.IMAPPort
+		if port == 0 {
+			port = 993
+		}
+		result.IMAP.Configured = true
+		client, err := connectIMAP(account.IMAPHost, port, account.IMAPUser, account.IMAPPassword)
+		if err != nil {
+			result.IMAP.Error = err.Error()
+		} else {
+			result.IMAP.OK = true
+			client.Logout().Wait()
+			client.Close()
+		}
+	}
+
+	if account.SMTPHost != "" {
+		port := account.SMTPPort
+		if port == 0 {
+			port = 587
+		}
+		result.SMTP.Configured = true
+		if err := testSMTP(account.SMTPHost, port, account.SMTPUser, account.SMTPPassword); err != nil {
+			result.SMTP.Error = err.Error()
+		} else {
+			result.SMTP.OK = true
+		}
+	}
+
+	return result, nil
+}
+
 func (s *Service) SyncAccount(ctx context.Context, userID, accountID int64) error {
 	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {

@@ -16,6 +16,21 @@ var Documentation = documentation.Module{
 	Description: "Mailbox synchronisation, reading, sending, drafts and reusable templates. Every mail route is scoped to one account.",
 	Routes: []documentation.Route{
 		{
+			Method:  "POST",
+			Path:    "/accounts/{accountId}/mail/check",
+			Summary: "Check the account's stored credentials",
+			Description: "Signs in to IMAP and to SMTP with the stored passwords and disconnects again — " +
+				"no mailbox listing, no message fetch, nothing written. Both protocols are always " +
+				"attempted and reported separately, so \"IMAP works, SMTP does not\" is expressible. " +
+				"A refused or rejected handshake is still a 200: the body carries `configured`, `ok` " +
+				"and `error` per protocol. Rate limited to 10 per minute. Unlike test-connection this " +
+				"needs no passwords in the request, which is why it is the only probe usable on a " +
+				"saved account.",
+			Auth:       "bearer token required",
+			PathParams: []documentation.Field{accountID},
+			Errors:     []documentation.Error{unauthenticated, accountNotFound, rateLimited},
+		},
+		{
 			Method:      "POST",
 			Path:        "/accounts/{accountId}/mail/sync",
 			Summary:     "Sync the account's folder list",

@@ -111,6 +111,18 @@ export type SpaceMember = {
 	joined_at: string;
 };
 
+/** One half of a connection check. `configured` false means no host is set for it at all. */
+export type CheckLeg = {
+	configured: boolean;
+	ok: boolean;
+	error?: string;
+};
+
+export type CheckResult = {
+	imap: CheckLeg;
+	smtp: CheckLeg;
+};
+
 export type AuthConfig = {
 	sso_only: boolean;
 	oidc_enabled: boolean;
@@ -136,6 +148,24 @@ type ApiErrorPayload = {
 	error?: { message?: string };
 };
 
+/**
+ * Carries the status alongside the message, because the two say different things and a
+ * caller usually needs both: a 429 from the rate limiter and a 502 from a refused IMAP
+ * handshake are the same `Error` otherwise, and a UI that cannot tell them apart ends up
+ * blaming the mail server for the rate limiter. `retryAfter` is the header, in seconds.
+ */
+export class ApiError extends Error {
+	status: number;
+	retryAfter?: number;
+
+	constructor(message: string, status: number, retryAfter?: number) {
+		super(message);
+		this.name = 'ApiError';
+		this.status = status;
+		this.retryAfter = retryAfter;
+	}
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}) {
 	const headers = new Headers(options.headers);
 	if (!headers.has('Content-Type') && options.body) {
@@ -149,7 +179,12 @@ async function apiFetch<T>(path: string, options: RequestInit = {}) {
 		} catch {
 			payload = undefined;
 		}
-		throw new Error(payload?.error?.message || `Request failed with status ${response.status}`);
+		const seconds = Number(response.headers.get('Retry-After'));
+		throw new ApiError(
+			payload?.error?.message || `Request failed with status ${response.status}`,
+			response.status,
+			Number.isFinite(seconds) && seconds > 0 ? seconds : undefined
+		);
 	}
 	return (await response.json()) as T;
 }
@@ -213,6 +248,10 @@ export const backend = {
 
 	syncProfile() {
 		return apiFetch<{ synced: boolean }>('/api/auth/sync-profile', { method: 'POST' });
+	},
+
+	checkAccount(accountId: number) {
+		return apiFetch<CheckResult>(`/api/accounts/${accountId}/mail/check`, { method: 'POST' });
 	},
 
 	syncAccount(accountId: number) {

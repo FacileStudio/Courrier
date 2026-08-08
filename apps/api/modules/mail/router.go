@@ -152,6 +152,34 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 	router.Route("/accounts/{accountId}/mail", func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
 
+		/*
+		 * A diagnostic gets its own budget. Borrowing /sync as the probe meant pressing
+		 * Check ate the folder-sync allowance five presses a minute — shared with the mail
+		 * view's refresh — and a 429 then came back looking like a mail-server failure.
+		 * Two connections and no writes, so 10 a minute while someone fixes a password.
+		 * A failed handshake is a 200 with the reason in the body: the diagnostic worked.
+		 */
+		r.With(middleware.RateLimit(10, time.Minute)).Post("/check", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid account id"))
+				return
+			}
+
+			result, err := service.CheckAccount(req.Context(), uid, accountID)
+			if err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			httpjson.WriteJSON(w, http.StatusOK, result)
+		})
+
 		r.With(middleware.RateLimit(5, time.Minute)).Post("/sync", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
 			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
