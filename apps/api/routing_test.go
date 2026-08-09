@@ -1,9 +1,16 @@
 package main
 
 import (
+	"context"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/FacileStudio/porte/oidc"
+	portepg "github.com/FacileStudio/porte/pg"
+	"github.com/FacileStudio/porte/session"
 
 	"github.com/go-chi/chi/v5"
 
@@ -23,10 +30,35 @@ const (
 	filesHandlerBody = "static-file"
 )
 
+// testAuth builds the porte pieces main.go builds, over a nil database. That
+// is safe for these cases because an unauthenticated request is refused before
+// anything is read, and it is necessary because /auth/config and /auth/logout
+// are porte's routes now — a router without them would let this file assert
+// that the public URLs are unchanged while they had moved.
+func testAuth() (*session.Manager, *oidc.Kit, *auth.Service) {
+	store := portepg.New(nil)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	sessions, err := session.New(env.Config{}.Porte(), session.Deps{Sessions: store.Sessions(), Logger: logger})
+	if err != nil {
+		panic(err)
+	}
+	kit, err := oidc.New(context.Background(), env.Config{}.Porte(), oidc.Deps{Sessions: sessions, Logger: logger})
+	if err != nil {
+		panic(err)
+	}
+	return sessions, kit, auth.NewService(nil, sessions, nil, logger)
+}
+
 // testRouter wires the modules exactly as run() does. The services are nil
 // because route registration never dereferences them; only handlers do, and
 // these cases stop at routing.
+//
+// The auth service is the exception since porte took the credential: its
+// middleware is applied to matched routes, so it has to be a real value. It is
+// built over a nil database, which is safe here because an unauthenticated
+// request is refused before anything is read.
 func testRouter() *chi.Mux {
+	sessions, kit, authService := testAuth()
 	router := chi.NewRouter()
 
 	health.Mount(router)
@@ -36,12 +68,14 @@ func testRouter() *chi.Mux {
 			_, _ = w.Write([]byte(filesHandlerBody))
 		})))
 
-		auth.RegisterRoutes(r, nil, env.Config{})
-		accounts.RegisterRoutes(r, nil, nil)
-		mail.RegisterRoutes(r, nil, nil, nil)
-		users.RegisterRoutes(r, nil, nil)
-		settings.RegisterRoutes(r, nil, nil)
-		spaces.RegisterRoutes(r, nil, nil)
+		sessions.Mount(r)
+		kit.Mount(r)
+		auth.RegisterRoutes(r, authService, env.Config{})
+		accounts.RegisterRoutes(r, nil, authService)
+		mail.RegisterRoutes(r, nil, authService, nil)
+		users.RegisterRoutes(r, nil, authService)
+		settings.RegisterRoutes(r, nil, authService)
+		spaces.RegisterRoutes(r, nil, authService)
 	})
 
 	router.Handle("/*", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
