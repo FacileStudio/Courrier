@@ -25,6 +25,11 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/modules/users"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
+	"github.com/FacileStudio/porte/local"
+	"github.com/FacileStudio/porte/oidc"
+	portepg "github.com/FacileStudio/porte/pg"
+	"github.com/FacileStudio/porte/session"
+
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 
@@ -64,11 +69,60 @@ func referenceConfig() apiref.Config {
 	}
 }
 
-func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger *slog.Logger) chi.Router {
-	authService := auth.NewService(db, appEnv.StorageDir, appLogger, appEnv.EncryptionKey)
+// buildAuth constructs porte: one session manager, shared by the OIDC kit and
+// the local login, over the identity tables.
+//
+// One manager and not two: they would each keep their own idea of the clock
+// and of whether the cookie is Secure, and porte refuses a kit whose config
+// disagrees with its manager's for exactly that reason. Discovery runs here,
+// so an unreachable or half-configured issuer fails at boot rather than on
+// somebody's first login — a change from what this app did, where a discovery
+// failure at route-registration time logged an error and left SSO 404ing until
+// the next restart.
+func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *slog.Logger) (*session.Manager, *local.Kit, *oidc.Kit, error) {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	store := portepg.New(sqlDB)
+	users := auth.NewUserStore(db)
+	cfg := appEnv.Porte()
+
+	sessions, err := session.New(cfg, session.Deps{Sessions: store.Sessions(), Logger: appLogger})
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	kit, err := oidc.New(ctx, cfg, oidc.Deps{
+		Users:      users,
+		Identities: store.Identities(),
+		Sessions:   sessions,
+		Codes:      store.LoginCodes(),
+		Logger:     appLogger,
+	})
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	// Courrier's floor has always been eight characters. porte defaults to
+	// twelve, and raising it here would reject a password this app accepted
+	// yesterday — a product decision, not a migration.
+	passwords, err := local.New(local.Config{AllowRegistration: !appEnv.SSOOnly, MinPasswordLength: 8}, local.Deps{
+		Users:      users,
+		Identities: store.Identities(),
+		Sessions:   sessions,
+		Logger:     appLogger,
+		Count:      users.CountUsers,
+	})
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return sessions, passwords, kit, nil
+}
+
+func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger *slog.Logger, sessions *session.Manager, passwords *local.Kit, kit *oidc.Kit) chi.Router {
+	authService := auth.NewService(db, sessions, passwords, appLogger)
 	accountService := accounts.NewService(db, appEnv.EncryptionKey)
 	mailService := mail.NewService(db, appEnv.EncryptionKey)
-	userService := users.NewService(db, appEnv.StorageDir)
+	userService := users.NewService(db, appEnv.StorageDir, authService)
 	settingsService := settings.NewService(db)
 	spaceService := spaces.NewService(db)
 
@@ -87,6 +141,8 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 	router.Route("/api", func(r chi.Router) {
 		r.Handle("/files/*", http.StripPrefix("/api/files/", http.FileServer(http.Dir(appEnv.StorageDir))))
 
+		sessions.Mount(r)
+		kit.Mount(r)
 		auth.RegisterRoutes(r, authService, appEnv)
 		accounts.RegisterRoutes(r, accountService, authService)
 		mail.RegisterRoutes(r, mailService, authService, appEnv.ResourceTokenSecret)
@@ -132,7 +188,7 @@ func run() int {
 		return 1
 	}
 
-	if err := schemas.Migrate(db); err != nil {
+	if err := schemas.MigrateWithIssuer(db, appEnv.IssuerForMigration()); err != nil {
 		appLogger.Error("failed to run migrations", slog.Any("error", err))
 		return 1
 	}
@@ -163,7 +219,13 @@ func run() int {
 		}
 	}()
 
-	router := buildRouter(db, health.DB(sqlDB), appEnv, appLogger)
+	sessions, passwords, kit, err := buildAuth(context.Background(), db, appEnv, appLogger)
+	if err != nil {
+		appLogger.Error("failed to build authentication", slog.Any("error", err))
+		return 1
+	}
+
+	router := buildRouter(db, health.DB(sqlDB), appEnv, appLogger, sessions, passwords, kit)
 
 	addr := ":" + strconv.Itoa(appEnv.Port)
 	server := &http.Server{

@@ -104,26 +104,20 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			}
 		}
 
+		// The resource token above is the only credential this route
+		// accepts from the URL. The fallback is porte reading the
+		// cookie or the Authorization header, which is what a browser
+		// loading an <img src> sends — a session token in a query
+		// string ends up in access logs, Referer headers and browser
+		// history, and this app already removed that path from its own
+		// middleware.
 		if userID == "" {
-			token := ""
-			if c, err := req.Cookie("session"); err == nil && c.Value != "" {
-				token = c.Value
-			} else if h := req.Header.Get("Authorization"); h != "" {
-				token = h
-			} else if q := req.URL.Query().Get("token"); q != "" {
-				token = q
-			}
-
-			if token == "" {
-				httpjson.WriteError(w, errors.Unauthorized("missing token"))
-				return
-			}
-			uid, _, err := authService.Authenticate(req.Context(), token)
+			uid, err := authService.AuthenticateRequest(w, req)
 			if err != nil {
 				httpjson.WriteError(w, err)
 				return
 			}
-			userID = uid
+			userID = strconv.FormatInt(uid, 10)
 		}
 
 		uid, err := strconv.ParseInt(userID, 10, 64)
