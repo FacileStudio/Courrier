@@ -31,6 +31,9 @@
 		const raw = $page.url.searchParams.get('tab');
 		if (raw === 'register') tab = 'register';
 
+		const oidcError = $page.url.searchParams.get('error');
+		if (oidcError) message = oidcError;
+
 		try {
 			const cfg = await fetch(`${backend.baseUrl}/api/auth/config`, { credentials: 'include' }).then(r => r.json());
 			ssoOnly = cfg.sso_only ?? false;
