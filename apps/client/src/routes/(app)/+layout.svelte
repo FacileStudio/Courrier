@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { MobileNav, SideBar, SpaceSwitcher, Topbar, icons } from '@facile/muse';
-	import { backend, type UserProfile, type MailAccount, type Folder, type Space } from '$lib/backend';
+	import { backend, ApiError, type UserProfile, type MailAccount, type Folder, type Space } from '$lib/backend';
 	import { MAIL_FOLDERS } from '$lib/mail-folders';
 	import { spaceStore } from '$lib/stores/space.svelte';
 	import { searchStore } from '$lib/stores/search.svelte';
@@ -73,8 +73,10 @@
 				}
 			}).catch(() => {});
 			await Promise.all([refreshAccounts(), refreshSpaces()]);
-		} catch {
-			goto('/login');
+		} catch (err) {
+			if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+				goto('/login');
+			}
 		}
 	});
 
