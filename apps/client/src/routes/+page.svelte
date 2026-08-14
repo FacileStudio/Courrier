@@ -56,7 +56,7 @@
 						href={ssoOnly ? '/login' : '/login?tab=register'}
 						class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 					>
-						{ssoOnly ? 'Continue with SSO' : 'Get started'}
+						Sign in with Facile
 					</a>
 				</div>
 			</div>
@@ -76,7 +76,7 @@
 						href={ssoOnly ? '/login' : '/login?tab=register'}
 						class="inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 					>
-						{ssoOnly ? 'Continue with SSO' : 'Start reading'}
+						Sign in with Facile
 						<iconify-icon
 							icon="solar:arrow-right-linear"
 							width="16"
@@ -158,14 +158,14 @@
 				</h2>
 				<p class="mt-4 text-muted-foreground">
 					{ssoOnly
-						? 'Use your organization SSO to access Courrier.'
+						? 'Use your Facile SSO to access Courrier.'
 						: 'Free to use. Self-hosted. No credit card required.'}
 				</p>
 				<a
 					href={ssoOnly ? '/login' : '/login?tab=register'}
 					class="mt-8 inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 				>
-					{ssoOnly ? 'Continue with SSO' : 'Create an account'}
+					Sign in with Facile
 				</a>
 			</section>
 		</main>
