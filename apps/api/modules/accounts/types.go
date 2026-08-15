@@ -1,5 +1,6 @@
 package accounts
 
+// CreateAccountRequest is the body of POST /accounts.
 type CreateAccountRequest struct {
 	Name         string  `json:"name"`
 	Email        string  `json:"email"`
@@ -16,6 +17,8 @@ type CreateAccountRequest struct {
 	SpaceID      *string `json:"space_id"`
 }
 
+// UpdateAccountRequest is the body of PUT /accounts/{id}; every field is a
+// pointer so only the fields present in the body change.
 type UpdateAccountRequest struct {
 	Name         *string `json:"name"`
 	Email        *string `json:"email"`
@@ -31,6 +34,8 @@ type UpdateAccountRequest struct {
 	IsDefault    *bool   `json:"is_default"`
 }
 
+// AccountResponse is the account shape returned to the client, with secrets
+// omitted.
 type AccountResponse struct {
 	ID        int64  `json:"id"`
 	Name      string `json:"name"`

@@ -93,6 +93,19 @@ func extensionFromFilename(name string) string {
 	return name[idx+1:]
 }
 
+// RegisterRoutes mounts the authenticated mail endpoints on the router,
+// including the connection /check probe with its own rate limit.
+//
+// The inline-image route accepts a resource token in the query string as its
+// only URL credential; the fallback is porte reading the cookie or the
+// Authorization header, which is what a browser loading an <img src> sends. A
+// session token in a query string would end up in access logs, Referer headers
+// and browser history, so that path is refused.
+//
+// /check gets its own budget rather than borrowing /sync, so pressing Check
+// cannot eat the folder-sync allowance and turn a 429 into a mail-server
+// failure. It opens two connections and writes nothing, hence 10 a minute; a
+// failed handshake is a 200 with the reason in the body.
 func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service, rtSecret []byte) {
 	router.Get("/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}", func(w http.ResponseWriter, req *http.Request) {
 		var userID string
@@ -104,13 +117,6 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			}
 		}
 
-		// The resource token above is the only credential this route
-		// accepts from the URL. The fallback is porte reading the
-		// cookie or the Authorization header, which is what a browser
-		// loading an <img src> sends — a session token in a query
-		// string ends up in access logs, Referer headers and browser
-		// history, and this app already removed that path from its own
-		// middleware.
 		if userID == "" {
 			uid, err := authService.AuthenticateRequest(w, req)
 			if err != nil {
@@ -146,13 +152,6 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 	router.Route("/accounts/{accountId}/mail", func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
 
-		/*
-		 * A diagnostic gets its own budget. Borrowing /sync as the probe meant pressing
-		 * Check ate the folder-sync allowance five presses a minute — shared with the mail
-		 * view's refresh — and a 429 then came back looking like a mail-server failure.
-		 * Two connections and no writes, so 10 a minute while someone fixes a password.
-		 * A failed handshake is a 200 with the reason in the body: the diagnostic worked.
-		 */
 		r.With(middleware.RateLimit(10, time.Minute)).Post("/check", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
 			uid, err := strconv.ParseInt(identity.UserID, 10, 64)

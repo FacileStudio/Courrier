@@ -6,6 +6,8 @@ import (
 	"os"
 )
 
+// AttachmentUpload is a file being sent with an email, either held in memory
+// or staged on disk at FilePath.
 type AttachmentUpload struct {
 	Filename string
 	MimeType string
@@ -26,6 +28,7 @@ func (a *AttachmentUpload) Cleanup() {
 	}
 }
 
+// SendRequest is the body of POST /accounts/{id}/mail/send.
 type SendRequest struct {
 	To          []string           `json:"to"`
 	Cc          []string           `json:"cc"`
@@ -37,6 +40,7 @@ type SendRequest struct {
 	Attachments []AttachmentUpload `json:"-"`
 }
 
+// TestConnectionRequest is the body of POST /api/mail/test-connection.
 type TestConnectionRequest struct {
 	IMAPHost     string `json:"imap_host"`
 	IMAPPort     int    `json:"imap_port"`
@@ -56,11 +60,13 @@ type CheckLeg struct {
 	Error      string `json:"error,omitempty"`
 }
 
+// CheckResult is the outcome of a connection check, one leg per protocol.
 type CheckResult struct {
 	IMAP CheckLeg `json:"imap"`
 	SMTP CheckLeg `json:"smtp"`
 }
 
+// FolderResponse is a mail folder as returned to the client.
 type FolderResponse struct {
 	ID          int64  `json:"id"`
 	AccountID   int64  `json:"account_id"`
@@ -71,6 +77,8 @@ type FolderResponse struct {
 	TotalCount  int    `json:"total_count"`
 }
 
+// EmailResponse is an email (or an expanded conversation) as returned to the
+// client.
 type EmailResponse struct {
 	ID             int64                `json:"id"`
 	AccountID      int64                `json:"account_id"`
@@ -97,6 +105,7 @@ type EmailResponse struct {
 	EmailIDs     []int64 `json:"email_ids,omitempty"`
 }
 
+// AttachmentResponse is a stored email attachment as returned to the client.
 type AttachmentResponse struct {
 	ID       int64  `json:"id"`
 	Filename string `json:"filename"`
@@ -104,27 +113,35 @@ type AttachmentResponse struct {
 	Size     int64  `json:"size"`
 }
 
+// AddressResponse is a single mail address on an email.
 type AddressResponse struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
 }
 
+// UpdateEmailRequest is the body of the endpoint that flips an email's read or
+// starred state.
 type UpdateEmailRequest struct {
 	IsRead    *bool `json:"is_read"`
 	IsStarred *bool `json:"is_starred"`
 }
 
+// ContactResult is one auto-complete contact with its usage count.
 type ContactResult struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
 	Count int    `json:"count"`
 }
 
+// BulkActionRequest is the body of the bulk-apply endpoint for a set of
+// emails.
 type BulkActionRequest struct {
 	EmailIDs []int64 `json:"email_ids"`
 	Action   string  `json:"action"`
 }
 
+// EmailTemplateRequest is the body for creating or updating an email
+// template.
 type EmailTemplateRequest struct {
 	Name     string  `json:"name"`
 	Subject  string  `json:"subject"`
@@ -133,6 +150,7 @@ type EmailTemplateRequest struct {
 	SpaceID  *string `json:"space_id"`
 }
 
+// EmailTemplateResponse is an email template as returned to the client.
 type EmailTemplateResponse struct {
 	ID        int64  `json:"id"`
 	Name      string `json:"name"`

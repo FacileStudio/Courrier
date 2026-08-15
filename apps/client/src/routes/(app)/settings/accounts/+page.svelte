@@ -39,7 +39,8 @@
 	let promoting = $state<number | null>(null);
 
 	$effect(() => {
-		spaceStore.active; // reload when the active space changes
+		// Reload when the active space changes.
+		spaceStore.active;
 		void load();
 	});
 

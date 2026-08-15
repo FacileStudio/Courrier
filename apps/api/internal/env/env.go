@@ -11,6 +11,8 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/internal/resourcetoken"
 )
 
+// OIDCConfig holds the values needed to federate this app with an OpenID
+// Connect identity provider.
 type OIDCConfig struct {
 	Issuer       string
 	ClientID     string
@@ -19,6 +21,8 @@ type OIDCConfig struct {
 	SuccessURL   string
 }
 
+// Config is the fully-resolved application configuration: the core tronc
+// settings plus the storage, SSO and encryption values this app reads.
 type Config struct {
 	troncenv.Core
 	StorageDir          string
@@ -28,6 +32,9 @@ type Config struct {
 	EncryptionKey       []byte
 }
 
+// Load reads the configuration from the environment, deriving the encryption
+// and resource-token keys from ENCRYPTION_KEY and the OIDC block from the
+// OIDC_* variables when SSO is configured.
 func Load() (Config, error) {
 	core, err := troncenv.LoadCore()
 	if err != nil {

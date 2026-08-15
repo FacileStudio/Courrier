@@ -2,6 +2,8 @@ package middleware
 
 import "net/http"
 
+// SecurityHeaders sets the base security response headers on every request,
+// adding HSTS once the request is served over TLS.
 func SecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()

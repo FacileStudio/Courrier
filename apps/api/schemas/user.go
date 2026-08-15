@@ -2,6 +2,8 @@ package schemas
 
 import "time"
 
+// User is a Courrier account: the row that owns its mailbox and carries its
+// profile, with OIDC identity and avatar details.
 type User struct {
 	ID               int64     `gorm:"column:id;primaryKey"`
 	Email            string    `gorm:"column:email;uniqueIndex"`

@@ -15,6 +15,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// RegisterRoutes mounts the authenticated /accounts CRUD endpoints on the
+// router, each resolving the caller's user id via the auth context.
 func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service) {
 	router.Route("/accounts", func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))

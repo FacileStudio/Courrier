@@ -4,6 +4,7 @@ import (
 	"context"
 )
 
+// Controller is the settings module's HTTP adapter.
 type Controller struct {
 	service *Service
 }

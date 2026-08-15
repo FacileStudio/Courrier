@@ -16,6 +16,9 @@ type visitor struct {
 	windowEnd time.Time
 }
 
+// RateLimit returns middleware that allows at most requests per window per
+// remote address, replying 429 with a Retry-After header once the budget is
+// spent. It is middleware in the chi sense, not an http.Handler.
 func RateLimit(requests int, window time.Duration) func(http.Handler) http.Handler {
 	var visitors sync.Map
 

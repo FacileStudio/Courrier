@@ -12,6 +12,7 @@ import (
 	"github.com/FacileStudio/tronc/errors"
 )
 
+// Controller is the users module's HTTP adapter.
 type Controller struct {
 	service *Service
 }

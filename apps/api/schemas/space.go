@@ -2,6 +2,7 @@ package schemas
 
 import "time"
 
+// Space is a shared workspace whose members collaborate on accounts.
 type Space struct {
 	ID          string        `gorm:"column:id;primaryKey;type:uuid;default:gen_random_uuid()"`
 	Name        string        `gorm:"column:name;not null"`
@@ -13,6 +14,7 @@ type Space struct {
 
 func (Space) TableName() string { return "spaces" }
 
+// SpaceMember is a user's membership, and role, in a space.
 type SpaceMember struct {
 	ID       string    `gorm:"column:id;primaryKey;type:uuid;default:gen_random_uuid()"`
 	SpaceID  string    `gorm:"column:space_id;not null;index"`

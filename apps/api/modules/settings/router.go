@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// RegisterRoutes mounts the authenticated /settings endpoints on the router.
 func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service) {
 	router.Route("/settings", func(r chi.Router) {
 		r.With(middleware.RequireAuth(authService)).Get("/", func(w http.ResponseWriter, req *http.Request) {

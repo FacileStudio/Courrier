@@ -20,11 +20,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// Service is the mail module's data access: it owns email sync, threading,
+// folders, attachments and sending, and decrypts the account credentials it
+// works with.
 type Service struct {
 	orm           *gorm.DB
 	encryptionKey []byte
 }
 
+// NewService builds a mail Service over the database and the app's encryption
+// key.
 func NewService(orm *gorm.DB, encryptionKey []byte) *Service {
 	return &Service{orm: orm, encryptionKey: encryptionKey}
 }
@@ -496,6 +501,10 @@ func (s *Service) GetEmailWithAttachments(ctx context.Context, userID, accountID
 // GetThread returns every message in a conversation, oldest-first, across all
 // folders of the account. Bodies are whatever is cached; the client lazy-loads
 // a message's full body via GetEmail when it expands that message.
+//
+// The newest 500 messages are kept (huge threads are rare) and presented
+// oldest-first, so the reader and "reply to latest" see the true most-recent
+// message last.
 func (s *Service) GetThread(ctx context.Context, userID, accountID int64, threadID string) ([]schemas.Email, error) {
 	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
 		return nil, err
@@ -504,8 +513,6 @@ func (s *Service) GetThread(ctx context.Context, userID, accountID int64, thread
 		return nil, errors.Invalid("thread id is required")
 	}
 
-	// Keep the newest 500 (huge threads are rare), then present oldest-first so
-	// the reader and "reply to latest" see the true most-recent message last.
 	var emails []schemas.Email
 	if err := s.orm.WithContext(ctx).
 		Where("account_id = ? AND thread_id = ?", accountID, threadID).
@@ -689,6 +696,9 @@ func (s *Service) UpdateEmail(ctx context.Context, userID, accountID, emailID in
 // folder unread counts, and a single IMAP connection that issues one STORE per
 // folder. This is what bulk mark-read and opening a conversation use, so a big
 // thread no longer triggers one IMAP login per message.
+//
+// Rows with no IMAP uid are skipped: they are locally-created draft or sent
+// rows with no server message to flag.
 func (s *Service) SetReadState(ctx context.Context, userID, accountID int64, emailIDs []int64, isRead bool) error {
 	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {
@@ -726,7 +736,7 @@ func (s *Service) SetReadState(ctx context.Context, userID, accountID int64, ema
 	uidsByFolder := map[int64][]imap.UID{}
 	for _, e := range emails {
 		if e.IMAPUID == 0 {
-			continue // locally-created draft/sent row with no server message
+			continue
 		}
 		uidsByFolder[e.FolderID] = append(uidsByFolder[e.FolderID], imap.UID(e.IMAPUID))
 	}

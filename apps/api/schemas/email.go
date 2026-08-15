@@ -2,6 +2,7 @@ package schemas
 
 import "time"
 
+// Email is a cached mail message stored on disk for fast folder listing.
 type Email struct {
 	ID             int64     `gorm:"column:id;primaryKey"`
 	AccountID      int64     `gorm:"column:account_id;index"`

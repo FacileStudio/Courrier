@@ -7,6 +7,7 @@ import (
 	"github.com/FacileStudio/tronc/errors"
 )
 
+// Controller adapts the auth service to HTTP request/response shapes.
 type Controller struct {
 	service *Service
 }

@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+// Sign mints a signed, expiring resource token for a user id scoped to a
+// single inline-image fetch.
 func Sign(secret []byte, userID string, ttl time.Duration) string {
 	expiry := strconv.FormatInt(time.Now().Add(ttl).Unix(), 10)
 	payload := userID + ":" + expiry
@@ -19,6 +21,8 @@ func Sign(secret []byte, userID string, ttl time.Duration) string {
 	return base64.RawURLEncoding.EncodeToString([]byte(payload + ":" + sig))
 }
 
+// Verify validates a resource token's signature and expiry and returns the
+// user id it was minted for.
 func Verify(secret []byte, token string) (string, error) {
 	raw, err := base64.RawURLEncoding.DecodeString(token)
 	if err != nil {
@@ -51,6 +55,8 @@ func Verify(secret []byte, token string) (string, error) {
 	return userID, nil
 }
 
+// DeriveSecret derives the resource-token HMAC key from the app's encryption
+// passphrase, namespaced so it cannot collide with the AES key.
 func DeriveSecret(encryptionKey string) []byte {
 	h := sha256.Sum256([]byte("courrier-resource-token:" + encryptionKey))
 	return h[:]

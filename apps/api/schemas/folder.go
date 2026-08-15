@@ -1,5 +1,6 @@
 package schemas
 
+// Folder is a cached IMAP folder with its unread and total counts.
 type Folder struct {
 	ID          int64   `gorm:"column:id;primaryKey"`
 	AccountID   int64   `gorm:"column:account_id;index"`
