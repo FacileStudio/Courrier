@@ -12,10 +12,13 @@ import (
 	"gorm.io/gorm"
 )
 
+// Service is the spaces module's data access: it owns spaces, their
+// memberships and the role checks that gate mutation.
 type Service struct {
 	orm *gorm.DB
 }
 
+// NewService builds a spaces Service over the database.
 func NewService(orm *gorm.DB) *Service {
 	return &Service{orm: orm}
 }

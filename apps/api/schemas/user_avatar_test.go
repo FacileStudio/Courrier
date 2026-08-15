@@ -65,6 +65,9 @@ func TestAvatarSelectExprMatchesAvatar(t *testing.T) {
 // drops its picture without a word. Row 5 holds the data: blob the old sync stored verbatim
 // for a user Authentik has no photo for — left in place it would read as "has an SSO photo"
 // and suppress the upload fallback forever.
+//
+// The row that carries both keeps its file and still renders the Porte photo;
+// the initials-blob row is now free to fall back to an upload.
 func TestBackfillAvatarSources(t *testing.T) {
 	orm := openTestDatabase(t)
 
@@ -108,7 +111,6 @@ func TestBackfillAvatarSources(t *testing.T) {
 		}
 	}
 
-	// The row that carries both keeps its file, and still renders the Porte photo.
 	var both User
 	if err := orm.Where("email = ?", "upload-and-sso@example.com").First(&both).Error; err != nil {
 		t.Fatalf("read both: %v", err)
@@ -117,7 +119,6 @@ func TestBackfillAvatarSources(t *testing.T) {
 		t.Errorf("SSO photo should win, got %q", both.Avatar())
 	}
 
-	// And the blob row is now free to fall back to an upload.
 	var blob User
 	if err := orm.Where("email = ?", "initials-blob@example.com").First(&blob).Error; err != nil {
 		t.Fatalf("read blob: %v", err)

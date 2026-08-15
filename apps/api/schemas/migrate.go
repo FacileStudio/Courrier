@@ -97,6 +97,11 @@ func backfillAvatarURLs(db *gorm.DB) error {
 //
 // avatar_url and avatar_source stay in the table, unread, until the next release drops them.
 // Expanding first means a rollback is redeploying the old binary, not restoring a backup.
+//
+// lower() is used so the second statement agrees with oidcavatar.PhotoURL,
+// which compares the picture scheme case-insensitively. The trailing coalesce
+// turns NULLs into empty strings, because a NULL here would fail to scan into
+// the plain string the model declares.
 func backfillAvatarSources(db *gorm.DB) error {
 	if db.Migrator().HasColumn(&User{}, "avatar_url") {
 		if err := db.Exec(
@@ -109,7 +114,6 @@ func backfillAvatarSources(db *gorm.DB) error {
 		}
 	}
 
-	// lower() so this agrees with oidcavatar.PhotoURL, which compares the scheme case-insensitively.
 	if err := db.Exec(
 		`UPDATE users
 		    SET oidc_picture_url = ''
@@ -118,7 +122,6 @@ func backfillAvatarSources(db *gorm.DB) error {
 		return err
 	}
 
-	// A NULL here would fail to scan into the plain string the model declares.
 	return db.Exec(
 		`UPDATE users
 		    SET avatar_upload_path = coalesce(avatar_upload_path, ''),

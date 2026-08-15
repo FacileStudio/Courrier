@@ -10,11 +10,15 @@ import (
 	"gorm.io/gorm"
 )
 
+// Service is the accounts module's data access: it owns the accounts table
+// and encrypts IMAP and SMTP passwords at rest.
 type Service struct {
 	orm           *gorm.DB
 	encryptionKey []byte
 }
 
+// NewService builds an accounts Service over the database and the app's
+// encryption key.
 func NewService(orm *gorm.DB, encryptionKey []byte) *Service {
 	return &Service{orm: orm, encryptionKey: encryptionKey}
 }

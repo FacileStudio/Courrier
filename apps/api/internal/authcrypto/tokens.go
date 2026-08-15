@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 )
 
+// NewToken generates a cryptographically random 256-bit token encoded in raw
+// URL-safe base64.
 func NewToken() (string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
@@ -15,6 +17,8 @@ func NewToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(bytes), nil
 }
 
+// HashToken returns the SHA-256 hex digest of a token, the form stored in the
+// database instead of the token itself.
 func HashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])

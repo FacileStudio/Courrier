@@ -83,6 +83,11 @@ func newThreadID(messageID, inReplyTo, references string) string {
 // starts a new one, one joins it, several means this message bridges them and
 // they are merged (smallest id wins). Runs in a transaction so a merge is
 // atomic. Returns "" only when the message carries no usable ids at all.
+//
+// Concurrent syncs of one account run sequentially in practice (folders sync
+// one at a time), so read-committed is sufficient; a bridging message
+// self-heals any split. If the transaction fails, return "" rather than a
+// thread id with no backing links.
 func assignThreadID(db *gorm.DB, accountID int64, messageID, inReplyTo, references string) string {
 	related := collectThreadIDs(messageID, inReplyTo, references)
 	if len(related) == 0 {
@@ -90,10 +95,6 @@ func assignThreadID(db *gorm.DB, accountID int64, messageID, inReplyTo, referenc
 	}
 
 	var threadID string
-	// Concurrent syncs of one account run sequentially in practice (folders
-	// sync one at a time), so read-committed is sufficient; a bridging message
-	// self-heals any split. If the transaction fails, return "" rather than a
-	// thread id with no backing links.
 	if err := db.Transaction(func(tx *gorm.DB) error {
 		var existing []string
 		tx.Model(&schemas.ThreadLink{}).

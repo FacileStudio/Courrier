@@ -1,24 +1,30 @@
 package spaces
 
+// CreateSpaceRequest is the body of POST /spaces.
 type CreateSpaceRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
+// UpdateSpaceRequest is the body of PUT /spaces/{id}; every field is optional.
 type UpdateSpaceRequest struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
 }
 
+// AddMemberRequest is the body of POST /spaces/{id}/members.
 type AddMemberRequest struct {
 	UserID int64  `json:"user_id"`
 	Role   string `json:"role"`
 }
 
+// UpdateMemberRequest is the body of PUT /spaces/{id}/members/{memberId}.
 type UpdateMemberRequest struct {
 	Role string `json:"role"`
 }
 
+// SpaceResponse is the space shape returned to the client, including the
+// caller's role and, for detail views, its members.
 type SpaceResponse struct {
 	ID          string           `json:"id"`
 	Name        string           `json:"name"`
@@ -29,6 +35,7 @@ type SpaceResponse struct {
 	Members     []MemberResponse `json:"members,omitempty"`
 }
 
+// MemberResponse is a space membership as returned to the client.
 type MemberResponse struct {
 	ID       string `json:"id"`
 	UserID   string `json:"user_id"`

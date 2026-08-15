@@ -2,6 +2,8 @@ package schemas
 
 import "time"
 
+// Account is a user's IMAP/SMTP mail account, its passwords stored encrypted
+// at rest.
 type Account struct {
 	ID           int64     `gorm:"column:id;primaryKey"`
 	UserID       int64     `gorm:"column:user_id;index"`

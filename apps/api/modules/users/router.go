@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// RegisterRoutes mounts the authenticated /users endpoints on the router.
 func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service) {
 	router.Route("/users", func(router chi.Router) {
 		router.With(middleware.RequireAuth(authService)).Get("/", func(w http.ResponseWriter, request *http.Request) {

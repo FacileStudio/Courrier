@@ -1,5 +1,6 @@
 package schemas
 
+// Attachment is a file stored against an email.
 type Attachment struct {
 	ID       int64  `gorm:"column:id;primaryKey"`
 	EmailID  int64  `gorm:"column:email_id;index"`

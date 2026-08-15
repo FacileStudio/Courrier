@@ -20,6 +20,8 @@ const (
 	argon2KeyLength   uint32 = 32
 )
 
+// HashPassword hashes a plaintext password with argon2id and returns the
+// encoded $argon2id$ string. An empty password is rejected.
 func HashPassword(password string) (string, error) {
 	if password == "" {
 		return "", errors.New("password required")
@@ -34,6 +36,8 @@ func HashPassword(password string) (string, error) {
 	return encodeArgon2ID(saltBytes, hash), nil
 }
 
+// VerifyPassword reports whether a plaintext password matches an encoded
+// argon2id hash, compared in constant time.
 func VerifyPassword(password, encodedHash string) bool {
 	params, saltBytes, wantHash, err := decodeArgon2ID(encodedHash)
 	if err != nil || password == "" {

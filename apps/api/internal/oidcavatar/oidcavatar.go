@@ -14,6 +14,8 @@ package oidcavatar
 
 import "strings"
 
+// Profile is the identity-provider profile claim set Courrier reads at
+// login to build a user row and an avatar.
 type Profile struct {
 	Name              string
 	PreferredUsername string

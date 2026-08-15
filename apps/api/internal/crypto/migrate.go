@@ -19,6 +19,9 @@ func isEncrypted(value string) bool {
 	return len(decoded) > 12
 }
 
+// MigrateAccountPasswords encrypts any account IMAP and SMTP passwords that
+// were stored in plaintext. Rows already encrypted are skipped; failures are
+// logged and do not abort the run.
 func MigrateAccountPasswords(db *gorm.DB, key []byte, logger *slog.Logger) error {
 	type row struct {
 		ID           int64
@@ -66,6 +69,9 @@ func MigrateAccountPasswords(db *gorm.DB, key []byte, logger *slog.Logger) error
 	return nil
 }
 
+// MigrateOIDCTokens encrypts the OIDC provider tokens on the users table that
+// are still stored in plaintext. Rows already encrypted are skipped; failures
+// are logged and do not abort the run.
 func MigrateOIDCTokens(db *gorm.DB, key []byte, logger *slog.Logger) error {
 	type row struct {
 		ID               int64

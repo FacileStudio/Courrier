@@ -2,6 +2,7 @@ package schemas
 
 import "time"
 
+// EmailTemplate is a saved compose template owned by a user.
 type EmailTemplate struct {
 	ID        int64     `gorm:"column:id;primaryKey"`
 	UserID    int64     `gorm:"column:user_id;index"`

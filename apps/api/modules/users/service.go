@@ -19,6 +19,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// Service is the users module's data access: it owns profile, avatar and
+// API-token operations over the users table.
 type Service struct {
 	orm        *gorm.DB
 	storageDir string
@@ -39,6 +41,8 @@ type Auth interface {
 	SetPassword(ctx context.Context, userID int64, email, password string) error
 }
 
+// NewService builds a users Service over the database and avatar storage
+// directory, delegating tokens and passwords to the narrowed auth interface.
 func NewService(orm *gorm.DB, storageDir string, tokens Auth) *Service {
 	service := &Service{orm: orm, storageDir: storageDir, tokens: tokens}
 	service.controller = newController(service)
@@ -76,6 +80,16 @@ func (service *Service) listUsers(context context.Context) ([]User, error) {
 	return users, nil
 }
 
+// updateUser applies the caller's name, email and password changes to their
+// own account.
+//
+// The password is porte's, not a column on this row: writing password_hash
+// would change nothing, because porte reads the identity table, so the old
+// password would keep signing in and the new one never work. Because porte
+// keys a local identity on the lowercased email, changing the address without
+// re-keying it leaves the password login answering "invalid credentials" to
+// the right password, so the identity is moved first and the password is then
+// set on the address the account will actually have.
 func (service *Service) updateUser(context context.Context, userID string, name *string, email *string, password *string) (*User, error) {
 	id, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
@@ -87,17 +101,6 @@ func (service *Service) updateUser(context context.Context, userID string, name 
 		updates["name"] = *name
 	}
 
-	// The password is porte's, not a column on this row. Writing
-	// users.password_hash would look like it worked and change nothing:
-	// porte reads the identity table, so the old password would keep
-	// signing in and the new one would never work.
-	//
-	// The address matters twice over, because porte keys a local identity
-	// on it. Changing the email without moving that key leaves the
-	// password login answering "invalid credentials" to the right
-	// password — the same silent failure, reached from the other side —
-	// so the identity is re-keyed first and the password, if there is
-	// one, is then set on the address the account will actually have.
 	if email != nil || password != nil {
 		var current schemas.User
 		if err := service.orm.WithContext(context).Select("email").First(&current, id).Error; err != nil {
@@ -145,6 +148,13 @@ func (service *Service) updateUser(context context.Context, userID string, name 
 	return mapUser(record), nil
 }
 
+// storeAvatar writes an uploaded avatar file to disk and records its path on
+// the user row.
+//
+// Uploading is the fallback for people the IdP has no photo for, so a photo in
+// Porte makes this endpoint reject rather than silently outrank the upload:
+// accepting the file and then never showing it is the worse failure, because
+// the user sees a success and no change.
 func (service *Service) storeAvatar(context context.Context, userID string, reader io.Reader, contentType string) (*User, error) {
 	id, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
@@ -159,9 +169,6 @@ func (service *Service) storeAvatar(context context.Context, userID string, read
 		return nil, errors.Internal("failed to read user", err)
 	}
 
-	// Uploading is the fallback for people the IdP has no photo for, so a photo in Porte
-	// makes this endpoint unavailable rather than merely outranked. Accepting the file and
-	// then never showing it is the worse failure: the user sees a success and no change.
 	if record.OIDCPictureURL != "" {
 		return nil, errors.Invalid("your photo is managed in Porte — change it there")
 	}
@@ -187,6 +194,11 @@ func (service *Service) storeAvatar(context context.Context, userID string, read
 	return mapUser(record), nil
 }
 
+// clearAvatar removes the user's uploaded avatar, leaving any Porte photo
+// alone.
+//
+// Only the upload is the user's to clear: the Porte photo is not deleted from
+// here, because it is not ours and the next sync would bring it straight back.
 func (service *Service) clearAvatar(context context.Context, userID string) (*User, error) {
 	id, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
@@ -201,8 +213,6 @@ func (service *Service) clearAvatar(context context.Context, userID string) (*Us
 		return nil, errors.Internal("failed to read user", err)
 	}
 
-	// Only the upload is the user's to clear. The Porte photo is not deleted from here —
-	// it is not ours, and the next sync would bring it straight back.
 	oldUploadPath := record.AvatarUploadPath
 	record.AvatarUploadPath = ""
 	if err := service.orm.WithContext(context).Save(&record).Error; err != nil {

@@ -153,7 +153,8 @@
 	}
 
 	$effect(() => {
-		spaceStore.active; // reload templates when the active space changes
+		// Reload templates when the active space changes.
+		spaceStore.active;
 		backend.listTemplates(spaceStore.active?.id).then((r) => { templates = r.templates; }).catch(() => {});
 	});
 

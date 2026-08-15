@@ -14,11 +14,14 @@ import (
 
 const appSettingID = 1
 
+// Service is the settings module's data access over the single app-settings
+// row.
 type Service struct {
 	orm        *gorm.DB
 	controller *Controller
 }
 
+// NewService builds a settings Service over the database.
 func NewService(orm *gorm.DB) *Service {
 	service := &Service{orm: orm}
 	service.controller = newController(service)
