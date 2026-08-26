@@ -4,7 +4,7 @@ The authentication kit for the [Facile Suite](https://facile.studio). The OIDC p
 Facile API needs and none of them should be re-writing.
 
 **In production, in two apps.** [Journal](https://github.com/FacileStudio/Journal) and
-[Sablier](https://github.com/FacileStudio/Sablier) run on it against the suite's Authentik:
+Sablier run on it against the suite's Authentik:
 discovery, PKCE, nonce, callback, upsert and the session cookie are walked by real users, not
 only by tests — and since v0.2 their password logins land in the same session, the same cookie
 and the same logout as their federated ones. Journal is also the first app running with
@@ -131,7 +131,8 @@ state comparison. Written once here instead of six times in the apps.
 | **v0.2.0** | `porte/session` extracted out of `porte/oidc`, `porte/local` with argon2id passwords, `porte/avatarfs`. **Breaking:** `oidc.Deps.Sessions` is a `*session.Manager` and the app builds it |
 | **v0.2.1** | The error sentinels are wrapped rather than stringified, so `errors.Is` works; `ErrWeakPassword` is actually returned |
 | **v0.2.2** | `session.Manager` gained `List` and `Revoke`, the two `SessionStore` methods a "your active sessions" screen needs and the manager did not expose. Purely additive |
-| v0.3 | `porte/espace` — spaces, membership, `RequireRole` |
+| **v0.3.0** | Password identities keyed on the account id instead of the mutable email, per OIDC Core §5.7. `local.Kit.ChangePassword` confirms the current password, ends the other logins and rotates the caller's session; `SetPassword` refuses an account that already has one. **Breaking:** `SetPassword` loses its `email` parameter, `SessionStore` gains `DeleteLogins` |
+| v0.4 | `porte/espace` — spaces, membership, `RequireRole` |
 
 The first adopter turned out to be Journal — the one app with no OIDC of its own, so the wiring
 added a path instead of replacing six hundred lines of one. It kept its own `users` table and

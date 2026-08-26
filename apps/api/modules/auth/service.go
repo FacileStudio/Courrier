@@ -88,9 +88,23 @@ func (service *Service) Login(ctx context.Context, w http.ResponseWriter, r *htt
 	return strconv.FormatInt(userID, 10), token, nil
 }
 
-// SetPassword is what PATCH /users/me calls when the body carries one.
-func (service *Service) SetPassword(ctx context.Context, userID int64, email, password string) error {
-	return service.passwords.SetPassword(ctx, userID, email, password)
+// SetPassword gives a first password to an account that has none. porte
+// refuses it with ErrPasswordSet once one exists, which is why replacing a
+// password is ChangePassword and not this.
+func (service *Service) SetPassword(ctx context.Context, userID int64, password string) error {
+	return service.passwords.SetPassword(ctx, userID, password)
+}
+
+// ChangePassword replaces a password after confirming the current one, ends
+// the account's other logins and rotates the caller's session.
+//
+// It takes the writer and the request because porte sets the rotated session
+// cookie itself: the old token is dead before this returns, so a handler that
+// only held a context would leave the browser that made the change holding a
+// revoked credential. It returns the new bearer token and how many other
+// logins were ended.
+func (service *Service) ChangePassword(ctx context.Context, w http.ResponseWriter, r *http.Request, userID int64, current, next string) (string, int64, error) {
+	return service.passwords.ChangePassword(ctx, w, r, userID, current, next)
 }
 
 // Issue mints a named API token: a porte session with a label and no expiry,

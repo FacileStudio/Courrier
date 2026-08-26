@@ -3,6 +3,213 @@
 Decisions are recorded with their reasoning. The reasoning is the part that stops a future
 session from undoing a deliberate choice.
 
+## Unreleased
+
+**One CLI login for the suite: `POST /auth/oidc/device/exchange`.** A CLI trades the access
+token it holds from the provider's device grant (RFC 8628) for this app's own session token.
+`{"access_token": …}` goes in, `{"user_id", "token"}` comes out. It is the last missing piece of
+`facile login`, which until now ran the device grant against Registre, held a valid token, and
+had nowhere to spend it: every tool answered 404, so the CLI fell back to the loopback browser
+flow, the one flow that cannot work when the browser is on another machine. Writing the
+provider's token into the slot where a CLI keeps its own session was never an option; that is a
+login that 401s when the token expires an hour later.
+
+The handler adds no verification of its own. It composes the bearer verifier the Authorization
+header path already uses, the same `(issuer, sub)` lookup the login callback matches on, and the
+same `Manager.Issue` that mints every other session. All that is new is that the token arrives in
+a request body rather than a header, so `Cache-Control: no-store` applies (OAuth 2.1 §7.1) and no
+CSRF header is required, because there is no ambient credential to abuse when the caller has to
+put a token it holds into the body.
+
+**Two audiences, because they are two token populations.** The exchange has its own setting,
+`Config.CLIAudience` (env `OIDC_CLI_AUDIENCE`), which an app sets to the CLI's client id,
+`facile-cli` for the suite. `OIDC_MACHINE_AUDIENCE` keeps its old meaning and its old value:
+this app's own client id, which is what a service account's token is addressed to. Registre's
+`suite-ci` account declares `audiences: [courrier]`, so courrier checks `courrier` there and the
+CLI's `aud: ["facile-cli"]` never matches it. Folding the two into one variable would have made
+an app choose between service accounts and CLI login, and an app that chose CLI login would have
+started rejecting every service-account token it had been accepting, silently, with nothing in
+its own configuration having changed meaning.
+
+**The second audience builds a second verifier, and it never reaches the session manager.**
+`OIDC_CLI_AUDIENCE` arms this route alone; it does not put a `facile-cli` token on the
+`Authorization` header path. So the exchange is a real boundary rather than a formality: the
+token traded in cannot already open every `RequireAuth` route on its own, and what comes back is
+a session row the app can list, expire and revoke, where a verified bearer JWT leaves no row at
+all. The cost is one extra discovery and JWKS fetch at boot, paid once per process, because
+`porte/oidc/jwt` bakes the audience in at construction.
+
+**An empty `OIDC_CLI_AUDIENCE` does not mount the route, and its 404 is load-bearing.** An app
+with no CLI audience cannot tell a Registre token from a forgery and must not pretend to serve
+the exchange; 404 is exactly what `facile login` reads as "not shipped" before falling back. The
+corollary binds an app that does mount it: the CLI probes with a POST carrying an empty body, so
+a mounted route refuses on the merits (400 or 401) and never with a 404. `OIDC_MACHINE_AUDIENCE`
+does not mount it, so an app can run service accounts with no exchange, the exchange with no
+service accounts, or both, and the two never interfere.
+
+Refusals are one status and one message. Bad signature, wrong issuer, wrong audience, expired,
+not yet valid, unknown kid, no subject, and a subject with no row in `porte_identities` are
+indistinguishable to the caller, and a token addressed to the machine audience is refused here
+exactly like any other wrong audience. The identity store is consulted only after every
+cryptographic and claim check has passed, so refusal latency does not answer "does this subject
+have an account here" either. No account is created here: provisioning from a bearer would let
+anyone the provider will mint a token for materialise an account in every app at once, and the
+callback owns account creation because it is the path holding a verified email.
+
+**What the split does not close, stated plainly:** a stolen or phished `facile-cli` token can
+still be exchanged for a durable session at every app that trusts it. `facile-cli` is a public
+client, so anyone can start its device grant; the human approving the code and the requirement
+of an existing local account are what stand in the way. Bounding the rest is back-channel
+logout's job, and `backchannel_logout_uri` appears zero times in Registre's `seed.yaml` today,
+so that bound is not in place yet.
+
+**A verified bearer whose identity row names account zero is now refused** on both paths. No
+account has that id, so the row is a store bug, and both callers spend the `UserID` directly,
+one to authorize a request and one to mint a session. Zero would be the identity of everybody at
+once.
+
+**Offline verification of bearer JWTs.** `Config.MachineAudience` (env
+`OIDC_MACHINE_AUDIENCE`) gives the session manager a second bearer verifier: a bearer that parses
+as three dot-separated segments is verified against the provider's JWKS — signature, `iss`, `aud`,
+`exp`, and `nbf`/`iat` when present — and never reaches the hashed-session lookup. Keys cache for
+an hour and refetch once on an unknown kid, so a rotation does not wait out the TTL. The engine is
+the new stdlib-only `porte/oidc/jwt`; the manager learns of it through the `session.JWTVerifier`
+interface so the credential package still compiles without any OIDC dependency. Introspection
+stays out: offline verification is the point.
+
+**A verified bearer resolves to a local account.** This is what turns one login per app into one
+login for the suite: a user who has signed in here through the browser can afterwards present a
+Registre-issued token to the same app, and porte authenticates them as themselves. `sub` is
+matched against `porte_identities` on `(issuer, subject)` — the same key the callback and
+back-channel logout already use, and never the email address, because matching on a mutable
+address is the account-takeover primitive v0.3.0 removed from the callback. A subject with no row
+is refused rather than provisioned: account creation stays in the callback, which is the path
+that holds a verified email.
+
+That lookup is also the whole of the deactivation story on this path, and the reason it is
+mandatory. A JWT carries no session row, so revoking sessions — all back-channel logout can do —
+does not reach one, and `SessionID` is zero. What does reach one is `IdentityStore.Find`: an app
+that deactivates an account by making `Find` answer `ErrNotFound` locks it out on the next
+request. An app that leaves the row readable keeps admitting the token until it expires, so the
+issuer's access-token lifetime is the real bound. Registre SPEC §10 question 6 chose offline
+verification knowing this and named short lifetimes as the mitigation.
+
+The behaviour change lands on an unreleased, unadopted surface: `MachineAudience` was empty in
+every app, and a service account that previously authenticated as an all-but-empty identity now
+needs a row like anybody else. Registre's SPEC asks for exactly that — "the app-side identity is
+`(issuer, sub)` exactly as it is for a human, a service account is a principal, not a special
+case". Roles are taken from the verified token rather than from the cached row, so a provider
+that emits no roles claim leaves a bearer caller with none rather than with yesterday's.
+
+**The unknown-kid refetch is rate limited.** The previous entry claimed forged kids could not
+cause a fetch storm and the code did not deliver it: `kid` is read off the header before any
+signature is checked, and a fresh one on every request bought one outbound JWKS fetch each,
+serialized under the mutex every real verification waits on and aimed at the one provider all
+eleven apps share. It is now one refetch per `minRefetchInterval` (30s). A rotation the provider
+published before signing with the new key is already cached and unaffected; the floor costs at
+most half a minute of refusals on a rotation that skipped that step.
+
+## v0.3.1 — 2026-08-22
+
+**`SPEC.md` calls the event bus Antenne.** Two forward-looking passages still named Nook: §4's
+`porte/espace` scope, where `FacileID` is the key a space syncs on across apps, and §5c's third
+freshness mechanism, the group-change event that invalidates cached claims. Same bus, renamed.
+Neither plan changed, and neither is built yet.
+
+It is recorded here rather than pushed silently because `SPEC.md` is the contract an adopter
+reads before building against porte, and Agenda, Courrier and Sablier vendor it — Go vendoring
+carries a module's markdown too. Their copies keep the old name until each re-vendors, which is
+the place to fix them; do not hand-edit a file under `vendor/`.
+
+No Go code changed in this range. The filet configuration and its CI workflow landed here too and
+are deliberately unlisted: they gate this repository and ship nothing an adopter consumes.
+
+## v0.3.0 — 2026-08-10
+
+**A password identity is keyed on the account id now, not on the email address.** This is the
+version's whole point; everything else in it follows from the same mistake.
+
+`porte` already knew the rule. SPEC §3 has said since 2026-08-07 that OIDC account matching keys
+on `(provider, subject)` and **never on email**, because the address is mutable — an email change
+silently orphans the account. That rule was applied to federated identities and broken for
+`porte`'s own local ones, where `subject` was the normalised address. OpenID Connect Core §5.7 is
+explicit: *"other Claims such as `email`, `phone_number`, `preferred_username`, and `name` MUST NOT
+be used as unique identifiers for the End-User."* Every mature implementation agrees — Keycloak's
+`credential` table keys on `user_id`, Supabase sets `identities.provider_id` to the user's uuid for
+the email provider, better-auth sets `account.accountId` equal to `userId` for credential accounts,
+Auth0 documents `user_id` as "unique and immutable".
+
+What the mutable key cost, measured across the eight adopters rather than imagined:
+
+- **Five apps wrote the same `UPDATE porte_identities SET subject = ?` by hand**, because the
+  contract offered no way to re-key — there is no delete and no update on `IdentityStore`. Copying
+  a raw statement against another package's table into five repos is the symptom; the missing
+  operation was the disease.
+- **Sablier did not write it.** Changing an address there moved `users.email` and left the
+  credential behind, so the old address kept signing in and the new one never did. Worse together
+  with a password change: `Save` upserts on `(provider, subject)`, so setting a password on the new
+  address **inserted a second identity** and left the first intact with its old hash — two working
+  passwords on one account, one of them on an address the human no longer owned.
+
+Keying on the id deletes the failure class instead of defending against it. Changing an address is
+now one `UPDATE` on the app's own user row, and `subject` being half the primary key means "one
+password per account" is enforced by the table rather than by a check somebody has to remember.
+
+**Migration.** `pg.Schema` carries `UPDATE porte_identities SET subject = user_id::text WHERE
+provider = 'local' AND subject <> user_id::text`. It is idempotent, it leaves federated subjects
+alone, and it is allowed to fail: the only way it can is an account holding two password
+identities, which the old key made reachable and which nothing should paper over by picking one.
+Refusing to migrate is the right answer to ambiguous credentials. Across the fleet on 2026-08-10
+the audit found **four local identities in total** — Journal 1, Boutique 3, and zero in the other
+six — which is why this landed now rather than later. It will never be cheaper.
+
+### `ChangePassword`, and why `SetPassword` refuses
+
+**Four of eight adopters shipped a settings screen that set a new password without asking for the
+old one.** Sablier, Courrier, Agenda and Boutique took `PATCH /users/me {"password": …}` and passed
+it straight to `SetPassword`. OWASP ASVS puts the confirmation at L1 (v4 §2.1.6, v5 §6.2.3): *"password
+change functionality requires the user's current and new password."* One method served both "add a
+first password" and "replace an existing one", so the check was the app's to remember, and half of
+them did not.
+
+So the two operations are two methods now. `SetPassword(ctx, userID, password)` gives a first
+password to an account that has none and returns `ErrPasswordSet` otherwise — it takes no address
+any more, because there is no longer an address in the key. `ChangePassword(ctx, w, r, userID,
+current, next)` is the replace path, and it cannot be called without the current password.
+
+`ChangePassword` also ends the account's **other** logins, rotates the caller's own session, and
+leaves named API tokens alone. Each third of that has a reason, and they are not the same reason:
+
+- **Other logins go.** ASVS asks an application to *offer* termination of all other sessions after
+  a password change (v4 §3.3.3, v5 §7.4.3, L2). Doing it rather than offering it is stronger than
+  the control and matches Google and Entra.
+- **The caller is rotated, not dropped.** No ASVS control covers this; the OWASP Session Management
+  Cheat Sheet does, naming password changes specifically and requiring the previous id to be
+  destroyed. The old token is dead before the call returns and the new one is already in the
+  cookie, so the screen that made the change keeps working. No vendor documents logging you out of
+  the browser you just used, and all eight say "all **other** sessions".
+- **Named API tokens survive**, and this one is porte's decision rather than a standard's — ASVS,
+  NIST SP 800-63B-4 and the cheat sheets are all silent on long-lived credentials here. The
+  industry is not: GitHub's exhaustive list of revocation triggers omits password change, AWS
+  states access keys keep working through an expired password, Entra exempts app passwords,
+  Stripe's keys are account-scoped. Revoking them would put `porte` outside all eight products
+  surveyed, and would mean a routine rotation silently stops the CalDAV client on somebody's phone.
+  `RevokeUser` remains the call for a leak, where the answer really is everything.
+
+### Breaking
+
+- `porte.IdentityStore` gains nothing, but **the meaning of `Subject` changed** for
+  `provider = 'local'`: it is `porte.LocalSubject(userID)`, never an address.
+- `porte.SessionStore` gains `DeleteLogins(ctx, userID, except)`. Any custom implementation must
+  add it; no adopter has one — all eight use `porte/pg`.
+- `local.Kit.SetPassword` loses its `email` parameter and now refuses an account that already has a
+  password.
+- New sentinels `porte.ErrNoPassword` and `porte.ErrPasswordSet`.
+
+**Adopting apps must delete their own re-keying SQL.** Left in place it is harmless — it updates
+zero rows, since no `subject` matches an address any more — but it is a statement against a table
+`porte` owns, describing a design that no longer exists.
+
 ## v0.2.10 — 2026-08-10
 
 Two things the Plume adoption found, both in the same corner: what happens to a session over time.

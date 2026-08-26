@@ -118,9 +118,9 @@ func TestAdoptPorteKeepsEverybodySignedIn(t *testing.T) {
 // the login form answers "invalid credentials" to a correct password, with the
 // hash still sitting in the users table and no error anywhere.
 //
-// The subject is the lowercased address on purpose: porte/local normalises
-// before it looks one up, so an identity keyed on the mixed-case address this
-// user registered with would never be found.
+// The subject is the account id, which is what porte.LocalSubject returns
+// since porte v0.3.0. The lowercased address was the old key, and an identity
+// left on it is one porte never looks up.
 func TestAdoptPorteMovesThePasswords(t *testing.T) {
 	db := openTestDatabase(t)
 	seedPrePorte(t, db)
@@ -134,7 +134,7 @@ func TestAdoptPorteMovesThePasswords(t *testing.T) {
 		PasswordHash string
 	}
 	err := db.Raw(
-		`SELECT user_id, password_hash FROM porte_identities WHERE provider = 'local' AND subject = 'noah@facile.studio'`,
+		`SELECT user_id, password_hash FROM porte_identities WHERE provider = 'local' AND subject = '2'`,
 	).Scan(&identity).Error
 	if err != nil {
 		t.Fatalf("read the local identity: %v", err)
@@ -143,12 +143,81 @@ func TestAdoptPorteMovesThePasswords(t *testing.T) {
 		t.Fatalf("the password did not move: %+v", identity)
 	}
 
+	var addressKeyed int64
+	if err := db.Raw(`SELECT count(*) FROM porte_identities WHERE provider = 'local' AND subject LIKE '%@%'`).Scan(&addressKeyed).Error; err != nil {
+		t.Fatalf("count the address-keyed identities: %v", err)
+	}
+	if addressKeyed != 0 {
+		t.Fatalf("the adoption wrote an address-keyed identity porte will never look up: %d rows", addressKeyed)
+	}
+
 	var withoutPassword int64
 	if err := db.Raw(`SELECT count(*) FROM porte_identities WHERE provider = 'local' AND user_id = 1`).Scan(&withoutPassword).Error; err != nil {
 		t.Fatalf("count: %v", err)
 	}
 	if withoutPassword != 0 {
 		t.Fatal("an account with no password gained a local identity, which is a login that cannot be used and an account that cannot be registered")
+	}
+}
+
+// A database adopted under porte v0.2 holds address-keyed local identities,
+// and porte v0.3.0 moved the key to the account id. This is the migration that
+// carries them across, and it runs twice because one run proves nothing.
+//
+// One run passes whatever the INSERT selects: the re-key moves the old row
+// first, and an INSERT still writing the address slips past ON CONFLICT
+// (provider, subject) because the subjects differ. The second run is where
+// that shows — the re-key drags the address-keyed row onto a subject the
+// id-keyed row already owns and dies on the primary key. AdoptPorte failing is
+// fatal at boot, and Courrier runs SSO_ONLY with no password fallback, so the
+// app would come up once and never again.
+//
+// The seeded hash differs from users.password_hash on purpose. It is what
+// tells "the existing credential was re-keyed" apart from "a fresh row was
+// inserted from the users table and the old one vanished".
+func TestAdoptPorteRekeysAnAddressKeyedIdentityAndSurvivesASecondRun(t *testing.T) {
+	db := openTestDatabase(t)
+	seedPrePorte(t, db)
+
+	if err := db.Exec(
+		`INSERT INTO porte_identities (user_id, provider, subject, password_hash)
+		 VALUES (2, 'local', 'noah@facile.studio', '$argon2id$rekeyed')`,
+	).Error; err != nil {
+		t.Fatalf("seed the address-keyed identity: %v", err)
+	}
+
+	if err := AdoptPorte(db, testIssuer); err != nil {
+		t.Fatalf("first adopt: %v", err)
+	}
+	assertOneLocalIdentityKeyedOnTheID(t, db)
+
+	if err := AdoptPorte(db, testIssuer); err != nil {
+		t.Fatalf("second adopt: %v", err)
+	}
+	assertOneLocalIdentityKeyedOnTheID(t, db)
+}
+
+// assertOneLocalIdentityKeyedOnTheID states the whole invariant in one place:
+// the account keeps exactly one local identity, it is keyed on the account id,
+// and it still carries the hash the password login reads.
+func assertOneLocalIdentityKeyedOnTheID(t *testing.T, db *gorm.DB) {
+	t.Helper()
+
+	var identities []struct {
+		Subject      string
+		PasswordHash string
+	}
+	if err := db.Raw(`SELECT subject, password_hash FROM porte_identities WHERE provider = 'local' AND user_id = 2`).Scan(&identities).Error; err != nil {
+		t.Fatalf("read the local identities: %v", err)
+	}
+	if len(identities) != 1 {
+		t.Fatalf("expected one local identity, got %d: %+v", len(identities), identities)
+	}
+	if identities[0].Subject != "2" {
+		t.Fatalf("the local identity is not keyed on the account id: %q", identities[0].Subject)
+	}
+	if identities[0].PasswordHash != "$argon2id$rekeyed" {
+		t.Fatalf("the re-key replaced the credential instead of moving it: %q", identities[0].PasswordHash)
 	}
 }
 

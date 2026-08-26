@@ -5,6 +5,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -38,7 +39,8 @@ type Service struct {
 type Auth interface {
 	Issue(ctx context.Context, userID int64, label string) (string, porte.Session, error)
 	Sessions() *session.Manager
-	SetPassword(ctx context.Context, userID int64, email, password string) error
+	SetPassword(ctx context.Context, userID int64, password string) error
+	ChangePassword(ctx context.Context, w http.ResponseWriter, r *http.Request, userID int64, current, next string) (string, int64, error)
 }
 
 // NewService builds a users Service over the database and avatar storage
@@ -80,17 +82,18 @@ func (service *Service) listUsers(context context.Context) ([]User, error) {
 	return users, nil
 }
 
-// updateUser applies the caller's name, email and password changes to their
-// own account.
+// updateUser applies the caller's name and email changes to their own
+// account.
 //
-// The password is porte's, not a column on this row: writing password_hash
-// would change nothing, because porte reads the identity table, so the old
-// password would keep signing in and the new one never work. Because porte
-// keys a local identity on the lowercased email, changing the address without
-// re-keying it leaves the password login answering "invalid credentials" to
-// the right password, so the identity is moved first and the password is then
-// set on the address the account will actually have.
-func (service *Service) updateUser(context context.Context, userID string, name *string, email *string, password *string) (*User, error) {
+// The password is not here: replacing one needs the current password
+// confirmed and the caller's session rotated, which porte does through the
+// response writer, so it happens in the handler layer instead.
+//
+// Nor is there an identity to chase any more. porte keyed a local identity on
+// the lowercased address until v0.3.0, so an app that let people edit their
+// profile had to move the subject with raw SQL against a table porte owns.
+// The key is the account id now, and an id does not move.
+func (service *Service) updateUser(context context.Context, userID string, name *string, email *string) (*User, error) {
 	id, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
 		return nil, errors.Internal("failed to parse user id", err)
@@ -101,30 +104,8 @@ func (service *Service) updateUser(context context.Context, userID string, name 
 		updates["name"] = *name
 	}
 
-	if email != nil || password != nil {
-		var current schemas.User
-		if err := service.orm.WithContext(context).Select("email").First(&current, id).Error; err != nil {
-			return nil, errors.Internal("failed to read the account", err)
-		}
-		address := current.Email
-		if email != nil {
-			address = *email
-			updates["email"] = address
-			if !strings.EqualFold(address, current.Email) {
-				if err := service.orm.WithContext(context).Exec(
-					`UPDATE porte_identities SET subject = ? WHERE provider = 'local' AND subject = ?`,
-					strings.ToLower(strings.TrimSpace(address)),
-					strings.ToLower(strings.TrimSpace(current.Email)),
-				).Error; err != nil {
-					return nil, errors.Internal("failed to move the password to the new address", err)
-				}
-			}
-		}
-		if password != nil {
-			if err := service.tokens.SetPassword(context, id, address, *password); err != nil {
-				return nil, err
-			}
-		}
+	if email != nil {
+		updates["email"] = *email
 	}
 
 	result := service.orm.WithContext(context).

@@ -19,6 +19,15 @@ type OIDCConfig struct {
 	ClientSecret string
 	RedirectURL  string
 	SuccessURL   string
+
+	// CLIAudience is the CLI's own client id, and it is what mounts
+	// POST /auth/oidc/device/exchange. Empty leaves the route unmounted, so
+	// an app that has not been told which CLI to trust has no endpoint to
+	// probe rather than one that refuses.
+	//
+	// porte reads no environment of its own, so a variable set in the panel
+	// and never read here reaches nothing.
+	CLIAudience string
 }
 
 // Config is the fully-resolved application configuration: the core tronc
@@ -77,6 +86,7 @@ func Load() (Config, error) {
 			ClientSecret: clientSecret,
 			RedirectURL:  redirectURL,
 			SuccessURL:   successURL,
+			CLIAudience:  troncenv.String("OIDC_CLI_AUDIENCE", ""),
 		}
 	}
 
@@ -111,6 +121,7 @@ func (c Config) Porte() porte.Config {
 	cfg.ClientSecret = c.OIDC.ClientSecret
 	cfg.RedirectURL = c.OIDC.RedirectURL
 	cfg.SuccessURL = c.OIDC.SuccessURL
+	cfg.CLIAudience = c.OIDC.CLIAudience
 	return cfg
 }
 
