@@ -85,12 +85,13 @@ var Documentation = documentation.Module{
 			Method:      "POST",
 			Path:        "/spaces/{spaceId}/leave",
 			Summary:     "Leave a space",
-			Description: "Removes the caller's own membership.",
+			Description: "Removes the caller's own membership. An owner may leave while another owner remains.",
 			Auth:        "bearer token required",
 			PathParams:  spaceID,
 			Errors: []documentation.Error{
 				unauthenticated,
 				{Status: 404, Code: "not_found", Description: "The caller is not a member of that space."},
+				{Status: 409, Code: "already_exists", Description: "The caller is the space's only owner."},
 			},
 		},
 		{

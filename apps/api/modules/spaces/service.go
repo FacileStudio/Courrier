@@ -237,6 +237,12 @@ func (s *Service) RemoveMember(ctx context.Context, actorID int64, spaceID strin
 	return nil
 }
 
+// Leave removes the caller's own membership, unless doing so would leave the
+// space with no owner.
+//
+// The guard is a count and not a rank: refusing every owner makes ownership
+// transfer the only exit from a space two people own equally, which is a
+// different rule from the one that keeps a space reachable.
 func (s *Service) Leave(ctx context.Context, userID int64, spaceID string) error {
 	var member schemas.SpaceMember
 	if err := s.orm.WithContext(ctx).Where("space_id = ? AND user_id = ?", spaceID, userID).First(&member).Error; err != nil {
@@ -244,7 +250,15 @@ func (s *Service) Leave(ctx context.Context, userID int64, spaceID string) error
 	}
 
 	if member.Role == schemas.SpaceRoleOwner {
-		return errors.Forbidden("the owner cannot leave; delete the space or transfer ownership")
+		var owners int64
+		if err := s.orm.WithContext(ctx).Model(&schemas.SpaceMember{}).
+			Where("space_id = ? AND role = ?", spaceID, schemas.SpaceRoleOwner).
+			Count(&owners).Error; err != nil {
+			return errors.Internal("failed to count the owners", err)
+		}
+		if owners <= 1 {
+			return errors.Conflict("the last owner cannot leave; delete the space or transfer ownership")
+		}
 	}
 
 	if err := s.orm.WithContext(ctx).Delete(&member).Error; err != nil {
