@@ -3,15 +3,12 @@ package users
 import (
 	"bytes"
 	"context"
-	stderrors "errors"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
-	"github.com/FacileStudio/porte"
 	"github.com/FacileStudio/tronc/errors"
 )
 
@@ -111,39 +108,6 @@ func (controller *Controller) updateMe(context context.Context, w http.ResponseW
 	}
 
 	return &MeResponse{User: *user}, nil
-}
-
-// changePassword picks between porte's two password writes.
-//
-// They are two calls and not one because only one of them is safe to make
-// with nothing but a session: SetPassword gives a first password to an account
-// that has none, and porte refuses it with ErrPasswordSet once there is one.
-// Replacing a password goes through ChangePassword, which confirms the current
-// one — OWASP ASVS puts that at L1 (v4 2.1.6, v5 6.2.3) — then ends the
-// account's other logins and rotates this caller's session through w.
-//
-// A blank current password counts as none given, so the answer is the one that
-// says what is missing rather than "invalid credentials".
-func (controller *Controller) changePassword(context context.Context, w http.ResponseWriter, request *http.Request, userID string, req *UpdateRequest, password string) error {
-	id, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		return errors.Internal("failed to parse user id", err)
-	}
-
-	current := ""
-	if req.CurrentPassword != nil {
-		current = strings.TrimSpace(*req.CurrentPassword)
-	}
-	if current != "" {
-		_, _, err := controller.service.tokens.ChangePassword(context, w, request, id, current, password)
-		return err
-	}
-
-	err = controller.service.tokens.SetPassword(context, id, password)
-	if stderrors.Is(err, porte.ErrPasswordSet) {
-		return errors.Invalid("current password is required to change your password")
-	}
-	return err
 }
 
 func (controller *Controller) deleteAvatar(context context.Context) (*MeResponse, error) {
