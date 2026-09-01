@@ -1,6 +1,10 @@
 package accounts
 
-import documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
+import (
+	"net/http"
+
+	documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
+)
 
 var accountID = []documentation.Field{
 	{Name: "id", Type: "int", Description: "Mail account identifier."},
@@ -16,7 +20,8 @@ var Documentation = documentation.Module{
 			Summary:      "List mail accounts",
 			Description:  "Returns the caller's mail accounts. Accepts a space_id query parameter to scope the list to one space.",
 			Auth:         "bearer token required",
-			ResponseBody: "[]AccountResponse",
+			QueryParams:  []documentation.Field{{Name: "space_id", Type: "string", Description: "Space identifier."}},
+			ResponseBody: AccountListResponse{},
 			Errors: []documentation.Error{
 				{Status: 401, Code: "unauthenticated", Description: "No valid session cookie, bearer token or API token."},
 				{Status: 500, Code: "internal", Description: "Unexpected server error."},
@@ -28,8 +33,9 @@ var Documentation = documentation.Module{
 			Summary:      "Create a mail account",
 			Description:  "Stores IMAP and SMTP credentials. IMAP defaults to port 993 and SMTP to 587.",
 			Auth:         "bearer token required",
-			RequestBody:  "CreateAccountRequest",
-			ResponseBody: "AccountResponse",
+			RequestBody:  CreateAccountRequest{},
+			ResponseBody: AccountResponse{},
+			Status:       http.StatusCreated,
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body or missing connection details."},
 				{Status: 401, Code: "unauthenticated", Description: "No valid session cookie, bearer token or API token."},
@@ -43,7 +49,7 @@ var Documentation = documentation.Module{
 			Description:  "Returns one mail account, without either stored password.",
 			Auth:         "bearer token required",
 			PathParams:   accountID,
-			ResponseBody: "AccountResponse",
+			ResponseBody: AccountResponse{},
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Account id is not an integer."},
 				{Status: 401, Code: "unauthenticated", Description: "No valid session cookie, bearer token or API token."},
@@ -57,8 +63,8 @@ var Documentation = documentation.Module{
 			Description:  "Updates connection details. Every field is optional; passwords are only re-encrypted when supplied.",
 			Auth:         "bearer token required",
 			PathParams:   accountID,
-			RequestBody:  "UpdateAccountRequest",
-			ResponseBody: "AccountResponse",
+			RequestBody:  UpdateAccountRequest{},
+			ResponseBody: AccountResponse{},
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body or account id is not an integer."},
 				{Status: 401, Code: "unauthenticated", Description: "No valid session cookie, bearer token or API token."},
@@ -66,12 +72,13 @@ var Documentation = documentation.Module{
 			},
 		},
 		{
-			Method:      "DELETE",
-			Path:        "/accounts/{id}",
-			Summary:     "Delete a mail account",
-			Description: "Removes the account together with its synced folders and messages.",
-			Auth:        "bearer token required",
-			PathParams:  accountID,
+			Method:       "DELETE",
+			Path:         "/accounts/{id}",
+			Summary:      "Delete a mail account",
+			Description:  "Removes the account together with its synced folders and messages.",
+			Auth:         "bearer token required",
+			PathParams:   accountID,
+			ResponseBody: DeleteAccountResponse{},
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Account id is not an integer."},
 				{Status: 401, Code: "unauthenticated", Description: "No valid session cookie, bearer token or API token."},

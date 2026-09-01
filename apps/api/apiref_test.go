@@ -45,11 +45,29 @@ func referenceRouter(t *testing.T) chi.Router {
 	return buildRouter(nil, func(context.Context) error { return nil }, appEnv, appLogger, sessions, passwords, kit)
 }
 
-// The registry is hand-written, so it rots the moment someone registers a route
-// and forgets it.
 func TestEveryRouteIsDocumented(t *testing.T) {
 	if missing := apiref.Undocumented(referenceRouter(t), referenceConfig()); len(missing) > 0 {
 		t.Errorf("routes missing from the API registry: %v", missing)
+	}
+}
+
+func TestRegistryIsComplete(t *testing.T) {
+	if issues := apiref.Incomplete(
+		referenceConfig(),
+		"/auth/logout",
+		"/auth/oidc",
+		"/auth/oidc/callback",
+		"/auth/sync-profile",
+		"/auth/backchannel-logout",
+		"/accounts/{accountId}/mail/check",
+		"/accounts/{accountId}/mail/sync",
+		"/accounts/{accountId}/mail/folders/{folderId}/sync",
+		"/accounts/{accountId}/mail/emails/{emailId}/attachments/{attachmentId}/download",
+		"/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}",
+		"/users/me/avatar",
+		"/spaces/{spaceId}/leave",
+	); len(issues) > 0 {
+		t.Errorf("incomplete documentation routes: %v", issues)
 	}
 }
 

@@ -51,3 +51,13 @@ type AccountResponse struct {
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }
+
+// AccountListResponse wraps the list of mail accounts.
+type AccountListResponse struct {
+	Accounts []AccountResponse `json:"accounts"`
+}
+
+// DeleteAccountResponse is returned when an account is deleted.
+type DeleteAccountResponse struct {
+	Deleted bool `json:"deleted"`
+}

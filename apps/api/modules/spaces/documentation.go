@@ -1,6 +1,10 @@
 package spaces
 
-import documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
+import (
+	"net/http"
+
+	documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
+)
 
 var spaceID = []documentation.Field{
 	{Name: "spaceId", Type: "string", Description: "Space UUID."},
@@ -23,7 +27,7 @@ var Documentation = documentation.Module{
 			Summary:      "List spaces",
 			Description:  "Returns only the spaces the caller belongs to, each carrying the caller's own role.",
 			Auth:         "bearer token required",
-			ResponseBody: "[]SpaceResponse",
+			ResponseBody: SpaceListResponse{},
 			Errors:       []documentation.Error{unauthenticated},
 		},
 		{
@@ -32,8 +36,9 @@ var Documentation = documentation.Module{
 			Summary:      "Create a space",
 			Description:  "Creates a space and makes the caller its owner.",
 			Auth:         "bearer token required",
-			RequestBody:  "CreateSpaceRequest",
-			ResponseBody: "SpaceResponse",
+			RequestBody:  CreateSpaceRequest{},
+			ResponseBody: SpaceResponse{},
+			Status:       http.StatusCreated,
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body or missing name."},
 				unauthenticated,
@@ -46,7 +51,7 @@ var Documentation = documentation.Module{
 			Description:  "Returns one space with its members array.",
 			Auth:         "bearer token required",
 			PathParams:   spaceID,
-			ResponseBody: "SpaceResponse",
+			ResponseBody: SpaceResponse{},
 			Errors: []documentation.Error{
 				unauthenticated,
 				{Status: 404, Code: "not_found", Description: "No such space, or the caller is not a member."},
@@ -59,8 +64,8 @@ var Documentation = documentation.Module{
 			Description:  "Renames or re-describes a space. Both fields are optional.",
 			Auth:         "bearer token required",
 			PathParams:   spaceID,
-			RequestBody:  "UpdateSpaceRequest",
-			ResponseBody: "SpaceResponse",
+			RequestBody:  UpdateSpaceRequest{},
+			ResponseBody: SpaceResponse{},
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body."},
 				unauthenticated,
@@ -69,12 +74,13 @@ var Documentation = documentation.Module{
 			},
 		},
 		{
-			Method:      "DELETE",
-			Path:        "/spaces/{spaceId}",
-			Summary:     "Delete a space",
-			Description: "Deletes the space and every membership in it.",
-			Auth:        "bearer token required",
-			PathParams:  spaceID,
+			Method:       "DELETE",
+			Path:         "/spaces/{spaceId}",
+			Summary:      "Delete a space",
+			Description:  "Deletes the space and every membership in it.",
+			Auth:         "bearer token required",
+			PathParams:   spaceID,
+			ResponseBody: DeleteSpaceResponse{},
 			Errors: []documentation.Error{
 				unauthenticated,
 				{Status: 403, Code: "permission_denied", Description: "Only the owner can delete a space."},
@@ -82,12 +88,13 @@ var Documentation = documentation.Module{
 			},
 		},
 		{
-			Method:      "POST",
-			Path:        "/spaces/{spaceId}/leave",
-			Summary:     "Leave a space",
-			Description: "Removes the caller's own membership. An owner may leave while another owner remains.",
-			Auth:        "bearer token required",
-			PathParams:  spaceID,
+			Method:       "POST",
+			Path:         "/spaces/{spaceId}/leave",
+			Summary:      "Leave a space",
+			Description:  "Removes the caller's own membership. An owner may leave while another owner remains.",
+			Auth:         "bearer token required",
+			PathParams:   spaceID,
+			ResponseBody: LeaveSpaceResponse{},
 			Errors: []documentation.Error{
 				unauthenticated,
 				{Status: 404, Code: "not_found", Description: "The caller is not a member of that space."},
@@ -101,7 +108,7 @@ var Documentation = documentation.Module{
 			Description:  "Returns every membership in the space.",
 			Auth:         "bearer token required",
 			PathParams:   spaceID,
-			ResponseBody: "[]MemberResponse",
+			ResponseBody: MemberListResponse{},
 			Errors: []documentation.Error{
 				unauthenticated,
 				{Status: 404, Code: "not_found", Description: "No such space, or the caller is not a member."},
@@ -114,8 +121,9 @@ var Documentation = documentation.Module{
 			Description:  "Adds an existing user to the space with the given role.",
 			Auth:         "bearer token required",
 			PathParams:   spaceID,
-			RequestBody:  "AddMemberRequest",
-			ResponseBody: "MemberResponse",
+			RequestBody:  AddMemberRequest{},
+			ResponseBody: AddMemberResponse{},
+			Status:       http.StatusCreated,
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body or unknown role."},
 				unauthenticated,
@@ -130,8 +138,8 @@ var Documentation = documentation.Module{
 			Description:  "Updates one membership's role.",
 			Auth:         "bearer token required",
 			PathParams:   memberPath,
-			RequestBody:  "UpdateMemberRequest",
-			ResponseBody: "MemberResponse",
+			RequestBody:  UpdateMemberRequest{},
+			ResponseBody: UpdateMemberRoleResponse{},
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body or unknown role."},
 				unauthenticated,
@@ -140,12 +148,13 @@ var Documentation = documentation.Module{
 			},
 		},
 		{
-			Method:      "DELETE",
-			Path:        "/spaces/{spaceId}/members/{memberId}",
-			Summary:     "Remove a member",
-			Description: "Removes someone else's membership from the space.",
-			Auth:        "bearer token required",
-			PathParams:  memberPath,
+			Method:       "DELETE",
+			Path:         "/spaces/{spaceId}/members/{memberId}",
+			Summary:      "Remove a member",
+			Description:  "Removes someone else's membership from the space.",
+			Auth:         "bearer token required",
+			PathParams:   memberPath,
+			ResponseBody: RemoveMemberResponse{},
 			Errors: []documentation.Error{
 				unauthenticated,
 				{Status: 403, Code: "permission_denied", Description: "The caller is not an owner or admin of the space."},

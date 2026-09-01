@@ -160,3 +160,61 @@ type EmailTemplateResponse struct {
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }
+
+type SyncResponse struct {
+	Synced bool `json:"synced"`
+}
+
+type FolderListResponse struct {
+	Folders []FolderResponse `json:"folders"`
+}
+
+type ConversationListResponse struct {
+	Emails []EmailResponse `json:"emails"`
+	Total  int64           `json:"total"`
+	Page   int             `json:"page"`
+	Limit  int             `json:"limit"`
+}
+
+type ThreadResponse struct {
+	Emails []EmailResponse `json:"emails"`
+}
+
+type SearchResponse struct {
+	Emails []EmailResponse `json:"emails"`
+	Total  int64           `json:"total"`
+	Page   int             `json:"page"`
+	Limit  int             `json:"limit"`
+}
+
+type ContactListResponse struct {
+	Contacts []ContactResult `json:"contacts"`
+}
+
+type SendResponse struct {
+	Sent bool `json:"sent"`
+}
+
+type DraftResponse struct {
+	ID int64 `json:"id"`
+}
+
+type DeleteDraftResponse struct {
+	Deleted bool `json:"deleted"`
+}
+
+type BulkActionResponse struct {
+	OK bool `json:"ok"`
+}
+
+type TestConnectionResponse struct {
+	OK bool `json:"ok"`
+}
+
+type TemplateListResponse struct {
+	Templates []EmailTemplateResponse `json:"templates"`
+}
+
+type DeleteTemplateResponse struct {
+	Deleted bool `json:"deleted"`
+}

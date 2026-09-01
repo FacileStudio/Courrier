@@ -44,3 +44,35 @@ type MemberResponse struct {
 	Role     string `json:"role"`
 	JoinedAt string `json:"joined_at"`
 }
+
+type SpaceListResponse struct {
+	Spaces []SpaceResponse `json:"spaces"`
+}
+
+type DeleteSpaceResponse struct {
+	Deleted bool `json:"deleted"`
+}
+
+type LeaveSpaceResponse struct {
+	Left bool `json:"left"`
+}
+
+type MemberListResponse struct {
+	Members []MemberResponse `json:"members"`
+}
+
+type AddMemberResponse struct {
+	ID      string `json:"id"`
+	SpaceID string `json:"space_id"`
+	UserID  int64  `json:"user_id"`
+	Role    string `json:"role"`
+}
+
+type UpdateMemberRoleResponse struct {
+	ID   string `json:"id"`
+	Role string `json:"role"`
+}
+
+type RemoveMemberResponse struct {
+	Removed bool `json:"removed"`
+}

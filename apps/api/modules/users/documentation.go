@@ -1,6 +1,10 @@
 package users
 
-import documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
+import (
+	"net/http"
+
+	documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
+)
 
 var Documentation = documentation.Module{
 	Name:        "users",
@@ -12,7 +16,7 @@ var Documentation = documentation.Module{
 			Summary:      "List users",
 			Description:  "Returns all authenticated users with profile metadata.",
 			Auth:         "bearer token required",
-			ResponseBody: "ListResponse",
+			ResponseBody: ListResponse{},
 			Errors: []documentation.Error{
 				{Status: 401, Code: "unauthenticated", Description: "Authorization header is missing or invalid."},
 				{Status: 500, Code: "internal", Description: "Unexpected server error."},
@@ -24,7 +28,7 @@ var Documentation = documentation.Module{
 			Summary:      "Return the current user",
 			Description:  "Returns the authenticated user with profile metadata.",
 			Auth:         "bearer token required",
-			ResponseBody: "MeResponse",
+			ResponseBody: MeResponse{},
 			Errors: []documentation.Error{
 				{Status: 401, Code: "unauthenticated", Description: "Authorization header is missing or invalid."},
 				{Status: 500, Code: "internal", Description: "Unexpected server error."},
@@ -36,8 +40,8 @@ var Documentation = documentation.Module{
 			Summary:      "Update the current user",
 			Description:  "Updates the authenticated user's name, email, and/or password. Changing a password that already exists requires current_password; without it the request is refused. A successful change ends the account's other logins, keeps named API tokens, and rotates this session's cookie.",
 			Auth:         "bearer token required",
-			RequestBody:  "UpdateRequest",
-			ResponseBody: "MeResponse",
+			RequestBody:  UpdateRequest{},
+			ResponseBody: MeResponse{},
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body, invalid update input, a password too short, a missing current_password on an account that has one, or no password to change."},
 				{Status: 401, Code: "unauthenticated", Description: "Authorization header is missing or invalid, or current_password is wrong."},
@@ -55,7 +59,7 @@ var Documentation = documentation.Module{
 			PathParams: []documentation.Field{
 				{Name: "id", Type: "string", Description: "User ID."},
 			},
-			ResponseBody: "MeResponse",
+			ResponseBody: MeResponse{},
 			Errors: []documentation.Error{
 				{Status: 401, Code: "unauthenticated", Description: "Authorization header is missing or invalid."},
 				{Status: 404, Code: "not_found", Description: "No user with that ID."},
@@ -68,8 +72,7 @@ var Documentation = documentation.Module{
 			Summary:      "Upload the current user's avatar",
 			Description:  "Stores a new avatar file for the authenticated user and returns the updated profile. Uploading is the fallback for users with no photo in SSO; it is rejected while one is set there.",
 			Auth:         "bearer token required",
-			RequestBody:  "multipart/form-data with avatar file",
-			ResponseBody: "MeResponse",
+			ResponseBody: MeResponse{},
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Missing file, unsupported image type, or the photo is managed in SSO."},
 				{Status: 401, Code: "unauthenticated", Description: "Authorization header is missing or invalid."},
@@ -84,7 +87,7 @@ var Documentation = documentation.Module{
 			Summary:      "Remove the current user's avatar",
 			Description:  "Deletes the uploaded avatar file and returns the updated profile. A photo coming from SSO is not touched.",
 			Auth:         "bearer token required",
-			ResponseBody: "MeResponse",
+			ResponseBody: MeResponse{},
 			Errors: []documentation.Error{
 				{Status: 401, Code: "unauthenticated", Description: "Authorization header is missing or invalid."},
 				{Status: 404, Code: "not_found", Description: "The authenticated user no longer exists."},
@@ -97,7 +100,7 @@ var Documentation = documentation.Module{
 			Summary:      "Report whether an API token exists",
 			Description:  "Returns the current token's metadata without ever returning the token itself.",
 			Auth:         "bearer token required",
-			ResponseBody: "ApiTokenStatusResponse",
+			ResponseBody: ApiTokenStatusResponse{},
 			Errors: []documentation.Error{
 				{Status: 401, Code: "unauthenticated", Description: "Authorization header is missing or invalid."},
 				{Status: 500, Code: "internal", Description: "Unexpected server error."},
@@ -109,8 +112,9 @@ var Documentation = documentation.Module{
 			Summary:      "Create an API token",
 			Description:  "Issues a new API token and returns it once — it cannot be read back afterwards.",
 			Auth:         "bearer token required",
-			RequestBody:  "CreateApiTokenRequest",
-			ResponseBody: "ApiTokenResponse",
+			RequestBody:  CreateApiTokenRequest{},
+			ResponseBody: ApiTokenResponse{},
+			Status:       http.StatusCreated,
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body or missing token name."},
 				{Status: 401, Code: "unauthenticated", Description: "Authorization header is missing or invalid."},
@@ -123,7 +127,7 @@ var Documentation = documentation.Module{
 			Summary:      "Revoke the current API token",
 			Description:  "Deletes the authenticated user's API token.",
 			Auth:         "bearer token required",
-			ResponseBody: "DeletedResponse",
+			ResponseBody: DeleteApiTokenResponse{},
 			Errors: []documentation.Error{
 				{Status: 401, Code: "unauthenticated", Description: "Authorization header is missing or invalid."},
 				{Status: 500, Code: "internal", Description: "Unexpected server error."},

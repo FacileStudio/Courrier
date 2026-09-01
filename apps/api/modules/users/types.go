@@ -52,3 +52,7 @@ type ApiTokenStatusResponse struct {
 type CreateApiTokenRequest struct {
 	Name string `json:"name"`
 }
+
+type DeleteApiTokenResponse struct {
+	Deleted bool `json:"deleted"`
+}
