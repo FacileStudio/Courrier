@@ -226,7 +226,7 @@
 					{/if}
 
 					{#if msg.body_html}
-						<div class="mail-body-content">{@html sanitize(msg)}</div>
+						<div class="mail-body-content" style="color: var(--color-fc-fg);">{@html sanitize(msg)}</div>
 					{:else if msg.body_text}
 						<pre class="whitespace-pre-wrap font-fc-body text-fc-sm text-fc-fg">{msg.body_text}</pre>
 					{:else if loadingBodies.has(msg.id)}
