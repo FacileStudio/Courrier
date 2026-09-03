@@ -428,7 +428,7 @@
 
 		{#if ready}
 			{#if plainTextMode}
-				<div class="flex-1 overflow-auto px-4 py-4 sm:px-6">
+				<div class="flex-1 overflow-auto px-4 py-4 pb-24 sm:px-6 md:pb-4">
 					<Textarea
 						bind:value={bodyPlainText}
 						oninput={scheduleDraftSave}

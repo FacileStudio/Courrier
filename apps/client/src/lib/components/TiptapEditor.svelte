@@ -103,7 +103,7 @@
 		</div>
 	{/if}
 
-	<div class="flex-1 overflow-auto px-6 py-4">
+	<div class="flex-1 overflow-auto px-6 py-4 pb-24 md:pb-4">
 		<div bind:this={element} class="tiptap-editor h-full"></div>
 	</div>
 </div>

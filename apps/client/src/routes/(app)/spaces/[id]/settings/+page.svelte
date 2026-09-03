@@ -90,7 +90,7 @@
 	<title>Paramètres — {space?.name ?? 'Espace'} — Courrier</title>
 </svelte:head>
 
-<div class="h-full overflow-auto px-4 py-6 md:px-8">
+<div class="w-full px-4 py-6 md:px-8">
 	<div class="mx-auto flex max-w-2xl flex-col gap-10">
 		{#if loading}
 			<div class="flex flex-col gap-4">

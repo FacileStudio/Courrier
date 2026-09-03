@@ -598,7 +598,7 @@
 			onclear={clearSelection}
 		/>
 
-		<div class="flex-1 overflow-auto" bind:this={listContainer}>
+		<div class="flex-1 overflow-auto pb-24 md:pb-0" bind:this={listContainer}>
 			{#if loading}
 				<!-- Skeleton rows, not a centred spinner: same padding, same avatar size and the
 				     same two text lines as a real row, so nothing moves when the data lands. -->
@@ -733,7 +733,7 @@
 					</div>
 				</div>
 			</div>
-			<div class="flex-1 overflow-auto">
+			<div class="flex-1 overflow-auto pb-24 md:pb-0">
 				{#key selected.id}
 					<ThreadView accountId={app.defaultAccountId!} email={selected} onthread={(m) => (threadMessages = m)} />
 				{/key}

@@ -103,6 +103,7 @@
 	}
 
 	const path = $derived(page.url.pathname);
+	const isMailRoute = $derived(path === '/mail' || path.startsWith('/mail/'));
 
 	/* <main> is the only scroller in the shell and it outlives every route, so its scrollTop
 	   survives a navigation unless someone puts it back. */
@@ -193,7 +194,12 @@
 
 			<!-- The one scroller in the shell. `overscroll-contain` stops a flick past either
 			     end from chaining into the document and rubber-banding the whole app. -->
-			<main bind:this={scroller} class="min-w-0 flex-1 overflow-auto overscroll-contain pb-13 md:pb-0">
+			<main
+				bind:this={scroller}
+				class={isMailRoute
+					? 'flex min-w-0 flex-1 flex-col overflow-hidden'
+					: 'min-w-0 flex-1 overflow-auto overscroll-contain pb-28 md:pb-0'}
+			>
 				{@render children()}
 			</main>
 		</div>
