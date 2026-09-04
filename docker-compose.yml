@@ -42,10 +42,11 @@ services:
       traefik.http.routers.courrier-secure.service: courrier-svc
       traefik.http.services.courrier-svc.loadbalancer.server.port: '4000'
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "4000"]
-      interval: 30s
+      test: ["CMD", "/api", "healthcheck"]
+      interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 10s
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
