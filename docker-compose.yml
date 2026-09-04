@@ -42,7 +42,7 @@ services:
       traefik.http.routers.courrier-secure.service: courrier-svc
       traefik.http.services.courrier-svc.loadbalancer.server.port: '4000'
     healthcheck:
-      test: ["CMD", "/api", "healthcheck"]
+      test: ["CMD", "/courrier", "healthcheck"]
       interval: 10s
       timeout: 5s
       retries: 3
