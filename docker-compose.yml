@@ -7,46 +7,60 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-courrier}
     volumes:
-      - db_data:/var/lib/postgresql/data
+    - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
-      interval: 5s
+      test:
+      - CMD
+      - nc
+      - -z
+      - localhost
+      - '3000'
+      interval: 30s
       timeout: 5s
-      retries: 10
-
+      retries: 3
+    deploy:
+      update_config:
+        order: start-first
+        parallelism: 1
+      restart_policy:
+        condition: any
   courrier:
     restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
     expose:
-      - "4000"
+    - '4000'
     networks:
-      - default
-      - dokploy-network
+    - default
+    - dokploy-network
     labels:
-      traefik.enable: "true"
+      traefik.enable: 'true'
       traefik.docker.network: dokploy-network
-      traefik.http.routers.courrier-web.rule: "Host(`courrier.facile.studio`)"
+      traefik.http.routers.courrier-web.rule: Host(`courrier.facile.studio`)
       traefik.http.routers.courrier-web.entrypoints: web
       traefik.http.routers.courrier-web.middlewares: redirect-to-https@file
       traefik.http.routers.courrier-web.service: courrier-svc
-      traefik.http.routers.courrier-secure.rule: "Host(`courrier.facile.studio`)"
+      traefik.http.routers.courrier-secure.rule: Host(`courrier.facile.studio`)
       traefik.http.routers.courrier-secure.entrypoints: websecure
       traefik.http.routers.courrier-secure.tls.certresolver: letsencrypt
       traefik.http.routers.courrier-secure.service: courrier-svc
-      traefik.http.services.courrier-svc.loadbalancer.server.port: "4000"
+      traefik.http.services.courrier-svc.loadbalancer.server.port: '4000'
     healthcheck:
-      test: ["CMD", "/courrier", "healthcheck"]
-      interval: 10s
+      test:
+      - CMD
+      - nc
+      - -z
+      - localhost
+      - '4000'
+      interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
     environment:
       APP_ENV: ${APP_ENV:-production}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-courrier}?sslmode=disable
-      PORT: "4000"
+      PORT: '4000'
       LOG_LEVEL: ${LOG_LEVEL:-info}
       STORAGE_DIR: ${STORAGE_DIR:-/data}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
@@ -65,14 +79,18 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - api_data:/data
-
+    - api_data:/data
+    deploy:
+      update_config:
+        order: start-first
+        parallelism: 1
+      restart_policy:
+        condition: any
 volumes:
   db_data:
     name: courrier_db_data
   api_data:
     name: courrier_api_data
-
 networks:
   dokploy-network:
     external: true
