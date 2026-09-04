@@ -1,6 +1,6 @@
 module github.com/FacileStudio/Courrier/apps/api
 
-go 1.26
+go 1.25.0
 
 require (
 	github.com/FacileStudio/Journal/sdk/journal v0.0.0-20260708221941-db985ad2b1ba
