@@ -14,7 +14,8 @@ type UpdateSpaceRequest struct {
 
 // AddMemberRequest is the body of POST /spaces/{id}/members.
 type AddMemberRequest struct {
-	UserID int64  `json:"user_id"`
+	UserID int64  `json:"user_id,omitempty"`
+	Email  string `json:"email,omitempty"`
 	Role   string `json:"role"`
 }
 

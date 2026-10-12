@@ -94,3 +94,23 @@ func TestAnOwnerCanLeaveWhenAnotherOwnerRemains(t *testing.T) {
 		t.Fatalf("expected one member left, got %d", remaining)
 	}
 }
+
+func TestAddMemberByEmail(t *testing.T) {
+	service, spaceID, ownerID := newSpace(t)
+
+	invitee := schemas.User{Email: "teammate@facile.studio", Name: "Teammate"}
+	if err := testORM.Create(&invitee).Error; err != nil {
+		t.Fatalf("create invitee: %v", err)
+	}
+
+	member, err := service.AddMember(context.Background(), ownerID, spaceID, AddMemberRequest{
+		Email: "TEAMMATE@FACILE.STUDIO",
+		Role:  schemas.SpaceRoleMember,
+	})
+	if err != nil {
+		t.Fatalf("add member by email: %v", err)
+	}
+	if member.UserID != invitee.ID {
+		t.Fatalf("expected user id %d, got %d", invitee.ID, member.UserID)
+	}
+}

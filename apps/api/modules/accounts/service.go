@@ -37,27 +37,44 @@ func (s *Service) DecryptPassword(cipher string) (string, error) {
 	return crypto.Decrypt(cipher, s.encryptionKey)
 }
 
-func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountRequest) (schemas.Account, error) {
+func (s *Service) requireSpaceMember(ctx context.Context, spaceID string, userID int64) error {
+	var count int64
+	if err := s.orm.WithContext(ctx).Model(&schemas.SpaceMember{}).
+		Where("space_id = ? AND user_id = ?", spaceID, userID).
+		Count(&count).Error; err != nil {
+		return errors.Internal("failed to check space membership", err)
+	}
+	if count == 0 {
+		return errors.Forbidden("not a member of this space")
+	}
+	return nil
+}
+
+func (s *Service) unsetDefault(ctx context.Context, userID int64, spaceID *string) {
+	if spaceID != nil && *spaceID != "" {
+		s.orm.WithContext(ctx).Model(&schemas.Account{}).Where("space_id = ?", *spaceID).Update("is_default", false)
+		return
+	}
+	s.orm.WithContext(ctx).Model(&schemas.Account{}).Where("user_id = ? AND space_id IS NULL", userID).Update("is_default", false)
+}
+
+func validateCreateAccount(req CreateAccountRequest) error {
 	if req.Name == "" {
-		return schemas.Account{}, errors.Invalid("name is required")
+		return errors.Invalid("name is required")
 	}
 	if req.Email == "" {
-		return schemas.Account{}, errors.Invalid("email is required")
+		return errors.Invalid("email is required")
 	}
 	if req.IMAPHost == "" {
-		return schemas.Account{}, errors.Invalid("imap_host is required")
+		return errors.Invalid("imap_host is required")
 	}
 	if req.SMTPHost == "" {
-		return schemas.Account{}, errors.Invalid("smtp_host is required")
+		return errors.Invalid("smtp_host is required")
 	}
+	return nil
+}
 
-	if req.IMAPPort == 0 {
-		req.IMAPPort = 993
-	}
-	if req.SMTPPort == 0 {
-		req.SMTPPort = 587
-	}
-
+func (s *Service) buildAccount(userID int64, req CreateAccountRequest) (schemas.Account, error) {
 	encIMAPPw, err := s.encryptPassword(req.IMAPPassword)
 	if err != nil {
 		return schemas.Account{}, errors.Internal("failed to encrypt IMAP password", err)
@@ -66,8 +83,7 @@ func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountReq
 	if err != nil {
 		return schemas.Account{}, errors.Internal("failed to encrypt SMTP password", err)
 	}
-
-	account := schemas.Account{
+	return schemas.Account{
 		UserID:       userID,
 		SpaceID:      req.SpaceID,
 		Name:         req.Name,
@@ -82,12 +98,31 @@ func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountReq
 		SMTPPassword: encSMTPPw,
 		Signature:    req.Signature,
 		IsDefault:    req.IsDefault,
-	}
+	}, nil
+}
 
+func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountRequest) (schemas.Account, error) {
+	if err := validateCreateAccount(req); err != nil {
+		return schemas.Account{}, err
+	}
+	if req.IMAPPort == 0 {
+		req.IMAPPort = 993
+	}
+	if req.SMTPPort == 0 {
+		req.SMTPPort = 587
+	}
+	if req.SpaceID != nil && *req.SpaceID != "" {
+		if err := s.requireSpaceMember(ctx, *req.SpaceID, userID); err != nil {
+			return schemas.Account{}, err
+		}
+	}
+	account, err := s.buildAccount(userID, req)
+	if err != nil {
+		return schemas.Account{}, err
+	}
 	if req.IsDefault {
-		s.orm.WithContext(ctx).Model(&schemas.Account{}).Where("user_id = ?", userID).Update("is_default", false)
+		s.unsetDefault(ctx, userID, req.SpaceID)
 	}
-
 	if err := s.orm.WithContext(ctx).Create(&account).Error; err != nil {
 		return schemas.Account{}, errors.Internal("failed to create account", err)
 	}
@@ -96,11 +131,14 @@ func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountReq
 
 func (s *Service) List(ctx context.Context, userID int64, spaceID *string) ([]schemas.Account, error) {
 	var accounts []schemas.Account
-	query := s.orm.WithContext(ctx).Where("user_id = ?", userID)
-	if spaceID != nil {
+	query := s.orm.WithContext(ctx)
+	if spaceID != nil && *spaceID != "" {
+		if err := s.requireSpaceMember(ctx, *spaceID, userID); err != nil {
+			return nil, err
+		}
 		query = query.Where("space_id = ?", *spaceID)
 	} else {
-		query = query.Where("space_id IS NULL")
+		query = query.Where("user_id = ? AND space_id IS NULL", userID)
 	}
 	if err := query.Order("is_default DESC, name ASC").Find(&accounts).Error; err != nil {
 		return nil, errors.Internal("failed to list accounts", err)
@@ -110,18 +148,20 @@ func (s *Service) List(ctx context.Context, userID int64, spaceID *string) ([]sc
 
 func (s *Service) Get(ctx context.Context, userID int64, accountID int64) (schemas.Account, error) {
 	var account schemas.Account
-	if err := s.orm.WithContext(ctx).Where("id = ? AND user_id = ?", accountID, userID).First(&account).Error; err != nil {
+	if err := s.orm.WithContext(ctx).Where("id = ?", accountID).First(&account).Error; err != nil {
+		return schemas.Account{}, errors.NotFound("account not found")
+	}
+	if account.SpaceID != nil && *account.SpaceID != "" {
+		if err := s.requireSpaceMember(ctx, *account.SpaceID, userID); err != nil {
+			return schemas.Account{}, err
+		}
+	} else if account.UserID != userID {
 		return schemas.Account{}, errors.NotFound("account not found")
 	}
 	return account, nil
 }
 
-func (s *Service) Update(ctx context.Context, userID int64, accountID int64, req UpdateAccountRequest) (schemas.Account, error) {
-	var account schemas.Account
-	if err := s.orm.WithContext(ctx).Where("id = ? AND user_id = ?", accountID, userID).First(&account).Error; err != nil {
-		return schemas.Account{}, errors.NotFound("account not found")
-	}
-
+func applyBasicUpdates(account *schemas.Account, req UpdateAccountRequest) {
 	if req.Name != nil {
 		account.Name = *req.Name
 	}
@@ -137,13 +177,6 @@ func (s *Service) Update(ctx context.Context, userID int64, accountID int64, req
 	if req.IMAPUser != nil {
 		account.IMAPUser = *req.IMAPUser
 	}
-	if req.IMAPPassword != nil {
-		enc, err := s.encryptPassword(*req.IMAPPassword)
-		if err != nil {
-			return schemas.Account{}, errors.Internal("failed to encrypt IMAP password", err)
-		}
-		account.IMAPPassword = enc
-	}
 	if req.SMTPHost != nil {
 		account.SMTPHost = *req.SMTPHost
 	}
@@ -153,21 +186,42 @@ func (s *Service) Update(ctx context.Context, userID int64, accountID int64, req
 	if req.SMTPUser != nil {
 		account.SMTPUser = *req.SMTPUser
 	}
-	if req.SMTPPassword != nil {
-		enc, err := s.encryptPassword(*req.SMTPPassword)
-		if err != nil {
-			return schemas.Account{}, errors.Internal("failed to encrypt SMTP password", err)
-		}
-		account.SMTPPassword = enc
-	}
 	if req.Signature != nil {
 		account.Signature = *req.Signature
 	}
+}
+
+func (s *Service) applyAccountUpdates(account *schemas.Account, req UpdateAccountRequest) error {
+	applyBasicUpdates(account, req)
+	if req.IMAPPassword != nil {
+		enc, err := s.encryptPassword(*req.IMAPPassword)
+		if err != nil {
+			return errors.Internal("failed to encrypt IMAP password", err)
+		}
+		account.IMAPPassword = enc
+	}
+	if req.SMTPPassword != nil {
+		enc, err := s.encryptPassword(*req.SMTPPassword)
+		if err != nil {
+			return errors.Internal("failed to encrypt SMTP password", err)
+		}
+		account.SMTPPassword = enc
+	}
+	return nil
+}
+
+func (s *Service) Update(ctx context.Context, userID int64, accountID int64, req UpdateAccountRequest) (schemas.Account, error) {
+	account, err := s.Get(ctx, userID, accountID)
+	if err != nil {
+		return schemas.Account{}, err
+	}
+	if err := s.applyAccountUpdates(&account, req); err != nil {
+		return schemas.Account{}, err
+	}
 	if req.IsDefault != nil && *req.IsDefault {
-		s.orm.WithContext(ctx).Model(&schemas.Account{}).Where("user_id = ?", userID).Update("is_default", false)
+		s.unsetDefault(ctx, account.UserID, account.SpaceID)
 		account.IsDefault = true
 	}
-
 	if err := s.orm.WithContext(ctx).Save(&account).Error; err != nil {
 		return schemas.Account{}, errors.Internal("failed to update account", err)
 	}
@@ -175,12 +229,13 @@ func (s *Service) Update(ctx context.Context, userID int64, accountID int64, req
 }
 
 func (s *Service) Delete(ctx context.Context, userID int64, accountID int64) error {
-	result := s.orm.WithContext(ctx).Where("id = ? AND user_id = ?", accountID, userID).Delete(&schemas.Account{})
+	account, err := s.Get(ctx, userID, accountID)
+	if err != nil {
+		return err
+	}
+	result := s.orm.WithContext(ctx).Where("id = ?", account.ID).Delete(&schemas.Account{})
 	if result.Error != nil {
 		return errors.Internal("failed to delete account", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return errors.NotFound("account not found")
 	}
 	s.orm.WithContext(ctx).Where("account_id = ?", accountID).Delete(&schemas.Folder{})
 	s.orm.WithContext(ctx).Where("account_id = ?", accountID).Delete(&schemas.Email{})

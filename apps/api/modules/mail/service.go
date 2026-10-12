@@ -41,9 +41,29 @@ func (s *Service) decryptPassword(cipher string) (string, error) {
 	return crypto.Decrypt(cipher, s.encryptionKey)
 }
 
+func (s *Service) requireSpaceMember(ctx context.Context, spaceID string, userID int64) error {
+	var count int64
+	if err := s.orm.WithContext(ctx).Model(&schemas.SpaceMember{}).
+		Where("space_id = ? AND user_id = ?", spaceID, userID).
+		Count(&count).Error; err != nil {
+		return errors.Internal("failed to check space membership", err)
+	}
+	if count == 0 {
+		return errors.Forbidden("not a member of this space")
+	}
+	return nil
+}
+
 func (s *Service) getAccount(ctx context.Context, userID, accountID int64) (schemas.Account, error) {
 	var account schemas.Account
-	if err := s.orm.WithContext(ctx).Where("id = ? AND user_id = ?", accountID, userID).First(&account).Error; err != nil {
+	if err := s.orm.WithContext(ctx).Where("id = ?", accountID).First(&account).Error; err != nil {
+		return schemas.Account{}, errors.NotFound("account not found")
+	}
+	if account.SpaceID != nil && *account.SpaceID != "" {
+		if err := s.requireSpaceMember(ctx, *account.SpaceID, userID); err != nil {
+			return schemas.Account{}, err
+		}
+	} else if account.UserID != userID {
 		return schemas.Account{}, errors.NotFound("account not found")
 	}
 	return account, nil
@@ -1046,11 +1066,14 @@ func (s *Service) ArchiveEmails(ctx context.Context, userID, accountID int64, em
 
 func (s *Service) ListTemplates(ctx context.Context, userID int64, spaceID *string) ([]schemas.EmailTemplate, error) {
 	var templates []schemas.EmailTemplate
-	query := s.orm.WithContext(ctx).Where("user_id = ?", userID)
-	if spaceID != nil {
+	query := s.orm.WithContext(ctx)
+	if spaceID != nil && *spaceID != "" {
+		if err := s.requireSpaceMember(ctx, *spaceID, userID); err != nil {
+			return nil, err
+		}
 		query = query.Where("space_id = ?", *spaceID)
 	} else {
-		query = query.Where("space_id IS NULL")
+		query = query.Where("user_id = ? AND space_id IS NULL", userID)
 	}
 	if err := query.Order("updated_at DESC").Find(&templates).Error; err != nil {
 		return nil, errors.Internal("failed to list templates", err)
@@ -1083,10 +1106,25 @@ func (s *Service) CreateTemplate(ctx context.Context, userID int64, req EmailTem
 	return tmpl, nil
 }
 
-func (s *Service) UpdateTemplate(ctx context.Context, userID, templateID int64, req EmailTemplateRequest) (schemas.EmailTemplate, error) {
+func (s *Service) getTemplate(ctx context.Context, userID, templateID int64) (schemas.EmailTemplate, error) {
 	var tmpl schemas.EmailTemplate
-	if err := s.orm.WithContext(ctx).Where("id = ? AND user_id = ?", templateID, userID).First(&tmpl).Error; err != nil {
+	if err := s.orm.WithContext(ctx).Where("id = ?", templateID).First(&tmpl).Error; err != nil {
 		return schemas.EmailTemplate{}, errors.NotFound("template not found")
+	}
+	if tmpl.SpaceID != nil && *tmpl.SpaceID != "" {
+		if err := s.requireSpaceMember(ctx, *tmpl.SpaceID, userID); err != nil {
+			return schemas.EmailTemplate{}, err
+		}
+	} else if tmpl.UserID != userID {
+		return schemas.EmailTemplate{}, errors.NotFound("template not found")
+	}
+	return tmpl, nil
+}
+
+func (s *Service) UpdateTemplate(ctx context.Context, userID, templateID int64, req EmailTemplateRequest) (schemas.EmailTemplate, error) {
+	tmpl, err := s.getTemplate(ctx, userID, templateID)
+	if err != nil {
+		return schemas.EmailTemplate{}, err
 	}
 
 	updates := map[string]any{}
@@ -1106,9 +1144,9 @@ func (s *Service) UpdateTemplate(ctx context.Context, userID, templateID int64, 
 }
 
 func (s *Service) DeleteTemplate(ctx context.Context, userID, templateID int64) error {
-	var tmpl schemas.EmailTemplate
-	if err := s.orm.WithContext(ctx).Where("id = ? AND user_id = ?", templateID, userID).First(&tmpl).Error; err != nil {
-		return errors.NotFound("template not found")
+	tmpl, err := s.getTemplate(ctx, userID, templateID)
+	if err != nil {
+		return err
 	}
 	s.orm.WithContext(ctx).Delete(&tmpl)
 	return nil

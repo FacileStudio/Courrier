@@ -8,28 +8,32 @@
 		ConfirmModal,
 		EmptyState,
 		Field,
-		Input,
 		Select,
 		Skeleton,
 		Table,
 		icons,
 		toast
 	} from '@facile/muse';
-	import { backend, type SpaceMember, type Space } from '$lib/backend';
+	import { backend, type SpaceMember, type Space, type User } from '$lib/backend';
 	import { roleLabel, roleTone } from '../../roles';
 
 	const spaceId = $derived(page.params.id as string);
 
 	let space = $state<Space | null>(null);
 	let members = $state<SpaceMember[]>([]);
+	let allUsers = $state<User[]>([]);
 	let loading = $state(true);
-	let addUserId = $state('');
+	let selectedUserId = $state('');
 	let addRole = $state('member');
 	let addError = $state('');
 	let adding = $state(false);
 
 	let pendingRemoval = $state<SpaceMember | null>(null);
 	let confirmOpen = $state(false);
+
+	const availableUsers = $derived(
+		allUsers.filter((u) => !members.some((m) => String(m.user_id) === String(u.id)))
+	);
 
 	onMount(async () => {
 		await loadData();
@@ -38,15 +42,18 @@
 	async function loadData() {
 		loading = true;
 		try {
-			const [spaceRes, membersRes] = await Promise.all([
+			const [spaceRes, membersRes, usersRes] = await Promise.all([
 				backend.getSpace(spaceId),
-				backend.listSpaceMembers(spaceId)
+				backend.listSpaceMembers(spaceId),
+				backend.listUsers()
 			]);
 			space = spaceRes;
 			members = membersRes.members ?? [];
+			allUsers = usersRes.users ?? [];
 		} catch {
 			space = null;
 			members = [];
+			allUsers = [];
 		}
 		loading = false;
 	}
@@ -57,9 +64,14 @@
 	}
 
 	async function addMember() {
-		const uid = parseInt(addUserId, 10);
+		if (!selectedUserId) {
+			addError = 'Sélectionnez un utilisateur';
+			return;
+		}
+
+		const uid = parseInt(selectedUserId, 10);
 		if (isNaN(uid)) {
-			addError = 'Entrez un ID utilisateur valide';
+			addError = 'Sélectionnez un utilisateur';
 			return;
 		}
 
@@ -67,7 +79,7 @@
 		addError = '';
 		try {
 			await backend.addSpaceMember(spaceId, { user_id: uid, role: addRole });
-			addUserId = '';
+			selectedUserId = '';
 			addRole = 'member';
 			await refreshMembers();
 			toast.success('Membre ajouté');
@@ -148,8 +160,13 @@
 					</div>
 					<div class="flex flex-col gap-3 sm:flex-row sm:items-end">
 						<div class="min-w-0 flex-1">
-							<Field label="ID utilisateur" error={addError}>
-								<Input bind:value={addUserId} placeholder="ex. 42" />
+							<Field label="Utilisateur" error={addError}>
+								<Select bind:value={selectedUserId} class="w-full">
+									<option value="">Sélectionner un utilisateur…</option>
+									{#each availableUsers as user (user.id)}
+										<option value={user.id}>{user.name ? `${user.name} (${user.email})` : user.email}</option>
+									{/each}
+								</Select>
 							</Field>
 						</div>
 						<Field label="Rôle">
@@ -158,7 +175,7 @@
 								<option value="admin">Admin</option>
 							</Select>
 						</Field>
-						<Button icon={icons.plus} size="lg" disabled={adding} onclick={addMember}>
+						<Button icon={icons.plus} size="lg" disabled={adding || !selectedUserId} onclick={addMember}>
 							{adding ? 'Ajout…' : 'Ajouter'}
 						</Button>
 					</div>

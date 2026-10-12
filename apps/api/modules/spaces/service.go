@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
@@ -143,6 +144,24 @@ func (s *Service) Delete(ctx context.Context, userID int64, spaceID string) erro
 	return nil
 }
 
+func (s *Service) resolveTargetUser(ctx context.Context, req AddMemberRequest) (int64, error) {
+	var user schemas.User
+	if req.UserID != 0 {
+		if err := s.orm.WithContext(ctx).Where("id = ?", req.UserID).First(&user).Error; err != nil {
+			return 0, errors.NotFound("user not found")
+		}
+		return user.ID, nil
+	}
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if email == "" {
+		return 0, errors.NotFound("user not found")
+	}
+	if err := s.orm.WithContext(ctx).Where("LOWER(email) = ?", email).First(&user).Error; err != nil {
+		return 0, errors.NotFound("user not found")
+	}
+	return user.ID, nil
+}
+
 func (s *Service) AddMember(ctx context.Context, actorID int64, spaceID string, req AddMemberRequest) (schemas.SpaceMember, error) {
 	role, err := s.memberRole(ctx, spaceID, actorID)
 	if err != nil {
@@ -160,21 +179,17 @@ func (s *Service) AddMember(ctx context.Context, actorID int64, spaceID string, 
 		return schemas.SpaceMember{}, errors.Invalid("role must be admin or member")
 	}
 
+	targetUserID, err := s.resolveTargetUser(ctx, req)
+	if err != nil {
+		return schemas.SpaceMember{}, err
+	}
+
 	var existing schemas.SpaceMember
-	if err := s.orm.WithContext(ctx).Where("space_id = ? AND user_id = ?", spaceID, req.UserID).First(&existing).Error; err == nil {
+	if err := s.orm.WithContext(ctx).Where("space_id = ? AND user_id = ?", spaceID, targetUserID).First(&existing).Error; err == nil {
 		return schemas.SpaceMember{}, errors.Conflict("user is already a member")
 	}
 
-	var user schemas.User
-	if err := s.orm.WithContext(ctx).Where("id = ?", req.UserID).First(&user).Error; err != nil {
-		return schemas.SpaceMember{}, errors.NotFound("user not found")
-	}
-
-	member := schemas.SpaceMember{
-		SpaceID: spaceID,
-		UserID:  req.UserID,
-		Role:    memberRole,
-	}
+	member := schemas.SpaceMember{SpaceID: spaceID, UserID: targetUserID, Role: memberRole}
 	if err := s.orm.WithContext(ctx).Create(&member).Error; err != nil {
 		return schemas.SpaceMember{}, errors.Internal("failed to add member", err)
 	}

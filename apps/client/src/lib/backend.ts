@@ -14,6 +14,8 @@ export type UserProfile = {
 	created_at: string;
 };
 
+export type User = UserProfile;
+
 export type MeResponse = {
 	user: UserProfile;
 };
@@ -454,7 +456,7 @@ export const backend = {
 		return apiFetch<{ members: SpaceMember[] }>(`/api/spaces/${spaceId}/members`);
 	},
 
-	addSpaceMember(spaceId: string, data: { user_id: number; role?: string }) {
+	addSpaceMember(spaceId: string, data: { user_id?: number; email?: string; role?: string }) {
 		return apiFetch<SpaceMember>(`/api/spaces/${spaceId}/members`, {
 			method: 'POST',
 			body: JSON.stringify(data)
@@ -472,6 +474,10 @@ export const backend = {
 		return apiFetch<{ removed: boolean }>(`/api/spaces/${spaceId}/members/${memberId}`, {
 			method: 'DELETE'
 		});
+	},
+
+	listUsers(): Promise<{ users: User[] }> {
+		return apiFetch<{ users: User[] }>('/api/users');
 	},
 
 	authConfig() {
