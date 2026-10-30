@@ -131,8 +131,8 @@ All paths below are prefixed `/api/accounts/{accountId}/mail`.
 | GET | `/threads/{threadId}` | `{"emails":[Email]}` — every message in the conversation |
 | GET | `/search` | `{"emails":[Email], "total", "page", "limit"}` |
 | GET | `/emails/{emailId}` | A single `Email` with `attachments` |
-| GET | `/contacts` | With `q`: `{"contacts":[{"name","email","count"}]}`. Without: `{"contacts":[{"email","name","sent_count","last_sent_at"}], "total", "page", "limit"}` |
-| POST | `/contacts/backfill` | `{"scanned":N}` — reads up to 1000 sent envelopes to fill contacts |
+| GET | `/contacts` | With `q`: `{"contacts":[{"name","email","count"}]}`. Without `q`: `{"contacts":[]}` (autocomplete contract, unchanged) |
+| POST | `/contacts/backfill` | `{"scanned":N}`, or `{"running":true}` when a backfill is active on the account. Reads up to 1000 sent envelopes to fill contacts |
 | GET | `/emails/{emailId}/attachments/{attachmentId}/download` | The file, fetched from IMAP on demand |
 
 The folder listing takes `page` (default 1), `limit` (default 50, capped at 100), and
@@ -144,11 +144,16 @@ message, `email_ids`. Expand one with the thread route.
 Search takes `q`, `page`, and `limit` (default 30, capped at 100), and runs against the
 trigram indexes on subject, sender name, sender address, and body text. `contacts` takes
 `q` and returns addresses seen in the account's mail with how often each appears. A blank
-`q` on search returns an empty result rather than an error. Without `q`, `contacts` lists
-the addresses the account has written to, newest first, with `page` and `limit` (default 50,
-capped at 100). `GET /api/mail/contacts` does the same across every account the user can
-see, merging an address seen on several accounts into one row. Contacts are counted from
-the To and Cc of sent mail on sync and on every send; `contacts/backfill` is idempotent.
+`q` on search or on the per-account `contacts` returns an empty result rather than an error.
+
+`GET /api/mail/contacts` lists the addresses the user has written to, newest first, as
+`{"contacts":[{"email","name","sent_count","last_sent_at"}],"total","page","limit"}`. It covers
+every account the user can see, merging an address seen on several accounts into one row;
+`account=<id>` restricts it to one account (404 if the user cannot see it, shared space
+accounts of non-members included). `page` is capped at 10000 and `limit` at 100 (default 50).
+It is rate limited to 60 per minute. Contacts are counted from the To and Cc of sent mail on
+sync and on every send; `contacts/backfill` is idempotent and shares the per-account guard
+of `mail/backfill`. Deleting an account or a space deletes its contacts.
 
 `{threadId}` is percent-decoded before use, since a thread id is a Message-ID and can
 contain characters that need escaping in a path.
@@ -157,13 +162,14 @@ contain characters that need escaping in a path.
 
 | Method | Path | Rate limit | Response |
 |---|---|---|---|
-| GET | `/api/mail/triage` | — | `{"generated_at","total","counts":{"known","unknown_human","bulk"},"items":[TriageItem],"page","limit"}` |
+| GET | `/api/mail/triage` | 60/min | `{"generated_at","total","counts":{"known","unknown_human","bulk"},"items":[TriageItem],"truncated","page","limit"}` |
 | POST | `/api/accounts/{accountId}/mail/backfill` | 2/min | `{"classified":N,"scanned":N}`, or `{"running":true}` when a run is active |
 
 `GET /api/mail/triage` covers the inbox of every account the user can see. Query:
 `unread=true`, `class` (comma list of `known`, `unknown_human`, `bulk`, default all),
 `since` (RFC3339 or `30m`, `2h`, `1d`, `1w`), `account` (one account id, 404 if it is not
-the user's), `page`, `limit` (default 50, capped at 100). `TriageItem` is `{account_id,
+the user's or a space account of which they are not a member), `page` (capped at 10000), `limit`
+(default 50, capped at 100). `since` durations go up to 3650 units. `TriageItem` is `{account_id,
 account, thread_id, email_id, subject, from_address, from_name, date, message_count,
 unread_count, class, reason}`.
 
@@ -174,10 +180,17 @@ message in a sent folder; `sent-to`: the sender is in contacts), else `unknown_h
 whatever `class` and `page` are; `total` and `items` follow `class`. Rows cached before
 header classification existed fall back to the sender pattern.
 
+The listing holds at most 5000 conversations, newest first. When more match, `truncated` is
+`true` and `counts` and `total` describe only those 5000. `unread` and `since` are applied in
+SQL before the cap; `class` cannot be, so narrow with `since` or `account` when `truncated`
+is set. Every route here answers 404, never 403, for an account the caller cannot see.
+
 `backfill` classifies cached inbox rows from the last 60 days that have no category, 50
 headers per IMAP fetch with a pause between batches, then deep-syncs the sent folder into
 contacts. It is idempotent and resumable (classified rows are skipped). A folder sync starts
-it in the background when unclassified rows remain, at most one run per account.
+it in the background when unclassified rows with an IMAP UID, in an inbox, from the last 60
+days remain, at most one run per account, and not again for 15 minutes after a failed or
+empty run.
 
 ### Inline images
 

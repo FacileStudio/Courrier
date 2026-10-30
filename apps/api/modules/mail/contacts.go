@@ -100,11 +100,13 @@ func (s *Service) userAccountIDs(ctx context.Context, userID int64) ([]int64, er
 
 // ListContacts returns the addresses the user has written to, newest first.
 // A nil accountID covers every account the user can see, merging an address
-// seen on several accounts into one row.
+// seen on several accounts into one row. SentCount is a running tally: a sync
+// that re-reads a folder after a UIDVALIDITY reset counts those messages again,
+// and only the sent deep sync (which keeps the larger count) narrows it back.
 func (s *Service) ListContacts(ctx context.Context, userID int64, accountID *int64, page, limit int) ([]ContactRow, int64, error) {
 	ids := []int64{}
 	if accountID != nil {
-		if _, err := s.getAccount(ctx, userID, *accountID); err != nil {
+		if err := s.visibleAccount(ctx, userID, *accountID); err != nil {
 			return nil, 0, err
 		}
 		ids = append(ids, *accountID)

@@ -18,6 +18,8 @@ const (
 	bulkReasonNone    = "none"
 )
 
+const maxSinceUnits = 3650
+
 var triageClasses = []string{classKnown, classUnknownHuman, classBulk}
 
 var sinceShort = regexp.MustCompile(`^(\d+)([mhdw])$`)
@@ -46,7 +48,10 @@ func parseSince(raw string, now time.Time) (time.Time, error) {
 	if m == nil {
 		return time.Time{}, errors.Invalid("since must be RFC3339 or a duration like 30m, 2h, 1d, 1w")
 	}
-	n, _ := strconv.Atoi(m[1])
+	n, err := strconv.Atoi(m[1])
+	if err != nil || n > maxSinceUnits {
+		return time.Time{}, errors.Invalid("since duration must be at most 3650 units")
+	}
 	return now.Add(-time.Duration(n) * sinceUnits[m[2]]), nil
 }
 

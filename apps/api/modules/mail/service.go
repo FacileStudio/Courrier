@@ -28,6 +28,7 @@ type Service struct {
 	orm           *gorm.DB
 	encryptionKey []byte
 	backfilling   sync.Map
+	cooldowns     sync.Map
 }
 
 // NewService builds a mail Service over the database and the app's encryption

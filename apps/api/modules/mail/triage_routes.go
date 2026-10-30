@@ -2,12 +2,10 @@ package mail
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
-	"github.com/FacileStudio/tronc/errors"
 	"github.com/FacileStudio/tronc/httpjson"
 
 	"github.com/go-chi/chi/v5"
@@ -16,7 +14,7 @@ import (
 func registerTriageRoutes(router chi.Router, service *Service, authService *auth.Service) {
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
-		r.Get("/mail/triage", service.handleTriage)
+		r.With(middleware.RateLimit(60, time.Minute)).Get("/mail/triage", service.handleTriage)
 		r.With(middleware.RateLimit(2, time.Minute)).Post("/accounts/{accountId}/mail/backfill", service.handleBackfill)
 	})
 }
@@ -31,19 +29,10 @@ func parseTriageQuery(req *http.Request) (TriageQuery, error) {
 	if q.Since, err = parseSince(v.Get("since"), time.Now()); err != nil {
 		return q, err
 	}
-	if raw := v.Get("account"); raw != "" {
-		id, err := strconv.ParseInt(raw, 10, 64)
-		if err != nil {
-			return q, errors.Invalid("invalid account id")
-		}
-		q.AccountID = &id
+	if q.AccountID, err = optionalAccountID(req); err != nil {
+		return q, err
 	}
-	if page, _ := strconv.Atoi(v.Get("page")); page > 1 {
-		q.Page = page
-	}
-	if limit, _ := strconv.Atoi(v.Get("limit")); limit >= 1 && limit <= 100 {
-		q.Limit = limit
-	}
+	q.Page, q.Limit = parsePaging(v)
 	return q, nil
 }
 

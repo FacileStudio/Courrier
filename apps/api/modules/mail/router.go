@@ -470,7 +470,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			}
 			q := req.URL.Query().Get("q")
 			if q == "" {
-				service.serveContacts(w, req, uid, &accountID)
+				httpjson.WriteJSON(w, http.StatusOK, map[string]any{"contacts": []ContactResult{}})
 				return
 			}
 			contacts, err := service.SearchContacts(req.Context(), uid, accountID, q)

@@ -24,18 +24,12 @@ type ContactsResponse struct {
 
 // BackfillContactsResponse reports how many sent envelopes a deep sync read.
 type BackfillContactsResponse struct {
-	Scanned int `json:"scanned"`
+	Scanned int  `json:"scanned"`
+	Running bool `json:"running,omitempty"`
 }
 
 func (s *Service) serveContacts(w http.ResponseWriter, req *http.Request, userID int64, accountID *int64) {
-	page, _ := strconv.Atoi(req.URL.Query().Get("page"))
-	if page < 1 {
-		page = 1
-	}
-	limit, _ := strconv.Atoi(req.URL.Query().Get("limit"))
-	if limit < 1 || limit > 100 {
-		limit = 50
-	}
+	page, limit := parsePaging(req.URL.Query())
 	rows, total, err := s.ListContacts(req.Context(), userID, accountID, page, limit)
 	if err != nil {
 		httpjson.WriteError(w, err)
@@ -56,7 +50,7 @@ func requestUserID(req *http.Request) (int64, error) {
 func registerContactRoutes(router chi.Router, service *Service, authService *auth.Service) {
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
-		r.Get("/mail/contacts", service.handleAllContacts)
+		r.With(middleware.RateLimit(60, time.Minute)).Get("/mail/contacts", service.handleAllContacts)
 		r.With(middleware.RateLimit(2, time.Minute)).Post("/accounts/{accountId}/mail/contacts/backfill", service.handleBackfillContacts)
 	})
 }
@@ -67,7 +61,24 @@ func (s *Service) handleAllContacts(w http.ResponseWriter, req *http.Request) {
 		httpjson.WriteError(w, err)
 		return
 	}
-	s.serveContacts(w, req, uid, nil)
+	accountID, err := optionalAccountID(req)
+	if err != nil {
+		httpjson.WriteError(w, err)
+		return
+	}
+	s.serveContacts(w, req, uid, accountID)
+}
+
+func optionalAccountID(req *http.Request) (*int64, error) {
+	raw := req.URL.Query().Get("account")
+	if raw == "" {
+		return nil, nil
+	}
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return nil, errors.Invalid("invalid account id")
+	}
+	return &id, nil
 }
 
 func (s *Service) handleBackfillContacts(w http.ResponseWriter, req *http.Request) {
@@ -81,10 +92,10 @@ func (s *Service) handleBackfillContacts(w http.ResponseWriter, req *http.Reques
 		httpjson.WriteError(w, errors.Invalid("invalid account id"))
 		return
 	}
-	scanned, err := s.deepSyncSent(req.Context(), uid, accountID, maxDeepSyncSent)
+	res, err := s.BackfillContacts(req.Context(), uid, accountID)
 	if err != nil {
 		httpjson.WriteError(w, err)
 		return
 	}
-	httpjson.WriteJSON(w, http.StatusOK, BackfillContactsResponse{Scanned: scanned})
+	httpjson.WriteJSON(w, http.StatusOK, res)
 }

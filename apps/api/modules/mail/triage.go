@@ -42,6 +42,7 @@ type TriageResponse struct {
 	Total       int            `json:"total"`
 	Counts      map[string]int `json:"counts"`
 	Items       []TriageItem   `json:"items"`
+	Truncated   bool           `json:"truncated"`
 	Page        int            `json:"page"`
 	Limit       int            `json:"limit"`
 }
@@ -77,7 +78,7 @@ func filterID(ids []int64, want int64) []int64 {
 	return nil
 }
 
-func (s *Service) classifyInbox(ctx context.Context, userID int64, accounts map[int64]string, q TriageQuery) ([]TriageItem, error) {
+func (s *Service) classifyInbox(ctx context.Context, userID int64, accounts map[int64]string, q TriageQuery) ([]TriageItem, bool, error) {
 	ids := make([]int64, 0, len(accounts))
 	for id := range accounts {
 		ids = append(ids, id)
@@ -86,14 +87,17 @@ func (s *Service) classifyInbox(ctx context.Context, userID int64, accounts map[
 	err := s.orm.WithContext(ctx).Model(&schemas.Folder{}).
 		Where("account_id IN ? AND type = ?", ids, schemas.FolderTypeInbox).Pluck("id", &folderIDs).Error
 	if err != nil {
-		return nil, errors.Internal("failed to list inbox folders", err)
+		return nil, false, errors.Internal("failed to list inbox folders", err)
 	}
 	filter := conversationFilter{FolderIDs: folderIDs, UnreadOnly: q.UnreadOnly, Since: q.Since}
-	convs, err := s.queryConversations(ctx, filter, maxTriageRows, 0)
+	convs, err := s.queryConversations(ctx, filter, maxTriageRows+1, 0)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return s.triageItems(ctx, userID, ids, accounts, convs)
+	truncated := len(convs) > maxTriageRows
+	convs = convs[:min(len(convs), maxTriageRows)]
+	items, err := s.triageItems(ctx, userID, ids, accounts, convs)
+	return items, truncated, err
 }
 
 func (s *Service) triageItems(ctx context.Context, userID int64, ids []int64, accounts map[int64]string, convs []Conversation) ([]TriageItem, error) {
@@ -134,13 +138,17 @@ func (q TriageQuery) wants(class string) bool {
 // user can see, each tagged known, unknown_human or bulk. Counts cover the
 // whole unread, since and account filtered set whatever the class filter, so a
 // client can report how much bulk it skipped; total and items follow the class
-// filter, and items are the requested page.
+// filter, and items are the requested page. The listing holds at most
+// maxTriageRows conversations; when more match, Truncated is true and counts
+// and total describe only the newest maxTriageRows. The unread and since
+// predicates run in SQL before that cap; the class filter cannot, because a
+// class depends on sent threads and contacts resolved after the query.
 func (s *Service) Triage(ctx context.Context, userID int64, q TriageQuery) (TriageResponse, error) {
 	accounts, err := s.triageAccounts(ctx, userID, q.AccountID)
 	if err != nil {
 		return TriageResponse{}, err
 	}
-	all, err := s.classifyInbox(ctx, userID, accounts, q)
+	all, truncated, err := s.classifyInbox(ctx, userID, accounts, q)
 	if err != nil {
 		return TriageResponse{}, err
 	}
@@ -157,14 +165,6 @@ func (s *Service) Triage(ctx context.Context, userID int64, q TriageQuery) (Tria
 	}
 	return TriageResponse{
 		GeneratedAt: time.Now().UTC(), Total: len(filtered), Counts: counts,
-		Items: pageOf(filtered, q.Page, q.Limit), Page: q.Page, Limit: q.Limit,
+		Items: pageOf(filtered, q.Page, q.Limit), Truncated: truncated, Page: q.Page, Limit: q.Limit,
 	}, nil
-}
-
-func pageOf(items []TriageItem, page, limit int) []TriageItem {
-	start := (page - 1) * limit
-	if start >= len(items) {
-		return []TriageItem{}
-	}
-	return items[start:min(start+limit, len(items))]
 }
