@@ -22,12 +22,13 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 )
 
-// referencesSection fetches just the References header alongside envelopes — the
-// envelope exposes In-Reply-To but not References, which is the load-bearing
-// header for threading. Fetching only this field keeps the sync cheap.
+// referencesSection fetches the References header and the bulk-mail headers
+// alongside envelopes. The envelope exposes In-Reply-To but not References,
+// which is the load-bearing header for threading. One header FETCH keeps the
+// sync cheap.
 var referencesSection = &imap.FetchItemBodySection{
 	Specifier:    imap.PartSpecifierHeader,
-	HeaderFields: []string{"References"},
+	HeaderFields: []string{"References", "List-Unsubscribe", "List-Id", "Precedence", "Auto-Submitted", "X-Auto-Response-Suppress", "Feedback-ID"},
 	Peek:         true,
 }
 

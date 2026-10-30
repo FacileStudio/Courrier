@@ -252,6 +252,7 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 		attachments := extractAttachments(msg.BodyStructure, 0)
 		references := messageReferences(msg)
 		inReplyTo := strings.Join(env.InReplyTo, " ")
+		category, bulkReason := Classify(bulkSignals(msg), firstAddr(env.From))
 
 		email := schemas.Email{
 			AccountID:      accountID,
@@ -270,6 +271,8 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 			HasAttachments: len(attachments) > 0,
 			InReplyTo:      inReplyTo,
 			References:     references,
+			Category:       category,
+			BulkReason:     bulkReason,
 			IMAPUID:        uint32(msg.UID),
 		}
 
@@ -1397,6 +1400,8 @@ func emailToResponse(e schemas.Email, attachments ...schemas.Attachment) EmailRe
 		HasAttachments: e.HasAttachments,
 		InReplyTo:      e.InReplyTo,
 		References:     e.References,
+		Category:       e.Category,
+		BulkReason:     e.BulkReason,
 	}
 
 	resp.ToAddresses = parseAddressJSON(e.ToAddresses)
