@@ -153,6 +153,32 @@ the To and Cc of sent mail on sync and on every send; `contacts/backfill` is ide
 `{threadId}` is percent-decoded before use, since a thread id is a Message-ID and can
 contain characters that need escaping in a path.
 
+### Triage
+
+| Method | Path | Rate limit | Response |
+|---|---|---|---|
+| GET | `/api/mail/triage` | — | `{"generated_at","total","counts":{"known","unknown_human","bulk"},"items":[TriageItem],"page","limit"}` |
+| POST | `/api/accounts/{accountId}/mail/backfill` | 2/min | `{"classified":N,"scanned":N}`, or `{"running":true}` when a run is active |
+
+`GET /api/mail/triage` covers the inbox of every account the user can see. Query:
+`unread=true`, `class` (comma list of `known`, `unknown_human`, `bulk`, default all),
+`since` (RFC3339 or `30m`, `2h`, `1d`, `1w`), `account` (one account id, 404 if it is not
+the user's), `page`, `limit` (default 50, capped at 100). `TriageItem` is `{account_id,
+account, thread_id, email_id, subject, from_address, from_name, date, message_count,
+unread_count, class, reason}`.
+
+Class order: bulk signals first (`list-unsubscribe`, `list-id`, `precedence-bulk`,
+`auto-submitted`, `noreply-sender`), then `known` (`in-sent-thread`: the thread holds a
+message in a sent folder; `sent-to`: the sender is in contacts), else `unknown_human`
+(`no-signal`). `counts` covers the whole set matching `unread`, `since` and `account`,
+whatever `class` and `page` are; `total` and `items` follow `class`. Rows cached before
+header classification existed fall back to the sender pattern.
+
+`backfill` classifies cached inbox rows from the last 60 days that have no category, 50
+headers per IMAP fetch with a pause between batches, then deep-syncs the sent folder into
+contacts. It is idempotent and resumable (classified rows are skipped). A folder sync starts
+it in the background when unclassified rows remain, at most one run per account.
+
 ### Inline images
 
 `GET /api/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}` is the only mail route

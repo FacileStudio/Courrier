@@ -108,6 +108,7 @@ func extensionFromFilename(name string) string {
 // failed handshake is a 200 with the reason in the body.
 func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service, rtSecret []byte) {
 	registerContactRoutes(router, service, authService)
+	registerTriageRoutes(router, service, authService)
 	router.Get("/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}", func(w http.ResponseWriter, req *http.Request) {
 		var userID string
 

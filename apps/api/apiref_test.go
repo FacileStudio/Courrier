@@ -61,6 +61,8 @@ func TestRegistryIsComplete(t *testing.T) {
 		"/auth/backchannel-logout",
 		"/accounts/{accountId}/mail/check",
 		"/accounts/{accountId}/mail/sync",
+		"/accounts/{accountId}/mail/backfill",
+		"/accounts/{accountId}/mail/contacts/backfill",
 		"/accounts/{accountId}/mail/folders/{folderId}/sync",
 		"/accounts/{accountId}/mail/emails/{emailId}/attachments/{attachmentId}/download",
 		"/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}",
