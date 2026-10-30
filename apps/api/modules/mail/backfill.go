@@ -33,7 +33,7 @@ type backfillJob struct {
 func (j backfillJob) nextBatch(afterID int64) ([]schemas.Email, error) {
 	var rows []schemas.Email
 	err := j.orm.Select("id", "imap_uid", "from_address").
-		Where("folder_id = ? AND category = '' AND bulk_reason = '' AND date >= ? AND imap_uid > 0 AND id > ?",
+		Where("folder_id = ? AND COALESCE(category, '') = '' AND COALESCE(bulk_reason, '') = '' AND date >= ? AND imap_uid > 0 AND id > ?",
 			j.folder.ID, j.cutoff, afterID).
 		Order("id ASC").Limit(backfillBatch).Find(&rows).Error
 	return rows, err

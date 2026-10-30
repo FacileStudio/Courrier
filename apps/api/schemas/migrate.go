@@ -30,6 +30,10 @@ func MigrateWithIssuer(db *gorm.DB, issuer string) error {
 		return err
 	}
 
+	if err := backfillEmailClassColumns(db); err != nil {
+		return err
+	}
+
 	ensureSearchIndexes(db)
 
 	if err := backfillAvatarURLs(db); err != nil {
@@ -41,6 +45,17 @@ func MigrateWithIssuer(db *gorm.DB, issuer string) error {
 	}
 
 	return AdoptPorte(db, issuer)
+}
+
+// backfillEmailClassColumns turns the NULL category and bulk_reason that
+// AutoMigrate leaves on every row cached before those columns existed into the
+// empty string the classifier and the backfill select on. Idempotent.
+func backfillEmailClassColumns(db *gorm.DB) error {
+	return db.Exec(
+		`UPDATE emails
+		    SET category = coalesce(category, ''),
+		        bulk_reason = coalesce(bulk_reason, '')
+		  WHERE category IS NULL OR bulk_reason IS NULL`).Error
 }
 
 func ensureSearchIndexes(db *gorm.DB) {

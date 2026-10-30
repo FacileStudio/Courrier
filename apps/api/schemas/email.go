@@ -24,8 +24,8 @@ type Email struct {
 	HasAttachments bool      `gorm:"column:has_attachments;default:false"`
 	InReplyTo      string    `gorm:"column:in_reply_to"`
 	References     string    `gorm:"column:references;type:text"`
-	Category       string    `gorm:"column:category"`
-	BulkReason     string    `gorm:"column:bulk_reason"`
+	Category       string    `gorm:"column:category;default:''"`
+	BulkReason     string    `gorm:"column:bulk_reason;default:''"`
 	IMAPUID        uint32    `gorm:"column:imap_uid"`
 	FacileID       *string   `gorm:"column:facile_id;uniqueIndex" json:"facile_id,omitempty"`
 	CachedAt       time.Time `gorm:"column:cached_at;autoCreateTime"`

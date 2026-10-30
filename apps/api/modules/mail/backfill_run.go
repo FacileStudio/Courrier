@@ -51,14 +51,6 @@ func (h imapHeaders) Close() {
 	h.client.Close()
 }
 
-func (s *Service) unclassifiedCount(ctx context.Context, accountID int64) int64 {
-	var n int64
-	s.orm.WithContext(ctx).Table("emails e").Joins("JOIN folders f ON f.id = e.folder_id").
-		Where("e.account_id = ? AND f.type = ? AND e.category = '' AND e.bulk_reason = '' AND e.date >= ?",
-			accountID, schemas.FolderTypeInbox, time.Now().Add(-backfillWindow)).Count(&n)
-	return n
-}
-
 func (s *Service) backfillInboxes(ctx context.Context, account schemas.Account) (int, error) {
 	var folders []schemas.Folder
 	err := s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", account.ID, schemas.FolderTypeInbox).Find(&folders).Error
@@ -98,10 +90,14 @@ func (s *Service) ensureFolders(ctx context.Context, userID, accountID int64) er
 // category yet, then deep-syncs the sent folder into contacts. Only one run per
 // account is active at a time; a second call reports running and does nothing.
 func (s *Service) BackfillMail(ctx context.Context, userID, accountID int64) (BackfillResult, error) {
-	if _, loaded := s.backfilling.LoadOrStore(accountID, true); loaded {
+	if err := s.visibleAccount(ctx, userID, accountID); err != nil {
+		return BackfillResult{}, err
+	}
+	release, ok := s.acquireBackfill(accountID)
+	if !ok {
 		return BackfillResult{Running: true}, nil
 	}
-	defer s.backfilling.Delete(accountID)
+	defer release()
 	if err := s.ensureFolders(ctx, userID, accountID); err != nil {
 		return BackfillResult{}, err
 	}
@@ -118,19 +114,27 @@ func (s *Service) BackfillMail(ctx context.Context, userID, accountID int64) (Ba
 }
 
 func (s *Service) backfillAfterSync(userID, accountID int64) {
-	if s.unclassifiedCount(context.Background(), accountID) == 0 {
+	if s.cooling(accountID) || s.unclassifiedCount(context.Background(), accountID) == 0 {
 		return
 	}
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), backgroundBackfillTimeout)
-		defer cancel()
-		res, err := s.BackfillMail(ctx, userID, accountID)
-		if err != nil {
-			slog.Warn("mail backfill failed", "account_id", accountID, "error", err)
-			return
-		}
-		slog.Info("mail backfill finished", "account_id", accountID, "classified", res.Classified, "scanned", res.Scanned)
-	}()
+	go s.runBackgroundBackfill(userID, accountID)
+}
+
+func (s *Service) runBackgroundBackfill(userID, accountID int64) {
+	ctx, cancel := context.WithTimeout(context.Background(), backgroundBackfillTimeout)
+	defer cancel()
+	res, err := s.BackfillMail(ctx, userID, accountID)
+	if res.Running {
+		return
+	}
+	if err != nil || res.Classified == 0 {
+		s.startCooldown(accountID)
+	}
+	if err != nil {
+		slog.Warn("mail backfill failed", "account_id", accountID, "error", err)
+		return
+	}
+	slog.Info("mail backfill finished", "account_id", accountID, "classified", res.Classified, "scanned", res.Scanned)
 }
 
 func (s *Service) handleBackfill(w http.ResponseWriter, req *http.Request) {
