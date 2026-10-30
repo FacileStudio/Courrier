@@ -239,5 +239,6 @@ func (s *Service) Delete(ctx context.Context, userID int64, accountID int64) err
 	}
 	s.orm.WithContext(ctx).Where("account_id = ?", accountID).Delete(&schemas.Folder{})
 	s.orm.WithContext(ctx).Where("account_id = ?", accountID).Delete(&schemas.Email{})
+	s.orm.WithContext(ctx).Where("account_id = ?", accountID).Delete(&schemas.Contact{})
 	return nil
 }

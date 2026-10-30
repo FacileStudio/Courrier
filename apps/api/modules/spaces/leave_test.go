@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 	if !configured {
 		testdb.Announce(bootstrap)
 	} else {
-		db, err := testdb.Open(url, testdb.Config{Prefix: "courrier_test", Migrate: schemas.Migrate})
+		db, err := testdb.Open(url, testdb.Config{Prefix: "courrier_spaces_test", Migrate: schemas.Migrate})
 		if err != nil {
 			log.Fatalf("testdb: %v", err)
 		}

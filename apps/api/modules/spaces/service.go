@@ -133,15 +133,22 @@ func (s *Service) Delete(ctx context.Context, userID int64, spaceID string) erro
 		return errors.Forbidden("only the owner can delete a space")
 	}
 
-	result := s.orm.WithContext(ctx).Where("id = ?", spaceID).Delete(&schemas.Space{})
-	if result.Error != nil {
-		return errors.Internal("failed to delete space", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return errors.NotFound("space not found")
-	}
-
-	return nil
+	return s.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("space_id = ?", spaceID).Delete(&schemas.Contact{}).Error; err != nil {
+			return errors.Internal("failed to delete space contacts", err)
+		}
+		if err := tx.Where("space_id = ?", spaceID).Delete(&schemas.SpaceMember{}).Error; err != nil {
+			return errors.Internal("failed to delete space members", err)
+		}
+		result := tx.Where("id = ?", spaceID).Delete(&schemas.Space{})
+		if result.Error != nil {
+			return errors.Internal("failed to delete space", result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return errors.NotFound("space not found")
+		}
+		return nil
+	})
 }
 
 func (s *Service) resolveTargetUser(ctx context.Context, req AddMemberRequest) (int64, error) {
