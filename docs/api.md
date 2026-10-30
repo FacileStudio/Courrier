@@ -131,7 +131,8 @@ All paths below are prefixed `/api/accounts/{accountId}/mail`.
 | GET | `/threads/{threadId}` | `{"emails":[Email]}` — every message in the conversation |
 | GET | `/search` | `{"emails":[Email], "total", "page", "limit"}` |
 | GET | `/emails/{emailId}` | A single `Email` with `attachments` |
-| GET | `/contacts` | `{"contacts":[{"name","email","count"}]}` |
+| GET | `/contacts` | With `q`: `{"contacts":[{"name","email","count"}]}`. Without: `{"contacts":[{"email","name","sent_count","last_sent_at"}], "total", "page", "limit"}` |
+| POST | `/contacts/backfill` | `{"scanned":N}` — reads up to 1000 sent envelopes to fill contacts |
 | GET | `/emails/{emailId}/attachments/{attachmentId}/download` | The file, fetched from IMAP on demand |
 
 The folder listing takes `page` (default 1), `limit` (default 50, capped at 100), and
@@ -143,7 +144,11 @@ message, `email_ids`. Expand one with the thread route.
 Search takes `q`, `page`, and `limit` (default 30, capped at 100), and runs against the
 trigram indexes on subject, sender name, sender address, and body text. `contacts` takes
 `q` and returns addresses seen in the account's mail with how often each appears. A blank
-`q` on either returns an empty result rather than an error.
+`q` on search returns an empty result rather than an error. Without `q`, `contacts` lists
+the addresses the account has written to, newest first, with `page` and `limit` (default 50,
+capped at 100). `GET /api/mail/contacts` does the same across every account the user can
+see, merging an address seen on several accounts into one row. Contacts are counted from
+the To and Cc of sent mail on sync and on every send; `contacts/backfill` is idempotent.
 
 `{threadId}` is percent-decoded before use, since a thread id is a Message-ID and can
 contain characters that need escaping in a path.

@@ -22,6 +22,7 @@ func MigrateWithIssuer(db *gorm.DB, issuer string) error {
 		&Email{},
 		&ThreadLink{},
 		&Attachment{},
+		&Contact{},
 		&EmailTemplate{},
 		&Space{},
 		&SpaceMember{},

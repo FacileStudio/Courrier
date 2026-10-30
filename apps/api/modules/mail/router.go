@@ -107,6 +107,7 @@ func extensionFromFilename(name string) string {
 // failure. It opens two connections and writes nothing, hence 10 a minute; a
 // failed handshake is a 200 with the reason in the body.
 func RegisterRoutes(router chi.Router, service *Service, authService *auth.Service, rtSecret []byte) {
+	registerContactRoutes(router, service, authService)
 	router.Get("/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}", func(w http.ResponseWriter, req *http.Request) {
 		var userID string
 
@@ -468,7 +469,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			}
 			q := req.URL.Query().Get("q")
 			if q == "" {
-				httpjson.WriteJSON(w, http.StatusOK, map[string]any{"contacts": []ContactResult{}})
+				service.serveContacts(w, req, uid, &accountID)
 				return
 			}
 			contacts, err := service.SearchContacts(req.Context(), uid, accountID, q)

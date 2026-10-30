@@ -274,6 +274,7 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 		}
 
 		s.orm.WithContext(ctx).Create(&email)
+		s.recordSyncedSent(ctx, folder, account.SpaceID, env)
 
 		if len(attachments) > 0 {
 			for i := range attachments {
@@ -834,6 +835,8 @@ func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendReq
 	if err != nil {
 		return errors.Failed(fmt.Sprintf("failed to send: %s", err))
 	}
+
+	s.recordContacts(ctx, accountID, account.SpaceID, sendRecipients(req.To, req.Cc), time.Now())
 
 	var sentFolder schemas.Folder
 	if s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeSent).First(&sentFolder).Error == nil {
