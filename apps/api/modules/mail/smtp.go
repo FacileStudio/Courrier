@@ -95,39 +95,46 @@ func sendImplicitTLS(addr, host, user, password, from string, to []string, msg [
 // buildMessage builds the RFC822 message and returns its bytes plus the
 // generated Message-ID, so callers can persist it and thread outbound mail
 // against the replies it later receives.
-func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject, bodyText, bodyHTML, inReplyTo string, references []string, attachments []AttachmentUpload) ([]byte, string, error) {
+func buildMessage(spec messageSpec) ([]byte, string, error) {
 	var buf bytes.Buffer
 
 	var h gomail.Header
 	h.SetDate(time.Now())
-	h.SetSubject(subject)
-	h.SetAddressList("From", []*gomail.Address{{Name: fromName, Address: fromEmail}})
+	h.SetSubject(spec.Subject)
+	h.SetAddressList("From", []*gomail.Address{{Name: spec.FromName, Address: spec.FromEmail}})
 
-	h.SetAddressList("To", parseAddresses(toAddrs))
-
-	if len(ccAddrs) > 0 {
-		h.SetAddressList("Cc", parseAddresses(ccAddrs))
+	if to := parseAddresses(spec.To); len(to) > 0 {
+		h.SetAddressList("To", to)
 	}
 
-	if err := h.GenerateMessageIDWithHostname("courrier.local"); err != nil {
+	if len(spec.Cc) > 0 {
+		h.SetAddressList("Cc", parseAddresses(spec.Cc))
+	}
+	if bcc := parseAddresses(spec.Bcc); len(bcc) > 0 {
+		h.SetAddressList("Bcc", bcc)
+	}
+
+	if spec.MessageID != "" {
+		h.Set("Message-Id", spec.MessageID)
+	} else if err := h.GenerateMessageIDWithHostname("courrier.local"); err != nil {
 		return nil, "", err
 	}
 	messageID := h.Get("Message-Id")
 
-	if inReplyTo != "" {
-		h.SetMsgIDList("In-Reply-To", []string{inReplyTo})
+	if spec.InReplyTo != "" {
+		h.SetMsgIDList("In-Reply-To", []string{spec.InReplyTo})
 	}
-	if len(references) > 0 {
-		h.SetMsgIDList("References", references)
+	if len(spec.References) > 0 {
+		h.SetMsgIDList("References", spec.References)
 	}
 
-	if len(attachments) == 0 {
-		if bodyHTML == "" {
+	if len(spec.Attachments) == 0 {
+		if spec.BodyHTML == "" {
 			w, err := gomail.CreateSingleInlineWriter(&buf, h)
 			if err != nil {
 				return nil, "", err
 			}
-			if _, err := io.WriteString(w, bodyText); err != nil {
+			if _, err := io.WriteString(w, spec.Body); err != nil {
 				return nil, "", err
 			}
 			if err := w.Close(); err != nil {
@@ -136,15 +143,15 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 			return buf.Bytes(), messageID, nil
 		}
 
-		if bodyText == "" {
-			bodyText = stripHTMLTags(bodyHTML)
+		if spec.Body == "" {
+			spec.Body = stripHTMLTags(spec.BodyHTML)
 		}
 
 		iw, err := gomail.CreateInlineWriter(&buf, h)
 		if err != nil {
 			return nil, "", err
 		}
-		if err := writeAlternativeParts(iw, bodyText, bodyHTML); err != nil {
+		if err := writeAlternativeParts(iw, spec.Body, spec.BodyHTML); err != nil {
 			return nil, "", err
 		}
 		if err := iw.Close(); err != nil {
@@ -153,8 +160,8 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 		return buf.Bytes(), messageID, nil
 	}
 
-	if bodyText == "" && bodyHTML != "" {
-		bodyText = stripHTMLTags(bodyHTML)
+	if spec.Body == "" && spec.BodyHTML != "" {
+		spec.Body = stripHTMLTags(spec.BodyHTML)
 	}
 
 	mw, err := gomail.CreateWriter(&buf, h)
@@ -162,12 +169,12 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 		return nil, "", err
 	}
 
-	if bodyHTML != "" {
+	if spec.BodyHTML != "" {
 		altPart, err := mw.CreateInline()
 		if err != nil {
 			return nil, "", err
 		}
-		if err := writeAlternativeParts(altPart, bodyText, bodyHTML); err != nil {
+		if err := writeAlternativeParts(altPart, spec.Body, spec.BodyHTML); err != nil {
 			return nil, "", err
 		}
 		if err := altPart.Close(); err != nil {
@@ -180,7 +187,7 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 		if err != nil {
 			return nil, "", err
 		}
-		if _, err := io.WriteString(tw, bodyText); err != nil {
+		if _, err := io.WriteString(tw, spec.Body); err != nil {
 			return nil, "", err
 		}
 		if err := tw.Close(); err != nil {
@@ -188,15 +195,15 @@ func buildMessage(fromEmail, fromName string, toAddrs, ccAddrs []string, subject
 		}
 	}
 
-	for i := range attachments {
+	for i := range spec.Attachments {
 		var attHeader gomail.AttachmentHeader
-		attHeader.SetContentType(attachments[i].MimeType, nil)
-		attHeader.SetFilename(attachments[i].Filename)
+		attHeader.SetContentType(spec.Attachments[i].MimeType, nil)
+		attHeader.SetFilename(spec.Attachments[i].Filename)
 		aw, err := mw.CreateAttachment(attHeader)
 		if err != nil {
 			return nil, "", err
 		}
-		reader, err := attachments[i].Reader()
+		reader, err := spec.Attachments[i].Reader()
 		if err != nil {
 			return nil, "", err
 		}

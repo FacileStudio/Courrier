@@ -90,7 +90,7 @@ Client dev only (in `apps/client/.env`):
 - `GET /api/files/*` -- Static file serving (avatars)
 - Auth: `/api/auth/register`, `/api/auth/login`, `/api/auth/config`, `/api/auth/oidc/*`
 - Accounts: `/api/accounts` (CRUD for IMAP/SMTP mail accounts)
-- Mail: `/api/accounts/{id}/mail/sync`, `/api/accounts/{id}/mail/folders`, `/api/accounts/{id}/mail/folders/{type}/emails`, `/api/accounts/{id}/mail/emails/{id}`, `/api/accounts/{id}/mail/send`
+- Mail: `/api/accounts/{id}/mail/sync`, `/api/accounts/{id}/mail/folders`, `/api/accounts/{id}/mail/folders/{type}/emails`, `/api/accounts/{id}/mail/emails/{id}`, `/api/accounts/{id}/mail/send`, `/api/accounts/{id}/mail/drafts[/{id}]`, `/api/accounts/{id}/mail/emails/move`, `/api/accounts/{id}/mail/folders[/{id}]` (create, rename, delete)
 - Connection test: `POST /api/mail/test-connection`
 - Users: `/api/users/me`, `/api/users`
 - Settings: `/api/settings/`

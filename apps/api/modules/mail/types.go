@@ -32,6 +32,7 @@ func (a *AttachmentUpload) Cleanup() {
 type SendRequest struct {
 	To          []string           `json:"to"`
 	Cc          []string           `json:"cc"`
+	Bcc         []string           `json:"bcc"`
 	Subject     string             `json:"subject"`
 	Body        string             `json:"body"`
 	BodyHTML    string             `json:"body_html"`
@@ -90,6 +91,7 @@ type EmailResponse struct {
 	FromName       string               `json:"from_name"`
 	ToAddresses    []AddressResponse    `json:"to_addresses"`
 	CcAddresses    []AddressResponse    `json:"cc_addresses"`
+	BccAddresses   []AddressResponse    `json:"bcc_addresses"`
 	Date           string               `json:"date"`
 	BodyText       string               `json:"body_text,omitempty"`
 	BodyHTML       string               `json:"body_html,omitempty"`

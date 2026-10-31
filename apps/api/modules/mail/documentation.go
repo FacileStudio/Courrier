@@ -18,7 +18,7 @@ var (
 var Documentation = documentation.Module{
 	Name:        "mail",
 	Description: "Mailbox synchronisation, reading, sending, drafts and reusable templates. Every mail route is scoped to one account.",
-	Routes: []documentation.Route{
+	Routes: append([]documentation.Route{
 		{
 			Method:  "POST",
 			Path:    "/accounts/{accountId}/mail/check",
@@ -249,7 +249,7 @@ var Documentation = documentation.Module{
 			Method:       "POST",
 			Path:         "/accounts/{accountId}/mail/send",
 			Summary:      "Send a message",
-			Description:  "Sends over SMTP and appends the result to the account's Sent folder. Accepts JSON or multipart/form-data with repeated attachments fields, capped at 25 MB. Rate limited to 10 per minute.",
+			Description:  "Sends over SMTP and appends the result to the account's Sent folder. Accepts JSON or multipart/form-data with repeated attachments fields, capped at 25 MB; in multipart, to, cc, bcc and references are comma-separated. At least one of to, cc and bcc is required. Bcc recipients are added to the SMTP envelope only: the delivered message carries no Bcc header, while the copy in Sent and the cached row record it as bcc_addresses. Rate limited to 10 per minute.",
 			Auth:         "bearer token required",
 			PathParams:   []documentation.Field{accountID},
 			RequestBody:  SendRequest{},
@@ -266,7 +266,7 @@ var Documentation = documentation.Module{
 			Method:       "POST",
 			Path:         "/accounts/{accountId}/mail/drafts",
 			Summary:      "Save a draft",
-			Description:  "Stores the message and appends it to the account's Drafts folder. Returns the new message id.",
+			Description:  "Stores the message and appends it to the account's Drafts folder. Returns the new message id. Accepts JSON or multipart/form-data with repeated attachments fields, capped at 25 MB; the Drafts copy keeps the Bcc header. A draft with attachments must reach the IMAP server, which holds the attachment bytes, and fails with 412 otherwise.",
 			Auth:         "bearer token required",
 			PathParams:   []documentation.Field{accountID},
 			RequestBody:  SendRequest{},
@@ -275,6 +275,8 @@ var Documentation = documentation.Module{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid body."},
 				unauthenticated,
 				accountNotFound,
+				{Status: 412, Code: "failed_precondition", Description: "The draft has attachments and the IMAP server could not store it."},
+				{Status: 413, Code: "resource_exhausted", Description: "Attachments exceed 25 MB."},
 			},
 		},
 		{
@@ -294,7 +296,7 @@ var Documentation = documentation.Module{
 			Method:       "POST",
 			Path:         "/accounts/{accountId}/mail/emails/bulk-action",
 			Summary:      "Act on several messages",
-			Description:  "Applies delete, archive, mark_read or mark_unread to up to 200 message ids. Rate limited to 30 per minute.",
+			Description:  "Applies delete, archive, mark_read, mark_unread, star or unstar to up to 200 message ids. Deleting a message already in Trash removes it from the server. Rate limited to 30 per minute.",
 			Auth:         "bearer token required",
 			PathParams:   []documentation.Field{accountID},
 			RequestBody:  BulkActionRequest{},
@@ -379,5 +381,5 @@ var Documentation = documentation.Module{
 				rateLimited,
 			},
 		},
-	},
+	}, writeRoutes...),
 }

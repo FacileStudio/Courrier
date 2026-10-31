@@ -29,12 +29,14 @@ type Service struct {
 	encryptionKey []byte
 	backfilling   sync.Map
 	cooldowns     sync.Map
+	dial          imapDialer
+	deliver       smtpDeliverer
 }
 
 // NewService builds a mail Service over the database and the app's encryption
 // key.
 func NewService(orm *gorm.DB, encryptionKey []byte) *Service {
-	return &Service{orm: orm, encryptionKey: encryptionKey}
+	return &Service{orm: orm, encryptionKey: encryptionKey, dial: connectIMAP, deliver: deliverSMTP}
 }
 
 func (s *Service) decryptPassword(cipher string) (string, error) {
@@ -143,7 +145,7 @@ func (s *Service) SyncAccount(ctx context.Context, userID, accountID int64) erro
 		return err
 	}
 
-	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+	client, err := s.connect(account)
 	if err != nil {
 		return errors.Failed(err.Error())
 	}
@@ -208,7 +210,7 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 		return errors.NotFound("folder not found")
 	}
 
-	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+	client, err := s.connect(account)
 	if err != nil {
 		return errors.Failed(err.Error())
 	}
@@ -268,6 +270,7 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 			FromName:       firstName(env.From),
 			ToAddresses:    imapAddressesToJSON(env.To),
 			CcAddresses:    imapAddressesToJSON(env.Cc),
+			BccAddresses:   imapAddressesToJSON(env.Bcc),
 			Date:           env.Date,
 			IsRead:         containsFlag(msg.Flags, imap.FlagSeen),
 			IsStarred:      containsFlag(msg.Flags, imap.FlagFlagged),
@@ -405,7 +408,7 @@ func (s *Service) GetEmail(ctx context.Context, userID, accountID, emailID int64
 		}
 		var folder schemas.Folder
 		if s.orm.WithContext(ctx).Where("id = ?", email.FolderID).First(&folder).Error == nil {
-			client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+			client, err := s.connect(account)
 			if err == nil {
 				defer func() {
 					client.Logout().Wait()
@@ -501,7 +504,7 @@ func (s *Service) DownloadAttachment(w http.ResponseWriter, req *http.Request, u
 		return
 	}
 
-	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+	client, err := s.connect(account)
 	if err != nil {
 		httpjson.WriteError(w, errors.Failed(err.Error()))
 		return
@@ -542,7 +545,7 @@ func (s *Service) ServeCIDImage(w http.ResponseWriter, req *http.Request, userID
 		return
 	}
 
-	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+	client, err := s.connect(account)
 	if err != nil {
 		httpjson.WriteError(w, errors.Failed(err.Error()))
 		return
@@ -605,7 +608,7 @@ func (s *Service) UpdateEmail(ctx context.Context, userID, accountID, emailID in
 		if s.orm.WithContext(context.Background()).Where("id = ?", email.FolderID).First(&folder).Error != nil {
 			return
 		}
-		client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+		client, err := s.connect(account)
 		if err != nil {
 			return
 		}
@@ -633,317 +636,9 @@ func (s *Service) UpdateEmail(ctx context.Context, userID, accountID, emailID in
 	return email, nil
 }
 
-// SetReadState marks many emails read/unread at once: one DB update, refreshed
-// folder unread counts, and a single IMAP connection that issues one STORE per
-// folder. This is what bulk mark-read and opening a conversation use, so a big
-// thread no longer triggers one IMAP login per message.
-//
-// Rows with no IMAP uid are skipped: they are locally-created draft or sent
-// rows with no server message to flag.
-func (s *Service) SetReadState(ctx context.Context, userID, accountID int64, emailIDs []int64, isRead bool) error {
-	account, err := s.getAccountDecrypted(ctx, userID, accountID)
-	if err != nil {
-		return err
-	}
-	if len(emailIDs) == 0 {
-		return nil
-	}
-
-	var emails []schemas.Email
-	if err := s.orm.WithContext(ctx).
-		Select("id", "folder_id", "imap_uid").
-		Where("id IN ? AND account_id = ?", emailIDs, accountID).
-		Find(&emails).Error; err != nil {
-		return errors.Internal("failed to load emails", err)
-	}
-	if len(emails) == 0 {
-		return nil
-	}
-
-	s.orm.WithContext(ctx).Model(&schemas.Email{}).
-		Where("id IN ? AND account_id = ?", emailIDs, accountID).
-		Update("is_read", isRead)
-
-	affected := map[int64]bool{}
-	for _, e := range emails {
-		affected[e.FolderID] = true
-	}
-	for folderID := range affected {
-		var unread int64
-		s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("folder_id = ? AND is_read = false", folderID).Count(&unread)
-		s.orm.WithContext(ctx).Model(&schemas.Folder{}).Where("id = ?", folderID).Update("unread_count", unread)
-	}
-
-	uidsByFolder := map[int64][]imap.UID{}
-	for _, e := range emails {
-		if e.IMAPUID == 0 {
-			continue
-		}
-		uidsByFolder[e.FolderID] = append(uidsByFolder[e.FolderID], imap.UID(e.IMAPUID))
-	}
-
-	go func() {
-		client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
-		if err != nil {
-			return
-		}
-		defer func() {
-			client.Logout().Wait()
-			client.Close()
-		}()
-
-		paths := map[int64]string{}
-		var folders []schemas.Folder
-		s.orm.WithContext(context.Background()).Where("account_id = ?", accountID).Find(&folders)
-		for _, f := range folders {
-			paths[f.ID] = f.Path
-		}
-
-		op := imap.StoreFlagsAdd
-		if !isRead {
-			op = imap.StoreFlagsDel
-		}
-		for folderID, uids := range uidsByFolder {
-			if path := paths[folderID]; path != "" {
-				storeFlagsBulk(client, path, uids, op, []imap.Flag{imap.FlagSeen})
-			}
-		}
-	}()
-
-	return nil
-}
-
-func (s *Service) Send(ctx context.Context, userID, accountID int64, req SendRequest) error {
-	account, err := s.getAccountDecrypted(ctx, userID, accountID)
-	if err != nil {
-		return err
-	}
-
-	if len(req.To) == 0 {
-		return errors.Invalid("at least one recipient is required")
-	}
-	if req.Body == "" && req.BodyHTML == "" {
-		return errors.Invalid("body is required")
-	}
-
-	msgBytes, messageID, err := buildMessage(
-		account.Email,
-		account.Name,
-		req.To,
-		req.Cc,
-		req.Subject,
-		req.Body,
-		req.BodyHTML,
-		req.InReplyTo,
-		req.References,
-		req.Attachments,
-	)
-	if err != nil {
-		return errors.Internal("failed to build message", err)
-	}
-
-	allRecipients := make([]string, 0, len(req.To)+len(req.Cc))
-	allRecipients = append(allRecipients, extractEmails(req.To)...)
-	allRecipients = append(allRecipients, extractEmails(req.Cc)...)
-
-	addr := fmt.Sprintf("%s:%d", account.SMTPHost, account.SMTPPort)
-	if account.SMTPPort == 465 {
-		err = sendImplicitTLS(addr, account.SMTPHost, account.SMTPUser, account.SMTPPassword, account.Email, allRecipients, msgBytes)
-	} else {
-		err = sendSTARTTLS(addr, account.SMTPHost, account.SMTPUser, account.SMTPPassword, account.Email, allRecipients, msgBytes)
-	}
-	if err != nil {
-		return errors.Failed(fmt.Sprintf("failed to send: %s", err))
-	}
-
-	s.recordContacts(ctx, accountID, account.SpaceID, sendRecipients(req.To, req.Cc), time.Now())
-
-	var sentFolder schemas.Folder
-	if s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeSent).First(&sentFolder).Error == nil {
-		references := strings.Join(req.References, " ")
-		email := schemas.Email{
-			AccountID:   accountID,
-			SpaceID:     account.SpaceID,
-			FolderID:    sentFolder.ID,
-			MessageID:   messageID,
-			ThreadID:    assignThreadID(s.orm.WithContext(ctx), accountID, messageID, req.InReplyTo, references),
-			Subject:     req.Subject,
-			FromAddress: account.Email,
-			FromName:    account.Name,
-			ToAddresses: stringsToAddressJSON(req.To),
-			CcAddresses: stringsToAddressJSON(req.Cc),
-			Date:        time.Now(),
-			BodyText:    req.Body,
-			BodyHTML:    req.BodyHTML,
-			InReplyTo:   req.InReplyTo,
-			References:  references,
-			IsRead:      true,
-		}
-		s.orm.WithContext(ctx).Create(&email)
-		s.orm.WithContext(ctx).Model(&sentFolder).UpdateColumn("total_count", gorm.Expr("total_count + 1"))
-	}
-
-	go s.appendToSent(account, msgBytes)
-
-	return nil
-}
-
-func (s *Service) SaveDraft(ctx context.Context, userID, accountID int64, req SendRequest) (schemas.Email, error) {
-	account, err := s.getAccountDecrypted(ctx, userID, accountID)
-	if err != nil {
-		return schemas.Email{}, err
-	}
-
-	msgBytes, messageID, err := buildMessage(
-		account.Email,
-		account.Name,
-		req.To,
-		req.Cc,
-		req.Subject,
-		req.Body,
-		req.BodyHTML,
-		req.InReplyTo,
-		req.References,
-		nil,
-	)
-	if err != nil {
-		return schemas.Email{}, errors.Internal("failed to build draft message", err)
-	}
-
-	var draftsFolder schemas.Folder
-	if err := s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeDrafts).First(&draftsFolder).Error; err != nil {
-		return schemas.Email{}, errors.NotFound("drafts folder not found — sync account first")
-	}
-
-	references := strings.Join(req.References, " ")
-	email := schemas.Email{
-		AccountID:   accountID,
-		SpaceID:     account.SpaceID,
-		FolderID:    draftsFolder.ID,
-		MessageID:   messageID,
-		ThreadID:    assignThreadID(s.orm.WithContext(ctx), accountID, messageID, req.InReplyTo, references),
-		Subject:     req.Subject,
-		FromAddress: account.Email,
-		FromName:    account.Name,
-		ToAddresses: stringsToAddressJSON(req.To),
-		CcAddresses: stringsToAddressJSON(req.Cc),
-		Date:        time.Now(),
-		BodyText:    req.Body,
-		BodyHTML:    req.BodyHTML,
-		InReplyTo:   req.InReplyTo,
-		References:  references,
-		IsRead:      true,
-	}
-	if err := s.orm.WithContext(ctx).Create(&email).Error; err != nil {
-		return schemas.Email{}, errors.Internal("failed to save draft", err)
-	}
-
-	go s.appendToDrafts(account, msgBytes)
-
-	return email, nil
-}
-
-func (s *Service) DeleteDraft(ctx context.Context, userID, accountID, emailID int64) error {
-	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
-		return err
-	}
-
-	var draftsFolder schemas.Folder
-	if err := s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, schemas.FolderTypeDrafts).First(&draftsFolder).Error; err != nil {
-		return errors.NotFound("drafts folder not found")
-	}
-
-	var email schemas.Email
-	if err := s.orm.WithContext(ctx).Where("id = ? AND account_id = ? AND folder_id = ?", emailID, accountID, draftsFolder.ID).First(&email).Error; err != nil {
-		return errors.NotFound("draft not found")
-	}
-
-	s.orm.WithContext(ctx).Delete(&email)
-	return nil
-}
-
-func (s *Service) MoveEmails(ctx context.Context, userID, accountID int64, emailIDs []int64, destFolderType string) error {
-	account, err := s.getAccountDecrypted(ctx, userID, accountID)
-	if err != nil {
-		return err
-	}
-
-	var destFolder schemas.Folder
-	if err := s.orm.WithContext(ctx).Where("account_id = ? AND type = ?", accountID, destFolderType).First(&destFolder).Error; err != nil {
-		return errors.NotFound(fmt.Sprintf("destination folder %q not found", destFolderType))
-	}
-
-	var emails []schemas.Email
-	if err := s.orm.WithContext(ctx).Where("id IN ? AND account_id = ?", emailIDs, accountID).Find(&emails).Error; err != nil {
-		return errors.Internal("failed to find emails", err)
-	}
-
-	if len(emails) == 0 {
-		return errors.NotFound("no emails found")
-	}
-
-	srcFolderIDs := map[int64]bool{}
-	for _, e := range emails {
-		srcFolderIDs[e.FolderID] = true
-	}
-
-	s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("id IN ? AND account_id = ?", emailIDs, accountID).Update("folder_id", destFolder.ID)
-
-	for folderID := range srcFolderIDs {
-		var count int64
-		s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("folder_id = ? AND is_read = false", folderID).Count(&count)
-		s.orm.WithContext(ctx).Model(&schemas.Folder{}).Where("id = ?", folderID).Update("unread_count", count)
-	}
-	var destUnread int64
-	s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("folder_id = ? AND is_read = false", destFolder.ID).Count(&destUnread)
-	s.orm.WithContext(ctx).Model(&destFolder).Update("unread_count", destUnread)
-
-	go func() {
-		client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
-		if err != nil {
-			return
-		}
-		defer func() {
-			client.Logout().Wait()
-			client.Close()
-		}()
-
-		mailboxes, err := listMailboxes(client)
-		if err != nil {
-			return
-		}
-		var destMailbox string
-		for _, mbox := range mailboxes {
-			if detectFolderType(mbox) == destFolderType {
-				destMailbox = mbox.Mailbox
-				break
-			}
-		}
-		if destMailbox == "" {
-			return
-		}
-
-		folderPathCache := map[int64]string{}
-		for _, e := range emails {
-			srcPath, ok := folderPathCache[e.FolderID]
-			if !ok {
-				var f schemas.Folder
-				if s.orm.WithContext(context.Background()).Where("id = ?", e.FolderID).First(&f).Error == nil {
-					srcPath = f.Path
-					folderPathCache[e.FolderID] = srcPath
-				}
-			}
-			if srcPath != "" {
-				moveMessage(client, srcPath, imap.UID(e.IMAPUID), destMailbox)
-			}
-		}
-	}()
-
-	return nil
-}
-
 func (s *Service) DeleteEmails(ctx context.Context, userID, accountID int64, emailIDs []int64) error {
-	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
+	account, err := s.getAccountDecrypted(ctx, userID, accountID)
+	if err != nil {
 		return err
 	}
 
@@ -967,13 +662,8 @@ func (s *Service) DeleteEmails(ctx context.Context, userID, accountID int64, ema
 		}
 	}
 
-	if len(alreadyInTrash) > 0 {
-		ids := make([]int64, len(alreadyInTrash))
-		for i, e := range alreadyInTrash {
-			ids[i] = e.ID
-		}
-		s.orm.WithContext(ctx).Where("id IN ?", ids).Delete(&schemas.Email{})
-		s.orm.WithContext(ctx).Where("email_id IN ?", ids).Delete(&schemas.Attachment{})
+	if err := s.purgeFromTrash(ctx, account, trashFolder, alreadyInTrash); err != nil {
+		return err
 	}
 
 	if len(notInTrash) > 0 {
@@ -1075,44 +765,8 @@ func (s *Service) DeleteTemplate(ctx context.Context, userID, templateID int64) 
 	return nil
 }
 
-func (s *Service) appendToDrafts(account schemas.Account, msgBytes []byte) {
-	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
-	if err != nil {
-		return
-	}
-	defer func() {
-		client.Logout().Wait()
-		client.Close()
-	}()
-
-	var draftsFolder string
-	mailboxes, err := listMailboxes(client)
-	if err != nil {
-		return
-	}
-	for _, mbox := range mailboxes {
-		if detectFolderType(mbox) == schemas.FolderTypeDrafts {
-			draftsFolder = mbox.Mailbox
-			break
-		}
-	}
-	if draftsFolder == "" {
-		return
-	}
-
-	appendCmd := client.Append(draftsFolder, int64(len(msgBytes)), &imap.AppendOptions{
-		Flags: []imap.Flag{imap.FlagDraft, imap.FlagSeen},
-	})
-	if _, err := appendCmd.Write(msgBytes); err != nil {
-		appendCmd.Close()
-		return
-	}
-	appendCmd.Close()
-	appendCmd.Wait()
-}
-
 func (s *Service) appendToSent(account schemas.Account, msgBytes []byte) {
-	client, err := connectIMAP(account.IMAPHost, account.IMAPPort, account.IMAPUser, account.IMAPPassword)
+	client, err := s.connect(account)
 	if err != nil {
 		return
 	}
@@ -1326,18 +980,9 @@ func emailToResponse(e schemas.Email, attachments ...schemas.Attachment) EmailRe
 
 	resp.ToAddresses = parseAddressJSON(e.ToAddresses)
 	resp.CcAddresses = parseAddressJSON(e.CcAddresses)
+	resp.BccAddresses = parseAddressJSON(e.BccAddresses)
 
-	if len(attachments) > 0 {
-		resp.Attachments = make([]AttachmentResponse, len(attachments))
-		for i, a := range attachments {
-			resp.Attachments[i] = AttachmentResponse{
-				ID:       a.ID,
-				Filename: a.Filename,
-				MimeType: a.MimeType,
-				Size:     a.Size,
-			}
-		}
-	}
+	resp.Attachments = attachmentResponses(attachments)
 
 	return resp
 }
@@ -1404,4 +1049,15 @@ func folderToResponse(f schemas.Folder) FolderResponse {
 		UnreadCount: f.UnreadCount,
 		TotalCount:  f.TotalCount,
 	}
+}
+
+func attachmentResponses(attachments []schemas.Attachment) []AttachmentResponse {
+	if len(attachments) == 0 {
+		return nil
+	}
+	out := make([]AttachmentResponse, len(attachments))
+	for i, a := range attachments {
+		out[i] = AttachmentResponse{ID: a.ID, Filename: a.Filename, MimeType: a.MimeType, Size: a.Size}
+	}
+	return out
 }

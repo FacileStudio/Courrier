@@ -26,28 +26,14 @@ func parseSendMultipart(req *http.Request) (SendRequest, error) {
 	}
 
 	var sr SendRequest
-	if v := req.FormValue("to"); v != "" {
-		sr.To = strings.Split(v, ",")
-		for i := range sr.To {
-			sr.To[i] = strings.TrimSpace(sr.To[i])
-		}
-	}
-	if v := req.FormValue("cc"); v != "" {
-		sr.Cc = strings.Split(v, ",")
-		for i := range sr.Cc {
-			sr.Cc[i] = strings.TrimSpace(sr.Cc[i])
-		}
-	}
+	sr.To = splitList(req.FormValue("to"))
+	sr.Cc = splitList(req.FormValue("cc"))
+	sr.Bcc = splitList(req.FormValue("bcc"))
 	sr.Subject = req.FormValue("subject")
 	sr.Body = req.FormValue("body")
 	sr.BodyHTML = req.FormValue("body_html")
 	sr.InReplyTo = req.FormValue("in_reply_to")
-	if v := req.FormValue("references"); v != "" {
-		sr.References = strings.Split(v, ",")
-		for i := range sr.References {
-			sr.References[i] = strings.TrimSpace(sr.References[i])
-		}
-	}
+	sr.References = splitList(req.FormValue("references"))
 
 	if req.MultipartForm != nil && req.MultipartForm.File != nil {
 		for _, headers := range req.MultipartForm.File["attachments"] {
@@ -153,6 +139,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 	router.Route("/accounts/{accountId}/mail", func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
+		registerWriteRoutes(r, service)
 
 		r.With(middleware.RateLimit(10, time.Minute)).Post("/check", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
@@ -528,33 +515,6 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			httpjson.WriteJSON(w, http.StatusOK, map[string]bool{"sent": true})
 		})
 
-		r.Post("/drafts", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
-			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid account id"))
-				return
-			}
-
-			var body SendRequest
-			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
-				httpjson.WriteError(w, err)
-				return
-			}
-
-			email, err := service.SaveDraft(req.Context(), uid, accountID, body)
-			if err != nil {
-				httpjson.WriteError(w, err)
-				return
-			}
-			httpjson.WriteJSON(w, http.StatusOK, map[string]any{"id": email.ID})
-		})
-
 		r.Delete("/drafts/{emailId}", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
 			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
@@ -626,6 +586,16 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 				}
 			case "mark_unread":
 				if err := service.SetReadState(req.Context(), uid, accountID, body.EmailIDs, false); err != nil {
+					httpjson.WriteError(w, err)
+					return
+				}
+			case "star":
+				if err := service.SetStarState(req.Context(), uid, accountID, body.EmailIDs, true); err != nil {
+					httpjson.WriteError(w, err)
+					return
+				}
+			case "unstar":
+				if err := service.SetStarState(req.Context(), uid, accountID, body.EmailIDs, false); err != nil {
 					httpjson.WriteError(w, err)
 					return
 				}

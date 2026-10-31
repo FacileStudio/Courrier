@@ -117,9 +117,22 @@ Paths are prefixed `/api/accounts/{accountId}/mail`.
 | POST | `/sync` | 5/min | `{"synced":true}` — lists and maps IMAP folders |
 | POST | `/folders/{folderId}/sync` | 10/min | `{"synced":true}` — fetches messages for one folder |
 | GET | `/folders` | — | `{"folders":[Folder]}` |
+| POST | `/folders` | 10/min | `{"name"}` creates a top-level mailbox; 201 with the `Folder` |
+| PATCH | `/folders/{folderId}` | 10/min | `{"name"}` renames a custom folder; the `Folder` |
+| DELETE | `/folders/{folderId}?force=true` | 10/min | `{"deleted":true}` |
 
 `Folder` is `{id, account_id, path, name, type, unread_count, total_count}`, with `type`
 one of `inbox`, `sent`, `drafts`, `trash`, `junk`, `archive`, `custom`.
+
+Folder writes go to the IMAP server first and the cache follows, so a refusal by the server
+(412) leaves nothing behind. Only `custom` folders can be renamed or deleted; a system
+folder answers 400. A name is 1 to 100 characters, without the server's hierarchy delimiter,
+`/ \ * %`, control characters or a leading dot, and must not read as a system folder
+(`Trash`, `Sent Items`, `Archive 2024`, ...), because the next sync would file it under
+that type. A rename rewrites the cached paths of the folder's descendants, as IMAP renames
+them with it. IMAP deletes the messages inside a mailbox with it, so a folder that holds
+messages answers 409 unless `force=true` is set. Creation and rename answer 409 when the
+name is taken.
 
 ### Reading
 
@@ -209,18 +222,39 @@ All paths below are prefixed `/api/accounts/{accountId}/mail`.
 |---|---|---|---|---|
 | PATCH | `/emails/{emailId}` | — | `{"is_read","is_starred"}`, both optional | The updated `Email` |
 | POST | `/send` | 10/min | `SendRequest`, JSON or multipart | `{"sent":true}` |
-| POST | `/drafts` | — | `SendRequest` | `{"id": <email id>}` |
+| POST | `/drafts` | — | `SendRequest`, JSON or multipart | `{"id": <email id>}` |
+| PUT | `/drafts/{emailId}` | — | `DraftRequest`, JSON or multipart | `{"id": <same id>}` |
 | DELETE | `/drafts/{emailId}` | — | — | `{"deleted":true}` |
 | POST | `/emails/bulk-action` | 30/min | `{"email_ids":[…], "action"}` | `{"ok":true}` |
+| POST | `/emails/move` | 30/min | `{"email_ids":[…], "folder_id" or "folder_type"}` | `{"ok":true}` |
 
-`SendRequest` is `{to, cc, subject, body, body_html, in_reply_to, references}`. As
-`multipart/form-data`, `to`, `cc`, and `references` are comma-separated strings and files
-go in the repeated `attachments` field; the parse is capped at 25 MB and oversized requests
-get 413. Sent mail is appended to the account's Sent folder over IMAP, drafts to Drafts.
+`SendRequest` is `{to, cc, bcc, subject, body, body_html, in_reply_to, references}`. As
+`multipart/form-data`, `to`, `cc`, `bcc` and `references` are comma-separated strings and
+files go in the repeated `attachments` field; the parse is capped at 25 MB and oversized
+requests get 413. At least one of `to`, `cc` and `bcc` is required. Bcc recipients travel in
+the SMTP envelope only: the delivered message has no `Bcc` header, while the copies in Sent
+and Drafts, and the cached row, record it. `Email` therefore returns `bcc_addresses`
+(`[]` when none). Sent mail is appended to the account's Sent folder over IMAP, drafts to
+Drafts.
 
-`bulk-action` accepts `delete`, `archive`, `mark_read`, and `mark_unread`. An empty
-`email_ids` is a 400, and so is more than 200 ids; anything else in `action` returns
-`unknown action`.
+`DraftRequest` is a `SendRequest` plus `remove_attachments`, a list of attachment ids (a
+comma-separated string in multipart). `PUT /drafts/{emailId}` replaces the recipients,
+subject and bodies with the request's, keeps the row id and the Message-ID, and swaps the
+Drafts copy on the server. Attachments already on the draft stay unless listed in
+`remove_attachments`; uploaded files are added. A draft with attachments has to reach the
+IMAP server, because the attachment bytes live in the server copy and are fetched from it
+on download: when it cannot, the call answers 412 and a draft being updated is left
+unchanged. Deleting a draft removes the server copy too. A draft that is not in the
+account's Drafts folder answers 404.
+
+`bulk-action` accepts `delete`, `archive`, `mark_read`, `mark_unread`, `star` and `unstar`.
+An empty `email_ids` is a 400, and so is more than 200 ids; anything else in `action`
+returns `unknown action`. `delete` moves to Trash; a message already in Trash is removed
+from the server. `move` takes the destination as `folder_id`, or as `folder_type` for a
+system folder; `custom` is not a valid type, since it names many folders. The move runs on
+the IMAP server first (one `MOVE` per source folder), then the cached rows change folder
+and take the uid the server assigned, keeping their ids. Messages already in the
+destination are skipped.
 
 ### Connection test
 

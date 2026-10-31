@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/FacileStudio/porte/oidc"
@@ -167,5 +168,50 @@ func TestSPAFallbackStillServesNonAPIPaths(t *testing.T) {
 
 	if recorder.Body.String() != spaFallbackBody {
 		t.Fatalf("GET /mail/inbox body = %q, want the SPA fallback", recorder.Body.String())
+	}
+}
+
+func TestMailWriteRoutesRefuseAnonymousCallers(t *testing.T) {
+	router := testRouter()
+	base := "/api/accounts/1/mail"
+	cases := map[string]string{
+		http.MethodPost + " " + base + "/emails/move":        `{"email_ids":[1],"folder_type":"inbox"}`,
+		http.MethodPost + " " + base + "/folders":            `{"name":"x"}`,
+		http.MethodPatch + " " + base + "/folders/1":         `{"name":"x"}`,
+		http.MethodDelete + " " + base + "/folders/1":        ``,
+		http.MethodPut + " " + base + "/drafts/1":            `{}`,
+		http.MethodPost + " " + base + "/drafts":             `{}`,
+		http.MethodPost + " " + base + "/emails/bulk-action": `{"email_ids":[1],"action":"star"}`,
+	}
+	for key, body := range cases {
+		method, path, _ := strings.Cut(key, " ")
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(method, path, strings.NewReader(body)))
+		if recorder.Code != http.StatusUnauthorized {
+			t.Errorf("%s = %d, want 401", key, recorder.Code)
+		}
+	}
+}
+
+func TestMailWriteRoutesAreRegistered(t *testing.T) {
+	registered := map[string]bool{}
+	if err := chi.Walk(testRouter(), func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		registered[method+" "+route] = true
+		return nil
+	}); err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	for _, route := range strings.Split(strings.TrimSpace(`
+POST /api/accounts/{accountId}/mail/emails/move
+POST /api/accounts/{accountId}/mail/folders
+PATCH /api/accounts/{accountId}/mail/folders/{folderId}
+DELETE /api/accounts/{accountId}/mail/folders/{folderId}
+POST /api/accounts/{accountId}/mail/drafts
+PUT /api/accounts/{accountId}/mail/drafts/{emailId}
+DELETE /api/accounts/{accountId}/mail/drafts/{emailId}
+POST /api/accounts/{accountId}/mail/emails/bulk-action`), "\n") {
+		if !registered[route] {
+			t.Errorf("%s is not registered", route)
+		}
 	}
 }
