@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-11-02
+
+### Changed
+
+- The mailbox switcher and the settings card sit in their own card under the sidebar, switcher first.
+
 ## [0.2.5] - 2026-11-02
 
 ### Changed
