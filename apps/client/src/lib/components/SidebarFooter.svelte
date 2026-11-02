@@ -15,7 +15,7 @@
 	} = $props();
 </script>
 
-<div class="flex w-0 min-w-full shrink-0 flex-col gap-1 px-3 pb-5">
+<div class="flex w-0 min-w-full shrink-0 flex-col gap-1 rounded-fc-lg bg-fc-component p-1.5">
 	<AccountSwitcher rail {collapsed} />
 
 	{#if user}
