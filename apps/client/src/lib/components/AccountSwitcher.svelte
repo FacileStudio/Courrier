@@ -3,6 +3,8 @@
 	import { Avatar, icons, twMerge } from '@facile/muse';
 	import type { MailAccount } from '$lib/backend';
 
+	let { align = 'start' }: { align?: 'start' | 'end' } = $props();
+
 	const app = getContext<{
 		activeAccountId: number | null;
 		accounts: MailAccount[];
@@ -65,7 +67,7 @@
 		<button
 			bind:this={triggerEl}
 			type="button"
-			class="flex min-h-11 max-w-44 items-center gap-1.5 rounded-fc-md px-1 text-fc-sm font-medium text-fc-fg transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fc-ring"
+			class="flex min-h-10 max-w-48 items-center gap-1.5 rounded-fc-pill px-2 text-fc-sm font-medium text-fc-fg transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fc-ring"
 			aria-haspopup="menu"
 			aria-expanded={open}
 			aria-label="Switch account, current {current.name}"
@@ -85,7 +87,7 @@
 			<div
 				bind:this={menuEl}
 				role="menu"
-				class="absolute left-0 top-full z-40 mt-1.5 flex w-64 flex-col overflow-hidden rounded-fc-md border border-fc-border bg-fc-component p-1 shadow-lg"
+				class="absolute top-full z-50 mt-1.5 {align === 'end' ? 'right-0' : 'left-0'} flex w-64 flex-col overflow-hidden rounded-fc-md border border-fc-border bg-fc-component p-1 shadow-lg"
 			>
 				{#each app.accounts as account (account.id)}
 					{@const active = account.id === current.id}

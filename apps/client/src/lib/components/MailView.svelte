@@ -24,7 +24,6 @@
 	import ThreadView from '$lib/components/ThreadView.svelte';
 	import BulkActionBar from '$lib/components/BulkActionBar.svelte';
 	import MailFolderSwitcher from '$lib/components/MailFolderSwitcher.svelte';
-	import AccountSwitcher from '$lib/components/AccountSwitcher.svelte';
 
 	let { folder }: { folder: string } = $props();
 
@@ -554,12 +553,10 @@
 							{totalEmails} result{totalEmails === 1 ? '' : 's'}
 						</span>
 					{:else}
-						<h2 class="hidden truncate text-fc-lg font-semibold text-fc-fg md:block">{folderLabel}</h2>
-						<div class="min-w-0 md:hidden">
+						<div class="min-w-0">
 							<MailFolderSwitcher folders={app.folders} />
 						</div>
 					{/if}
-					<AccountSwitcher />
 				</div>
 				<div class="flex shrink-0 items-center gap-1">
 					<Button
@@ -601,7 +598,7 @@
 			onclear={clearSelection}
 		/>
 
-		<div class="flex-1 overflow-auto pb-24" bind:this={listContainer}>
+		<div class="flex-1 overflow-auto pb-24 md:pb-0" bind:this={listContainer}>
 			{#if loading}
 				<!-- Skeleton rows, not a centred spinner: same padding, same avatar size and the
 				     same two text lines as a real row, so nothing moves when the data lands. -->
@@ -736,7 +733,7 @@
 					</div>
 				</div>
 			</div>
-			<div class="flex-1 overflow-auto pb-24">
+			<div class="flex-1 overflow-auto pb-24 md:pb-0">
 				{#key selected.id}
 					<ThreadView accountId={app.activeAccountId!} email={selected} onthread={(m) => (threadMessages = m)} />
 				{/key}

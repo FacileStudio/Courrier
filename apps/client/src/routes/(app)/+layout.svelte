@@ -2,12 +2,14 @@
 	import { onMount, setContext } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Button, MobileNav, SideBar, SpaceSwitcher, Topbar, icons } from '@facile/muse';
+	import { MobileNav, SideBar, SpaceSwitcher, Topbar, icons } from '@facile/muse';
 	import { backend, ApiError, type UserProfile, type MailAccount, type Folder, type Space } from '$lib/backend';
 	import { MAIL_FOLDERS } from '$lib/mail-folders';
 	import { spaceStore } from '$lib/stores/space.svelte';
 	import { activeAccountStore } from '$lib/stores/account.svelte';
 	import { searchStore } from '$lib/stores/search.svelte';
+	import AccountSwitcher from '$lib/components/AccountSwitcher.svelte';
+	import MailActionPill from '$lib/components/MailActionPill.svelte';
 
 	let { children } = $props();
 
@@ -133,7 +135,7 @@
 	const onSettings = $derived(path === '/settings' || path.startsWith('/settings/'));
 
 	const pages = $derived([
-		...MAIL_FOLDERS.map((folder) => {
+		...MAIL_FOLDERS.filter((folder) => folder.primary).map((folder) => {
 			const count = unread(folder.type);
 			return {
 				href: folder.href,
@@ -154,7 +156,8 @@
 			label: 'Mail',
 			icon: icons.mail,
 			active: path === '/mail' || (path.startsWith('/mail/') && path !== '/mail/compose')
-		}
+		},
+		{ href: '/mail/compose', label: 'Compose', icon: icons.edit, active: path === '/mail/compose' }
 	]);
 </script>
 
@@ -186,9 +189,10 @@
 			     phone cannot switch space at all. It sits outside <main> on purpose: pages here
 			     are `h-full` panes with their own scrollers, and a header inside the scroller
 			     would push them past the bottom of the viewport. -->
-			{#if spaces.length > 0}
+			{#if spaces.length > 0 || accounts.length > 1}
 				<Topbar class="shrink-0 md:hidden">
 					<span class="text-fc-md font-semibold text-fc-fg">Courrier</span>
+					{#if spaces.length > 0}
 					<div class="min-w-0 max-w-56 flex-1">
 						<SpaceSwitcher
 							spaces={spaces.map((s) => ({ id: s.id, name: s.name }))}
@@ -198,6 +202,10 @@
 							manageHref="/spaces"
 						/>
 					</div>
+					{/if}
+					<div class="ml-auto shrink-0">
+						<AccountSwitcher align="end" />
+					</div>
 				</Topbar>
 			{/if}
 
@@ -206,7 +214,7 @@
 			<main
 				bind:this={scroller}
 				class={isMailRoute
-					? 'flex min-w-0 flex-1 flex-col overflow-hidden'
+					? 'flex min-w-0 flex-1 flex-col overflow-hidden md:pt-18'
 					: 'min-w-0 flex-1 overflow-auto overscroll-contain pb-28 md:pb-0'}
 			>
 				{@render children()}
@@ -214,15 +222,7 @@
 		</div>
 
 		{#if isMailRoute && path !== '/mail/compose'}
-			<Button
-				href="/mail/compose"
-				icon={icons.edit}
-				size="lg"
-				aria-label="Compose"
-				class="fixed right-4 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.5rem)] z-40 size-14 px-0 shadow-lg md:right-6 md:bottom-6 md:size-auto md:px-6"
-			>
-				<span class="hidden md:inline">Compose</span>
-			</Button>
+			<MailActionPill />
 		{/if}
 
 		<MobileNav items={mobileItems} user={navUser} profileHref="/settings" profileActive={onSettings} />
