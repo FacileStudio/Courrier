@@ -4,6 +4,16 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-02
+
+### Fixed
+
+- The action pill floats over the mail view instead of pushing it down.
+
+### Changed
+
+- The account switcher shows the account's email address instead of its name.
+
 ## [0.2.1] - 2026-11-02
 
 ### Changed
