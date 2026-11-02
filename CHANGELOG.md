@@ -4,6 +4,17 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-11-02
+
+### Changed
+
+- Compose is the first row of the sidebar again.
+- The account switcher sits under the sidebar and shows the email address. It shrinks to the avatar when the sidebar collapses.
+
+### Removed
+
+- The floating action pill at the top of mail views. It covered the search bar and the mail titles.
+
 ## [0.2.3] - 2026-11-02
 
 ### Fixed
