@@ -4,6 +4,18 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-02
+
+### Changed
+
+- Compose and the account switcher sit in a floating pill at the top centre of mail views on desktop. The bottom-right compose button is gone.
+- On phones, Compose is back in the bottom nav and the account switcher is in the top bar.
+- The sidebar shows four folders: Inbox, Sent, Drafts and Archive. Junk and Trash are in the folder dropdown above the mail list, now on desktop too.
+
+### Fixed
+
+- The account switcher no longer crowds the mail list header.
+
 ## [0.2.0] - 2026-11-02
 
 ### Added
