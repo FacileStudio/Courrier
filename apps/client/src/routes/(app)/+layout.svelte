@@ -2,7 +2,7 @@
 	import { onMount, setContext } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { MobileNav, SideBar, SpaceSwitcher, Topbar, icons } from '@facile/muse';
+	import { Button, MobileNav, SideBar, SpaceSwitcher, Topbar, icons } from '@facile/muse';
 	import { backend, ApiError, type UserProfile, type MailAccount, type Folder, type Space } from '$lib/backend';
 	import { MAIL_FOLDERS } from '$lib/mail-folders';
 	import { spaceStore } from '$lib/stores/space.svelte';
@@ -113,13 +113,7 @@
 
 	const onSettings = $derived(path === '/settings' || path.startsWith('/settings/'));
 
-	/*
-	 * No Settings row: it hangs off the user card at the bottom of the rail. Compose is a
-	 * route, so it is a nav link like the folders rather than a hand-shaped button, and the
-	 * unread count rides in the label because `pages` has no badge slot.
-	 */
 	const pages = $derived([
-		{ href: '/mail/compose', label: 'Compose', icon: icons.edit, active: path === '/mail/compose' },
 		...MAIL_FOLDERS.map((folder) => {
 			const count = unread(folder.type);
 			return {
@@ -135,17 +129,13 @@
 		user ? { name: user.name?.trim() || user.email, avatar: user.avatar_url || undefined } : undefined
 	);
 
-	/* Mail and Compose only. Every target is a fixed 44px square, so a phone at 360px has
-	   room for four plus the avatar — folders live behind the switcher in the mail header and
-	   spaces behind the topbar switcher rather than eating rows here. */
 	const mobileItems = $derived([
 		{
 			href: '/mail',
 			label: 'Mail',
 			icon: icons.mail,
 			active: path === '/mail' || (path.startsWith('/mail/') && path !== '/mail/compose')
-		},
-		{ href: '/mail/compose', label: 'Compose', icon: icons.edit, active: path === '/mail/compose' }
+		}
 	]);
 </script>
 
@@ -203,6 +193,18 @@
 				{@render children()}
 			</main>
 		</div>
+
+		{#if isMailRoute && path !== '/mail/compose'}
+			<Button
+				href="/mail/compose"
+				icon={icons.edit}
+				size="lg"
+				aria-label="Compose"
+				class="fixed right-4 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.5rem)] z-40 size-14 px-0 shadow-lg md:right-6 md:bottom-6 md:size-auto md:px-6"
+			>
+				<span class="hidden md:inline">Compose</span>
+			</Button>
+		{/if}
 
 		<MobileNav items={mobileItems} user={navUser} profileHref="/settings" profileActive={onSettings} />
 	</div>
