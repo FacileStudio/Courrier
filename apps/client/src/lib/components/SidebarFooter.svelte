@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { icons, springPress, twMerge } from '@facile/muse';
-	import AccountSwitcher from '$lib/components/AccountSwitcher.svelte';
 
 	let {
 		user,
@@ -16,8 +15,6 @@
 </script>
 
 <div class="flex w-0 min-w-full shrink-0 flex-col gap-1 rounded-fc-lg bg-fc-component p-1.5">
-	<AccountSwitcher rail {collapsed} />
-
 	{#if user}
 		<a
 			{href}

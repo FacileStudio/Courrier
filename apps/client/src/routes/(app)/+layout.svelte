@@ -165,21 +165,28 @@
 {#if loaded}
 	<div class="flex h-dvh w-full overflow-hidden bg-fc-page">
 		<div class="hidden h-full shrink-0 flex-col gap-3 p-3 md:flex">
-			<SideBar
-				icon="solar:letter-bold-duotone"
-				title="Courrier"
-				bind:collapsed
-				showSearch
-				onSearch={openSearch}
-				{pages}
-				spaces={spaces.map((s) => ({ id: s.id, name: s.name }))}
-				activeSpaceId={spaceStore.active?.id ?? null}
-				onSpaceSelect={selectSpace}
-				manageSpacesHref="/spaces"
-				personalSpaceLabel="Personal"
-				manageSpacesLabel="Manage spaces"
-				class="min-h-0 flex-1"
-			/>
+			<div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-fc-lg bg-fc-component">
+				<SideBar
+					icon="solar:letter-bold-duotone"
+					title="Courrier"
+					bind:collapsed
+					showSearch
+					onSearch={openSearch}
+					{pages}
+					spaces={spaces.map((s) => ({ id: s.id, name: s.name }))}
+					activeSpaceId={spaceStore.active?.id ?? null}
+					onSpaceSelect={selectSpace}
+					manageSpacesHref="/spaces"
+					personalSpaceLabel="Personal"
+					manageSpacesLabel="Manage spaces"
+					class="min-h-0 flex-1 rounded-none bg-transparent"
+				/>
+				{#if accounts.length > 1}
+					<div class="flex w-0 min-w-full shrink-0 flex-col px-3 pb-5">
+						<AccountSwitcher rail {collapsed} />
+					</div>
+				{/if}
+			</div>
 			<SidebarFooter user={navUser} href="/settings" active={onSettings} {collapsed} />
 		</div>
 
