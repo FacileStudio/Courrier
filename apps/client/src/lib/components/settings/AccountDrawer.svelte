@@ -22,12 +22,14 @@
 		open = $bindable(false),
 		account = null,
 		isFirst = false,
-		onSaved
+		onSaved,
+		onRemove
 	}: {
 		open?: boolean;
 		account?: MailAccount | null;
 		isFirst?: boolean;
 		onSaved?: () => void;
+		onRemove?: (account: MailAccount) => void;
 	} = $props();
 
 	let name = $state('');
@@ -48,10 +50,6 @@
 	let testState = $state<'idle' | 'testing' | 'passed' | 'failed'>('idle');
 	let testError = $state('');
 
-	/*
-	 * The drawer is mounted once and reused, so it repopulates whenever it is opened rather
-	 * than on mount — otherwise editing the second account shows the first one's server.
-	 */
 	let loadedKey = $state<string>('');
 	const key = $derived(String(account?.id ?? 'new'));
 
@@ -75,11 +73,6 @@
 		smtpUser = account?.smtp_user ?? '';
 		signature = account?.signature ?? '';
 		isDefault = account?.is_default ?? isFirst;
-		/*
-		 * The API never sends a stored password back, so an existing account gets the eight-dot
-		 * placeholder: SecretField goes inert on it, and a save that leaves it untouched omits
-		 * the field entirely rather than overwriting a live credential with punctuation.
-		 */
 		imapPassword = account ? REDACTED : '';
 		smtpPassword = account ? REDACTED : '';
 	});
@@ -181,7 +174,7 @@
 
 		<Divider class="my-1" />
 
-		<p class="text-fc-sm font-medium text-fc-fg">IMAP — reading mail</p>
+		<p class="text-fc-sm font-medium text-fc-fg">IMAP, reading mail</p>
 
 		<div class="grid gap-4 sm:grid-cols-[1fr_7rem]">
 			<Field label="Host">
@@ -208,7 +201,7 @@
 
 		<Divider class="my-1" />
 
-		<p class="text-fc-sm font-medium text-fc-fg">SMTP — sending mail</p>
+		<p class="text-fc-sm font-medium text-fc-fg">SMTP, sending mail</p>
 
 		<div class="grid gap-4 sm:grid-cols-[1fr_7rem]">
 			<Field label="Host">
@@ -236,7 +229,7 @@
 		<Divider class="my-1" />
 
 		<Field label="Signature" helper="Appended to messages you send from this account.">
-			<Textarea bind:value={signature} rows={4} placeholder="— Your name" disabled={saving} />
+			<Textarea bind:value={signature} rows={4} placeholder="Your name" disabled={saving} />
 		</Field>
 
 		<div class="flex flex-col gap-1">
@@ -272,7 +265,7 @@
 			{#if !typedBoth}
 				<p class="text-fc-xs text-fc-fg-muted">
 					Testing sends both passwords to the servers, so it needs them typed in. For an account
-					already saved, use Check on its row instead — that one uses the stored credentials.
+					already saved, use Check on its row instead: that one uses the stored credentials.
 				</p>
 			{/if}
 
@@ -294,5 +287,22 @@
 				{saving ? 'Saving…' : editing ? 'Save account' : 'Add account'}
 			</Button>
 		</div>
+
+		{#if account && onRemove}
+			<Divider class="my-1" />
+			<Button
+				type="button"
+				variant="ghost-danger"
+				icon={icons.remove}
+				disabled={saving}
+				onclick={() => {
+					const target = account;
+					open = false;
+					onRemove(target);
+				}}
+			>
+				Remove account
+			</Button>
+		{/if}
 	</form>
 </Drawer>
