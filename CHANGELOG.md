@@ -4,7 +4,7 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
-## [0.1.1] - 2026-11-02
+## [0.2.1] - 2026-11-02
 
 ### Changed
 
