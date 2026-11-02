@@ -131,7 +131,7 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 	accountService := accounts.NewService(db, appEnv.EncryptionKey)
 	mailService := mail.NewService(db, appEnv.EncryptionKey)
 	userService := users.NewService(db, appEnv.StorageDir, authService)
-	settingsService := settings.NewService(db)
+	settingsService := settings.NewService(len(appEnv.EncryptionKey) > 0)
 	spaceService := spaces.NewService(db)
 
 	router := httpx.NewRouter(httpx.Config{

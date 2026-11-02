@@ -275,7 +275,6 @@ minute rate limit. Settings exposes one boolean.
 | PUT | `/api/templates/{templateId}` | Same fields | `Template` |
 | DELETE | `/api/templates/{templateId}` | — | `{"deleted":true}` |
 | GET | `/api/settings` | — | `{"settings":{"encryption_key_set": bool}}` |
-| PUT | `/api/settings` | `{"encryption_key"}` | `{"settings":{...}}` |
 
 `Template` is `{id, name, subject, body_html, body_text, created_at, updated_at}`. The
 stored encryption key is never returned — only whether one is set.
