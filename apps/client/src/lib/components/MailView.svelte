@@ -24,6 +24,7 @@
 	import ThreadView from '$lib/components/ThreadView.svelte';
 	import BulkActionBar from '$lib/components/BulkActionBar.svelte';
 	import MailFolderSwitcher from '$lib/components/MailFolderSwitcher.svelte';
+	import AccountSwitcher from '$lib/components/AccountSwitcher.svelte';
 
 	let { folder }: { folder: string } = $props();
 
@@ -36,7 +37,7 @@
 	};
 
 	const app = getContext<{
-		defaultAccountId: number | null;
+		activeAccountId: number | null;
 		accounts: MailAccount[];
 		folders: { id: number; type: string }[];
 		refreshAccounts: () => Promise<void>;
@@ -152,9 +153,9 @@
 	});
 
 	async function loadEmails() {
-		if (!app.defaultAccountId) return;
+		if (!app.activeAccountId) return;
 
-		const cached = showUnreadOnly ? null : mailCache.get(app.defaultAccountId, folder, 1);
+		const cached = showUnreadOnly ? null : mailCache.get(app.activeAccountId, folder, 1);
 		if (cached) {
 			emails = cached.emails;
 			totalEmails = cached.total;
@@ -163,11 +164,11 @@
 		loading = !cached && emails.length === 0;
 		currentPage = 1;
 		try {
-			const result = await backend.getEmailsByFolder(app.defaultAccountId, folder, 1, LIMIT, showUnreadOnly);
+			const result = await backend.getEmailsByFolder(app.activeAccountId, folder, 1, LIMIT, showUnreadOnly);
 			emails = result.emails;
 			totalEmails = result.total;
 			if (!showUnreadOnly) {
-				mailCache.set(app.defaultAccountId, folder, 1, result.emails, result.total);
+				mailCache.set(app.activeAccountId, folder, 1, result.emails, result.total);
 			}
 		} catch {
 			if (!cached) {
@@ -179,14 +180,14 @@
 	}
 
 	async function loadMoreEmails() {
-		if (!app.defaultAccountId || loadingMore || !hasMore) return;
+		if (!app.activeAccountId || loadingMore || !hasMore) return;
 		loadingMore = true;
 		const reqId = loadSeq;
 		const nextPage = currentPage + 1;
 
 		if (searchMode) {
 			try {
-				const result = await backend.searchEmails(app.defaultAccountId, debouncedQuery.trim(), nextPage, LIMIT);
+				const result = await backend.searchEmails(app.activeAccountId, debouncedQuery.trim(), nextPage, LIMIT);
 				if (reqId === loadSeq) {
 					emails = [...emails, ...result.emails];
 					totalEmails = result.total;
@@ -197,7 +198,7 @@
 			return;
 		}
 
-		const cached = showUnreadOnly ? null : mailCache.get(app.defaultAccountId, folder, nextPage);
+		const cached = showUnreadOnly ? null : mailCache.get(app.activeAccountId, folder, nextPage);
 		if (cached) {
 			emails = [...emails, ...cached.emails];
 			totalEmails = cached.total;
@@ -207,13 +208,13 @@
 		}
 
 		try {
-			const result = await backend.getEmailsByFolder(app.defaultAccountId, folder, nextPage, LIMIT, showUnreadOnly);
+			const result = await backend.getEmailsByFolder(app.activeAccountId, folder, nextPage, LIMIT, showUnreadOnly);
 			if (reqId === loadSeq) {
 				emails = [...emails, ...result.emails];
 				totalEmails = result.total;
 				currentPage = nextPage;
 				if (!showUnreadOnly) {
-					mailCache.set(app.defaultAccountId, folder, nextPage, result.emails, result.total);
+					mailCache.set(app.activeAccountId, folder, nextPage, result.emails, result.total);
 				}
 			}
 		} catch {}
@@ -221,16 +222,16 @@
 	}
 
 	async function syncAndLoad() {
-		if (!app.defaultAccountId) return;
+		if (!app.activeAccountId) return;
 		syncing = true;
 		try {
-			await backend.syncAccount(app.defaultAccountId);
+			await backend.syncAccount(app.activeAccountId);
 			await app.refreshAccounts();
 			const target = app.folders.find((f) => f.type === folder);
 			if (target) {
-				await backend.syncFolder(app.defaultAccountId, target.id);
+				await backend.syncFolder(app.activeAccountId, target.id);
 			}
-			mailCache.invalidateFolder(app.defaultAccountId, folder);
+			mailCache.invalidateFolder(app.activeAccountId, folder);
 			await loadEmails();
 		} catch {}
 		syncing = false;
@@ -250,12 +251,12 @@
 	async function openEmail(email: EmailMessage) {
 		selectedId = email.id;
 		threadMessages = [];
-		if (!app.defaultAccountId) return;
+		if (!app.activeAccountId) return;
 
 		const unread = (email.unread_count ?? (email.is_read ? 0 : 1)) > 0;
 		if (unread) {
 			try {
-				await backend.bulkAction(app.defaultAccountId, email.email_ids ?? [email.id], 'mark_read');
+				await backend.bulkAction(app.activeAccountId, email.email_ids ?? [email.id], 'mark_read');
 				emails = emails.map((e) => (e.id === email.id ? { ...e, is_read: true, unread_count: 0 } : e));
 			} catch {}
 		}
@@ -277,11 +278,11 @@
 	}
 
 	async function confirmDelete() {
-		if (!app.defaultAccountId || deleteTarget.length === 0) return;
+		if (!app.activeAccountId || deleteTarget.length === 0) return;
 		bulkLoading = true;
 		const count = deleteTarget.length;
 		try {
-			await backend.bulkAction(app.defaultAccountId, expandIds(deleteTarget), 'delete');
+			await backend.bulkAction(app.activeAccountId, expandIds(deleteTarget), 'delete');
 			emails = emails.filter((e) => !deleteTarget.includes(e.id));
 			totalEmails = Math.max(0, totalEmails - count);
 			mailCache.removeEmails(deleteTarget);
@@ -296,11 +297,11 @@
 	}
 
 	async function handleBulkArchive() {
-		if (!app.defaultAccountId) return;
+		if (!app.activeAccountId) return;
 		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
-			await backend.bulkAction(app.defaultAccountId, expandIds(ids), 'archive');
+			await backend.bulkAction(app.activeAccountId, expandIds(ids), 'archive');
 			emails = emails.filter((e) => !ids.includes(e.id));
 			totalEmails = Math.max(0, totalEmails - ids.length);
 			mailCache.removeEmails(ids);
@@ -314,11 +315,11 @@
 	}
 
 	async function handleBulkMarkRead() {
-		if (!app.defaultAccountId) return;
+		if (!app.activeAccountId) return;
 		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
-			await backend.bulkAction(app.defaultAccountId, expandIds(ids), 'mark_read');
+			await backend.bulkAction(app.activeAccountId, expandIds(ids), 'mark_read');
 			if (showUnreadOnly) {
 				emails = emails.filter((e) => !ids.includes(e.id));
 				totalEmails = Math.max(0, totalEmails - ids.length);
@@ -334,11 +335,11 @@
 	}
 
 	async function handleBulkMarkUnread() {
-		if (!app.defaultAccountId) return;
+		if (!app.activeAccountId) return;
 		bulkLoading = true;
 		const ids = [...checkedIds];
 		try {
-			await backend.bulkAction(app.defaultAccountId, expandIds(ids), 'mark_unread');
+			await backend.bulkAction(app.activeAccountId, expandIds(ids), 'mark_unread');
 			emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: false, unread_count: e.message_count ?? 1 } : e));
 			checkedIds = new Set();
 		} catch {
@@ -353,9 +354,9 @@
 	}
 
 	async function handleSingleArchive(emailId: number) {
-		if (!app.defaultAccountId) return;
+		if (!app.activeAccountId) return;
 		try {
-			await backend.bulkAction(app.defaultAccountId, expandIds([emailId]), 'archive');
+			await backend.bulkAction(app.activeAccountId, expandIds([emailId]), 'archive');
 			emails = emails.filter((e) => e.id !== emailId);
 			totalEmails = Math.max(0, totalEmails - 1);
 			mailCache.removeEmails([emailId]);
@@ -367,10 +368,10 @@
 	}
 
 	async function handleToggleRead(email: EmailMessage) {
-		if (!app.defaultAccountId) return;
+		if (!app.activeAccountId) return;
 		const markRead = !email.is_read;
 		try {
-			await backend.bulkAction(app.defaultAccountId, email.email_ids ?? [email.id], markRead ? 'mark_read' : 'mark_unread');
+			await backend.bulkAction(app.activeAccountId, email.email_ids ?? [email.id], markRead ? 'mark_read' : 'mark_unread');
 			if (showUnreadOnly && markRead) {
 				emails = emails.filter((e) => e.id !== email.id);
 				totalEmails = Math.max(0, totalEmails - 1);
@@ -382,16 +383,16 @@
 	}
 
 	async function handleToggleStar(email: EmailMessage) {
-		if (!app.defaultAccountId) return;
+		if (!app.activeAccountId) return;
 		try {
-			await backend.updateEmail(app.defaultAccountId, email.id, { is_starred: !email.is_starred });
+			await backend.updateEmail(app.activeAccountId, email.id, { is_starred: !email.is_starred });
 			emails = emails.map((e) => (e.id === email.id ? { ...e, is_starred: !email.is_starred } : e));
 		} catch {}
 	}
 
 	let syncedAccount = -1;
 	$effect(() => {
-		const accountId = app.defaultAccountId;
+		const accountId = app.activeAccountId;
 		if (!accountId || accountId === syncedAccount) return;
 		syncedAccount = accountId;
 		void syncAndLoad();
@@ -401,11 +402,12 @@
 		const _folder = folder;
 		const _unreadOnly = showUnreadOnly;
 		const _query = debouncedQuery.trim();
-		const accountId = app.defaultAccountId;
+		const accountId = app.activeAccountId;
 		const reqId = ++loadSeq;
 
 		checkedIds = new Set();
 		selectedId = null;
+		threadMessages = [];
 		currentPage = 1;
 		totalEmails = 0;
 		animatedKeys = new Set();
@@ -557,6 +559,7 @@
 							<MailFolderSwitcher folders={app.folders} />
 						</div>
 					{/if}
+					<AccountSwitcher />
 				</div>
 				<div class="flex shrink-0 items-center gap-1">
 					<Button
@@ -647,8 +650,8 @@
 							{selectionActive}
 							onopen={() => openEmail(email)}
 							ontogglecheck={() => toggleCheck(email.id)}
-							onreply={() => goto(`/mail/compose?reply=${email.id}&accountId=${app.defaultAccountId}`)}
-							onforward={() => goto(`/mail/compose?forward=${email.id}&accountId=${app.defaultAccountId}`)}
+							onreply={() => goto(`/mail/compose?reply=${email.id}&accountId=${app.activeAccountId}`)}
+							onforward={() => goto(`/mail/compose?forward=${email.id}&accountId=${app.activeAccountId}`)}
 							onarchive={folder !== 'archive' ? () => handleSingleArchive(email.id) : undefined}
 							ondelete={() => handleSingleDelete(email.id)}
 							ontoggleread={() => handleToggleRead(email)}
@@ -685,7 +688,7 @@
 							variant="ghost"
 							aria-label="Reply"
 							title="Reply"
-							onclick={() => goto(`/mail/compose?reply=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}
+							onclick={() => goto(`/mail/compose?reply=${replyTarget!.id}&accountId=${app.activeAccountId}`)}
 						>
 							<iconify-icon icon={mailIcons.reply} width="18" height="18" class="block size-4.5"
 							></iconify-icon>
@@ -694,7 +697,7 @@
 							variant="ghost"
 							aria-label="Reply all"
 							title="Reply all"
-							onclick={() => goto(`/mail/compose?replyall=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}
+							onclick={() => goto(`/mail/compose?replyall=${replyTarget!.id}&accountId=${app.activeAccountId}`)}
 						>
 							<iconify-icon icon={mailIcons.replyAll} width="18" height="18" class="block size-4.5"
 							></iconify-icon>
@@ -703,7 +706,7 @@
 							variant="ghost"
 							aria-label="Forward"
 							title="Forward"
-							onclick={() => goto(`/mail/compose?forward=${replyTarget!.id}&accountId=${app.defaultAccountId}`)}
+							onclick={() => goto(`/mail/compose?forward=${replyTarget!.id}&accountId=${app.activeAccountId}`)}
 						>
 							<iconify-icon icon={mailIcons.forward} width="18" height="18" class="block size-4.5"
 							></iconify-icon>
@@ -735,7 +738,7 @@
 			</div>
 			<div class="flex-1 overflow-auto pb-24">
 				{#key selected.id}
-					<ThreadView accountId={app.defaultAccountId!} email={selected} onthread={(m) => (threadMessages = m)} />
+					<ThreadView accountId={app.activeAccountId!} email={selected} onthread={(m) => (threadMessages = m)} />
 				{/key}
 			</div>
 		{:else}

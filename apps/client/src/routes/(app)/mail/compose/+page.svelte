@@ -12,6 +12,7 @@
 		IconButton,
 		Input,
 		Modal,
+		Select,
 		Textarea,
 		icons,
 		toast
@@ -30,9 +31,16 @@
 	};
 
 	const app = getContext<{
-		defaultAccountId: number | null;
+		activeAccountId: number | null;
 		accounts: MailAccount[];
 	}>('app');
+
+	const urlAccountId = Number(page.url.searchParams.get('accountId'));
+	let pickedFromId = $state<number | null>(null);
+	const fromId = $derived(
+		pickedFromId ??
+			(app.accounts.some((a) => a.id === urlAccountId) ? urlAccountId : app.activeAccountId)
+	);
 
 	let to = $state('');
 	let cc = $state('');
@@ -53,6 +61,7 @@
 	let templatesOpen = $state(false);
 
 	let draftId = $state<number | null>(null);
+	let draftAccountId: number | null = null;
 	let lastSaved = $state<string | null>(null);
 	let savingDraft = $state(false);
 	let saveTimer: ReturnType<typeof setTimeout>;
@@ -107,7 +116,7 @@
 	}
 
 	async function saveDraft() {
-		if (!app.defaultAccountId || savingDraft) return;
+		if (!fromId || savingDraft) return;
 		if (!to.trim() && !subject.trim() && !bodyHtml && !bodyPlainText) return;
 
 		savingDraft = true;
@@ -117,11 +126,11 @@
 			const body = plainTextMode ? bodyPlainText : bodyHtml.replace(/<[^>]*>/g, '');
 			const bodyHtmlValue = plainTextMode ? undefined : bodyHtml;
 
-			if (draftId) {
-				await backend.deleteDraft(app.defaultAccountId, draftId);
+			if (draftId && draftAccountId) {
+				await backend.deleteDraft(draftAccountId, draftId);
 			}
 
-			const result = await backend.saveDraft(app.defaultAccountId, {
+			const result = await backend.saveDraft(fromId, {
 				to: toAddrs,
 				cc: ccAddrs,
 				subject,
@@ -131,6 +140,7 @@
 				references: references.length > 0 ? references : undefined
 			});
 			draftId = result.id;
+			draftAccountId = fromId;
 			lastSaved = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 		} catch {
 			// silent fail
@@ -167,15 +177,15 @@
 		const emailId = replyId || replyAllId || forwardId;
 		const loadDraftId = params.get('draft');
 
-		const account = app.accounts.find((a) => a.id === app.defaultAccountId);
+		const account = app.accounts.find((a) => a.id === fromId);
 		let signatureHtml = '';
 		if (account?.signature) {
 			signatureHtml = buildSignatureHtml(account.signature);
 		}
 
-		if (loadDraftId && app.defaultAccountId) {
+		if (loadDraftId && fromId) {
 			try {
-				const draft = await backend.getEmail(app.defaultAccountId, parseInt(loadDraftId));
+				const draft = await backend.getEmail(fromId, parseInt(loadDraftId));
 				to = draft.to_addresses.map((a) => a.email).join(', ');
 				cc = draft.cc_addresses.map((a) => a.email).join(', ');
 				subject = draft.subject;
@@ -185,6 +195,7 @@
 				inReplyTo = draft.in_reply_to || '';
 				references = draft.references ? draft.references.split(/\s+/).filter(Boolean) : [];
 				draftId = parseInt(loadDraftId);
+				draftAccountId = fromId;
 			} catch {
 				toast.danger('Failed to load draft');
 			}
@@ -252,7 +263,7 @@
 	});
 
 	async function send() {
-		if (!to.trim() || !app.defaultAccountId) return;
+		if (!to.trim() || !fromId) return;
 		sending = true;
 		try {
 			const toAddrs = to.split(',').map((s) => s.trim()).filter(Boolean);
@@ -274,10 +285,10 @@
 				for (const file of attachedFiles) {
 					formData.append('attachments', file, file.name);
 				}
-				await backend.sendEmailWithAttachments(app.defaultAccountId, formData);
+				await backend.sendEmailWithAttachments(fromId, formData);
 			} else {
 				const body = plainTextMode ? bodyPlainText : bodyHtml.replace(/<[^>]*>/g, '');
-				await backend.sendEmail(app.defaultAccountId, {
+				await backend.sendEmail(fromId, {
 					to: toAddrs,
 					cc: ccAddrs,
 					subject,
@@ -288,9 +299,9 @@
 				});
 			}
 
-			if (draftId && app.defaultAccountId) {
+			if (draftId && draftAccountId) {
 				try {
-					await backend.deleteDraft(app.defaultAccountId, draftId);
+					await backend.deleteDraft(draftAccountId, draftId);
 				} catch {
 					// best effort
 				}
@@ -358,7 +369,7 @@
 			<Button
 				size="sm"
 				icon={mailIcons.send}
-				disabled={sending || !to.trim() || !app.defaultAccountId}
+				disabled={sending || !to.trim() || !fromId}
 				onclick={send}
 			>
 				{sending ? 'Sending…' : 'Send'}
@@ -379,6 +390,21 @@
 		</div>
 	{:else}
 		<div class="flex flex-col gap-4 border-b border-fc-border px-4 py-4 sm:px-6">
+			{#if app.accounts.length > 1}
+				<Field label="From">
+					<Select
+						value={String(fromId ?? '')}
+						onchange={(e) => {
+							pickedFromId = Number(e.currentTarget.value);
+							scheduleDraftSave();
+						}}
+					>
+						{#each app.accounts as account (account.id)}
+							<option value={String(account.id)}>{account.name} &lt;{account.email}&gt;</option>
+						{/each}
+					</Select>
+				</Field>
+			{/if}
 			<Field label="To">
 				<AddressInput
 					value={to}
@@ -386,7 +412,7 @@
 						to = v;
 						scheduleDraftSave();
 					}}
-					accountId={app.defaultAccountId ?? 0}
+					accountId={fromId ?? 0}
 					placeholder="recipient@example.com"
 				/>
 			</Field>
@@ -397,7 +423,7 @@
 						cc = v;
 						scheduleDraftSave();
 					}}
-					accountId={app.defaultAccountId ?? 0}
+					accountId={fromId ?? 0}
 					placeholder="cc@example.com"
 				/>
 			</Field>

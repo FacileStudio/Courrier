@@ -6,6 +6,7 @@
 	import { backend, ApiError, type UserProfile, type MailAccount, type Folder, type Space } from '$lib/backend';
 	import { MAIL_FOLDERS } from '$lib/mail-folders';
 	import { spaceStore } from '$lib/stores/space.svelte';
+	import { activeAccountStore } from '$lib/stores/account.svelte';
 	import { searchStore } from '$lib/stores/search.svelte';
 
 	let { children } = $props();
@@ -13,7 +14,7 @@
 	let user = $state<UserProfile | null>(null);
 	let loaded = $state(false);
 	let accounts = $state<MailAccount[]>([]);
-	let defaultAccountId = $state<number | null>(null);
+	let activeAccountId = $state<number | null>(null);
 	let folders = $state<Folder[]>([]);
 	let spaces = $state<Space[]>([]);
 	let collapsed = $state(false);
@@ -26,27 +27,45 @@
 	setContext('app', {
 		get user() { return user; },
 		get accounts() { return accounts; },
-		get defaultAccountId() { return defaultAccountId; },
+		get activeAccountId() { return activeAccountId; },
 		get folders() { return folders; },
 		setUser,
-		refreshAccounts
+		refreshAccounts,
+		setActiveAccount
 	});
+
+	async function loadFolders(id: number | null) {
+		if (!id) {
+			folders = [];
+			return;
+		}
+		try {
+			const folderResult = await backend.getFolders(id);
+			if (id === activeAccountId) folders = folderResult.folders;
+		} catch {
+			if (id === activeAccountId) folders = [];
+		}
+	}
+
+	async function setActiveAccount(id: number) {
+		if (id === activeAccountId || !accounts.some((a) => a.id === id)) return;
+		activeAccountStore.set(spaceStore.active?.id, id);
+		activeAccountId = id;
+		await loadFolders(id);
+	}
 
 	async function refreshAccounts() {
 		try {
 			const result = await backend.listAccounts(spaceStore.active?.id);
 			accounts = result.accounts;
-			const def = accounts.find((a) => a.is_default) ?? accounts[0] ?? null;
-			defaultAccountId = def?.id ?? null;
-
-			if (defaultAccountId) {
-				try {
-					const folderResult = await backend.getFolders(defaultAccountId);
-					folders = folderResult.folders;
-				} catch {
-					folders = [];
-				}
-			}
+			const stored = activeAccountStore.get(spaceStore.active?.id);
+			const next =
+				accounts.find((a) => a.id === stored) ??
+				accounts.find((a) => a.is_default) ??
+				accounts[0] ??
+				null;
+			activeAccountId = next?.id ?? null;
+			await loadFolders(activeAccountId);
 		} catch {
 			accounts = [];
 		}
