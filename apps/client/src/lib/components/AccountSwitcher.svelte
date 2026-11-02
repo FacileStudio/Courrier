@@ -67,14 +67,14 @@
 		<button
 			bind:this={triggerEl}
 			type="button"
-			class="flex min-h-10 max-w-48 items-center gap-1.5 rounded-fc-pill px-2 text-fc-sm font-medium text-fc-fg transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fc-ring"
+			class="flex min-h-10 max-w-64 items-center gap-1.5 rounded-fc-pill px-2 text-fc-sm font-medium text-fc-fg transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fc-ring"
 			aria-haspopup="menu"
 			aria-expanded={open}
-			aria-label="Switch account, current {current.name}"
+			aria-label="Switch account, current {current.email}"
 			onclick={() => (open = !open)}
 		>
 			<Avatar name={current.name} size="sm" class="size-6" />
-			<span class="hidden min-w-0 truncate sm:inline">{current.name}</span>
+			<span class="hidden min-w-0 truncate sm:inline">{current.email}</span>
 			<iconify-icon
 				icon={icons.chevronDown}
 				width="16"

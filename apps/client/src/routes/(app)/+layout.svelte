@@ -214,7 +214,7 @@
 			<main
 				bind:this={scroller}
 				class={isMailRoute
-					? 'flex min-w-0 flex-1 flex-col overflow-hidden md:pt-18'
+					? 'flex min-w-0 flex-1 flex-col overflow-hidden'
 					: 'min-w-0 flex-1 overflow-auto overscroll-contain pb-28 md:pb-0'}
 			>
 				{@render children()}
