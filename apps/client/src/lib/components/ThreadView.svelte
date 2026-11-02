@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DOMPurify from 'dompurify';
+	import MailBody from './MailBody.svelte';
 	import { backend, type EmailMessage, type EmailAttachment } from '$lib/backend';
 	import { Avatar, Button, Spinner, icons } from '@facile/muse';
 
@@ -226,7 +227,7 @@
 					{/if}
 
 					{#if msg.body_html}
-						<div class="mail-body-content" style="color: var(--color-fc-fg);">{@html sanitize(msg)}</div>
+						<MailBody html={sanitize(msg)} />
 					{:else if msg.body_text}
 						<pre class="whitespace-pre-wrap font-fc-body text-fc-sm text-fc-fg">{msg.body_text}</pre>
 					{:else if loadingBodies.has(msg.id)}
