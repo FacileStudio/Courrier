@@ -4,6 +4,16 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-02
+
+### Fixed
+
+- Settings > Advanced no longer says ENCRYPTION_KEY is missing when it is set. It used to read an unused database column instead of the server environment.
+
+### Removed
+
+- `PUT /api/settings`. It only wrote that unused column.
+
 ## [0.2.2] - 2026-11-02
 
 ### Fixed
