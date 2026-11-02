@@ -9,6 +9,7 @@
 	import { activeAccountStore } from '$lib/stores/account.svelte';
 	import { searchStore } from '$lib/stores/search.svelte';
 	import AccountSwitcher from '$lib/components/AccountSwitcher.svelte';
+	import SidebarFooter from '$lib/components/SidebarFooter.svelte';
 
 	let { children } = $props();
 
@@ -163,26 +164,25 @@
 
 {#if loaded}
 	<div class="flex h-dvh w-full overflow-hidden bg-fc-page">
-		<div class="hidden h-full shrink-0 flex-col gap-3 p-3 md:flex">
-			<SideBar
-				icon="solar:letter-bold-duotone"
-				title="Courrier"
-				bind:collapsed
-				showSearch
-				onSearch={openSearch}
-				{pages}
-				spaces={spaces.map((s) => ({ id: s.id, name: s.name }))}
-				activeSpaceId={spaceStore.active?.id ?? null}
-				onSpaceSelect={selectSpace}
-				manageSpacesHref="/spaces"
-				personalSpaceLabel="Personal"
-				manageSpacesLabel="Manage spaces"
-				user={navUser}
-				userHref="/settings"
-				userActive={onSettings}
-				class="min-h-0 flex-1"
-			/>
-			<AccountSwitcher rail {collapsed} />
+		<div class="hidden h-full shrink-0 p-3 md:block">
+			<div class="flex h-full flex-col overflow-hidden rounded-fc-lg bg-fc-component">
+				<SideBar
+					icon="solar:letter-bold-duotone"
+					title="Courrier"
+					bind:collapsed
+					showSearch
+					onSearch={openSearch}
+					{pages}
+					spaces={spaces.map((s) => ({ id: s.id, name: s.name }))}
+					activeSpaceId={spaceStore.active?.id ?? null}
+					onSpaceSelect={selectSpace}
+					manageSpacesHref="/spaces"
+					personalSpaceLabel="Personal"
+					manageSpacesLabel="Manage spaces"
+					class="min-h-0 flex-1 rounded-none bg-transparent pb-3"
+				/>
+				<SidebarFooter user={navUser} href="/settings" active={onSettings} {collapsed} />
+			</div>
 		</div>
 
 		<div class="flex min-w-0 flex-1 flex-col">

@@ -78,7 +78,7 @@
 </script>
 
 {#if app.accounts.length > 1 && current}
-	<div bind:this={rootEl} class={twMerge('relative min-w-0', rail && 'w-0 min-w-full shrink-0 rounded-fc-lg bg-fc-component p-1.5', rail && collapsed && 'w-auto min-w-0 self-center')}>
+	<div bind:this={rootEl} class={twMerge('relative min-w-0', rail && 'w-full shrink-0', rail && collapsed && 'w-auto self-center')}>
 		<button
 			bind:this={triggerEl}
 			type="button"
