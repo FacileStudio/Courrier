@@ -3,7 +3,22 @@
 	import { Avatar, icons, twMerge } from '@facile/muse';
 	import type { MailAccount } from '$lib/backend';
 
-	let { align = 'start' }: { align?: 'start' | 'end' } = $props();
+	let {
+		align = 'start',
+		rail = false,
+		collapsed = false
+	}: { align?: 'start' | 'end'; rail?: boolean; collapsed?: boolean } = $props();
+
+	const menuPosition = $derived(
+		rail ? 'bottom-full left-0 mb-1.5' : align === 'end' ? 'top-full right-0 mt-1.5' : 'top-full left-0 mt-1.5'
+	);
+	const triggerShape = $derived(
+		rail
+			? collapsed
+				? 'size-11 justify-center rounded-fc-md'
+				: 'min-h-11 w-full rounded-fc-md px-2.5'
+			: 'min-h-10 max-w-64 rounded-fc-pill px-2'
+	);
 
 	const app = getContext<{
 		activeAccountId: number | null;
@@ -63,31 +78,36 @@
 </script>
 
 {#if app.accounts.length > 1 && current}
-	<div bind:this={rootEl} class="relative min-w-0">
+	<div bind:this={rootEl} class={twMerge('relative min-w-0', rail && 'w-0 min-w-full shrink-0 rounded-fc-lg bg-fc-component p-1.5', rail && collapsed && 'w-auto min-w-0 self-center')}>
 		<button
 			bind:this={triggerEl}
 			type="button"
-			class="flex min-h-10 max-w-64 items-center gap-1.5 rounded-fc-pill px-2 text-fc-sm font-medium text-fc-fg transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fc-ring"
+			class={twMerge(
+				'flex items-center gap-2 text-fc-sm font-medium text-fc-fg transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fc-ring',
+				triggerShape
+			)}
 			aria-haspopup="menu"
 			aria-expanded={open}
 			aria-label="Switch account, current {current.email}"
 			onclick={() => (open = !open)}
 		>
 			<Avatar name={current.name} size="sm" class="size-6" />
-			<span class="hidden min-w-0 truncate sm:inline">{current.email}</span>
-			<iconify-icon
+			{#if !collapsed}
+				<span class={twMerge('min-w-0 truncate', rail ? 'flex-1 text-left' : 'hidden sm:inline')}>{current.email}</span>
+			{/if}
+			{#if !collapsed}<iconify-icon
 				icon={icons.chevronDown}
 				width="16"
 				height="16"
 				class={twMerge('block size-4 shrink-0 text-fc-fg-muted transition-transform', open && 'rotate-180')}
-			></iconify-icon>
+			></iconify-icon>{/if}
 		</button>
 
 		{#if open}
 			<div
 				bind:this={menuEl}
 				role="menu"
-				class="absolute top-full z-50 mt-1.5 {align === 'end' ? 'right-0' : 'left-0'} flex w-64 flex-col overflow-hidden rounded-fc-md border border-fc-border bg-fc-component p-1 shadow-lg"
+				class="absolute z-50 {menuPosition} flex w-64 flex-col overflow-hidden rounded-fc-md border border-fc-border bg-fc-component p-1 shadow-lg"
 			>
 				{#each app.accounts as account (account.id)}
 					{@const active = account.id === current.id}

@@ -9,7 +9,6 @@
 	import { activeAccountStore } from '$lib/stores/account.svelte';
 	import { searchStore } from '$lib/stores/search.svelte';
 	import AccountSwitcher from '$lib/components/AccountSwitcher.svelte';
-	import MailActionPill from '$lib/components/MailActionPill.svelte';
 
 	let { children } = $props();
 
@@ -135,6 +134,7 @@
 	const onSettings = $derived(path === '/settings' || path.startsWith('/settings/'));
 
 	const pages = $derived([
+		{ href: '/mail/compose', label: 'Compose', icon: icons.edit, active: path === '/mail/compose' },
 		...MAIL_FOLDERS.filter((folder) => folder.primary).map((folder) => {
 			const count = unread(folder.type);
 			return {
@@ -163,7 +163,7 @@
 
 {#if loaded}
 	<div class="flex h-dvh w-full overflow-hidden bg-fc-page">
-		<div class="hidden h-full shrink-0 p-3 md:block">
+		<div class="hidden h-full shrink-0 flex-col gap-3 p-3 md:flex">
 			<SideBar
 				icon="solar:letter-bold-duotone"
 				title="Courrier"
@@ -180,8 +180,9 @@
 				user={navUser}
 				userHref="/settings"
 				userActive={onSettings}
-				class="h-full"
+				class="min-h-0 flex-1"
 			/>
+			<AccountSwitcher rail {collapsed} />
 		</div>
 
 		<div class="flex min-w-0 flex-1 flex-col">
@@ -220,10 +221,6 @@
 				{@render children()}
 			</main>
 		</div>
-
-		{#if isMailRoute && path !== '/mail/compose'}
-			<MailActionPill />
-		{/if}
 
 		<MobileNav items={mobileItems} user={navUser} profileHref="/settings" profileActive={onSettings} />
 	</div>
