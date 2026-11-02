@@ -1,10 +1,10 @@
 module github.com/FacileStudio/Courrier/apps/api
 
-go 1.25.0
+go 1.26
 
 require (
 	github.com/FacileStudio/Journal/sdk/journal v0.0.0-20260708221941-db985ad2b1ba
-	github.com/FacileStudio/porte v0.5.2
+	github.com/FacileStudio/porte v0.7.0
 	github.com/FacileStudio/tronc v0.16.0
 	github.com/FacileStudio/tronc/testdb v0.1.1
 	github.com/emersion/go-imap/v2 v2.0.0-beta.8

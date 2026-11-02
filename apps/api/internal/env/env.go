@@ -28,6 +28,16 @@ type OIDCConfig struct {
 	// porte reads no environment of its own, so a variable set in the panel
 	// and never read here reaches nothing.
 	CLIAudience string
+
+	// MachineAudience is this app's own Registre client id. It mounts offline
+	// verification of the delegated bearer JWTs other suite services mint for
+	// this app.
+	MachineAudience string
+
+	// ScopePrefix gates those JWTs by method: GET needs courrier.read or
+	// courrier.write, anything else needs courrier.write. It requires
+	// MachineAudience.
+	ScopePrefix string
 }
 
 // Config is the fully-resolved application configuration: the core tronc
@@ -87,6 +97,9 @@ func Load() (Config, error) {
 			RedirectURL:  redirectURL,
 			SuccessURL:   successURL,
 			CLIAudience:  troncenv.String("OIDC_CLI_AUDIENCE", ""),
+
+			MachineAudience: troncenv.String("OIDC_MACHINE_AUDIENCE", ""),
+			ScopePrefix:     troncenv.String("OIDC_SCOPE_PREFIX", ""),
 		}
 	}
 
@@ -122,6 +135,8 @@ func (c Config) Porte() porte.Config {
 	cfg.RedirectURL = c.OIDC.RedirectURL
 	cfg.SuccessURL = c.OIDC.SuccessURL
 	cfg.CLIAudience = c.OIDC.CLIAudience
+	cfg.MachineAudience = c.OIDC.MachineAudience
+	cfg.ScopePrefix = c.OIDC.ScopePrefix
 	return cfg
 }
 
