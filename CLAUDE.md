@@ -92,6 +92,7 @@ Client dev only (in `apps/client/.env`):
 - Auth: `/api/auth/register`, `/api/auth/login`, `/api/auth/config`, `/api/auth/oidc/*`
 - Accounts: `/api/accounts` (CRUD for IMAP/SMTP mail accounts)
 - Mail: `/api/accounts/{id}/mail/sync`, `/api/accounts/{id}/mail/folders`, `/api/accounts/{id}/mail/folders/{type}/emails`, `/api/accounts/{id}/mail/emails/{id}`, `/api/accounts/{id}/mail/send`, `/api/accounts/{id}/mail/drafts[/{id}]`, `/api/accounts/{id}/mail/emails/move`, `/api/accounts/{id}/mail/folders[/{id}]` (create, rename, delete)
+- Push: `/api/push`, `/api/push/test`, `/api/push/devices`, `/api/push/stream` (desktop SSE)
 - Connection test: `POST /api/mail/test-connection`
 - Users: `/api/users/me`, `/api/users`
 - Settings: `/api/settings/`
@@ -138,4 +139,11 @@ unknown `/api/*` path return 404 instead of falling through to the SPA catch-all
   The desktop version is read from `apps/client/package.json`; the updater key lives in tiroir
   as `COURRIER_TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)` and in GitHub secrets
   `TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)`. Never rotate it, or installed apps stop updating.
+- **Desktop window and notifications** -- The window has no system frame on Windows and Linux
+  (`TitleBar.svelte` draws the controls in a 36px drag strip); macOS keeps its traffic lights
+  through `tauri.macos.conf.json`, which repeats the whole window object because arrays replace in
+  the merge. `html[data-desktop]` in `app.css` shifts `h-dvh`, `min-h-dvh` and `fixed inset-0`
+  down by `--titlebar-h`. The webview has no push service, so the desktop app reads
+  `GET /api/push/stream` (SSE) and the inbox watcher also polls users with an open stream. The
+  stream fan-out is in memory: it assumes one API replica.
 - **One Dockerfile** at the repo root builds the whole app (bun build + go build -> distroless). There are no per-app Dockerfiles; local dev runs the two processes directly.

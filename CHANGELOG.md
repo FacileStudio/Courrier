@@ -4,6 +4,15 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- The desktop app shows native system notifications for new mail, on by default. Its webview has no push service, so it listens on `GET /api/push/stream`, a server-sent event stream, and the inbox watcher also polls the inboxes of users with an open stream. When the window has focus the notification shows as a toast instead.
+
+### Changed
+
+- The desktop window has no system title bar. On Windows and Linux it draws its own close, minimize and maximize controls in a slim drag strip; on macOS it keeps the native traffic lights over the content.
+- `GET /api/push` always reports `enabled: true`, and `POST /api/push/test` no longer answers 409: the desktop stream works without FCM or Web Push.
+
 ## [0.6.0] - 2026-11-03
 
 ### Added
