@@ -95,7 +95,7 @@
 	}}
 />
 
-<div class="relative border-b border-fc-border last:border-b-0">
+<div class="relative">
 	<button
 		type="button"
 		class="group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fc-ring
@@ -182,7 +182,7 @@
 		}}
 	></div>
 	<div
-		class="fixed z-50 w-56 rounded-fc-md border border-fc-border bg-fc-component p-1 shadow-lg"
+		class="fixed z-50 w-56 rounded-fc-md bg-fc-component p-1 shadow-lg"
 		style="left: {menuX}px; top: {menuY}px"
 		role="menu"
 		tabindex="-1"

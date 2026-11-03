@@ -134,7 +134,7 @@
 					<Card class="flex flex-col">
 						{#each members as member (member.id)}
 							<div
-								class="flex items-center justify-between gap-3 border-t border-fc-border py-4 first:border-t-0 first:pt-0 last:pb-0"
+								class="flex items-center justify-between gap-3 py-4 first:pt-0 last:pb-0"
 							>
 								<div class="flex min-w-0 items-center gap-3">
 									<Avatar src={member.avatar_url || undefined} name={member.name || member.email} size="sm" />

@@ -111,7 +111,7 @@
 				class="mx-auto flex min-h-full w-full max-w-fc-sm flex-col items-center justify-center gap-6 px-4 py-8 text-center"
 			>
 				<div
-					class="flex size-24 items-center justify-center rounded-[1.75rem] border border-fc-border bg-fc-component shadow-sm"
+					class="flex size-24 items-center justify-center rounded-[1.75rem] bg-fc-component shadow-sm"
 				>
 					{#if current.id === 'notifications'}
 						<iconify-icon icon={icons.notification} width="40" height="40" aria-hidden="true"></iconify-icon>
@@ -146,7 +146,7 @@
 	</main>
 
 	<footer
-		class="relative z-10 border-t border-fc-border bg-fc-page px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-8"
+		class="relative z-10 bg-fc-page px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-8"
 	>
 		<div class="mx-auto flex w-full max-w-fc-sm flex-col gap-1">
 			<Button

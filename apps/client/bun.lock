@@ -10,7 +10,7 @@
         "@capacitor/core": "8.6.0",
         "@capacitor/preferences": "8.0.1",
         "@capacitor/push-notifications": "8.1.3",
-        "@facile/muse": "github:FacileStudio/muse#v0.6.5",
+        "@facile/muse": "github:FacileStudio/muse#v0.8.0",
         "@tauri-apps/api": "^2",
         "@tauri-apps/plugin-deep-link": "^2",
         "@tauri-apps/plugin-notification": "^2",
@@ -112,7 +112,7 @@
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.27.4", "", { "os": "win32", "cpu": "x64" }, "sha512-+knoa0BDoeXgkNvvV1vvbZX4+hizelrkwmGJBdT17t8FNPwG2lKemmuMZlmaNQ3ws3DKKCxpb4zRZEIp3UxFCg=="],
 
-    "@facile/muse": ["@facile/muse@github:FacileStudio/muse#bc66f21", { "dependencies": { "gsap": "^3.13.0", "tailwind-merge": "^3.5.0" }, "peerDependencies": { "svelte": "^5.0.0", "tailwindcss": "^4.0.0" } }, "FacileStudio-muse-bc66f21", "sha512-sr6oJWCgipMgHG1nXBPhmTp3t1n4pjCJ1qRROMUIjHIvmUqbblZumv3aAWoi+v09S1WsjBzbTHfCU0xwAPDWsw=="],
+    "@facile/muse": ["@facile/muse@github:FacileStudio/muse#d845c45", { "dependencies": { "gsap": "^3.13.0", "tailwind-merge": "^3.5.0" }, "peerDependencies": { "svelte": "^5.0.0", "tailwindcss": "^4.0.0" } }, "FacileStudio-muse-d845c45", "sha512-a0p8z+7UFN0h49ELgY9SHcdhgmXs1oxD68MlaFXVAHIgUr6Zl7DRV0K3YXztwsBMdpsdZ1qU+l/Ev/xczdTs7g=="],
 
     "@iconify/types": ["@iconify/types@2.0.0", "", {}, "sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg=="],
 

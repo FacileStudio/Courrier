@@ -157,7 +157,7 @@
 <div class="flex flex-col">
 	{#each messages as msg (msg.id)}
 		{@const isOpen = expanded.has(msg.id)}
-		<div class="border-b border-fc-border last:border-b-0">
+		<div class="">
 			<button
 				type="button"
 				class="flex w-full items-center gap-3 px-4 py-3 text-left text-fc-fg transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fc-ring sm:px-6"

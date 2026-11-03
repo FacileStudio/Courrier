@@ -41,7 +41,7 @@
 	});
 </script>
 
-<div class="overflow-hidden rounded-fc-md dark:border dark:border-fc-border">
+<div class="overflow-hidden rounded-fc-md">
 	<iframe
 		bind:this={frame}
 		title="Message body"

@@ -65,7 +65,7 @@
 
 	{#if open}
 		<div
-			class="absolute left-0 top-full z-40 mt-1.5 flex w-56 flex-col overflow-hidden rounded-fc-md border border-fc-border bg-fc-component p-1 shadow-lg"
+			class="absolute left-0 top-full z-40 mt-1.5 flex w-56 flex-col overflow-hidden rounded-fc-md bg-fc-component p-1 shadow-lg"
 		>
 			{#each MAIL_FOLDERS as folder (folder.href)}
 				{@const count = unread(folder.type)}

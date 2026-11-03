@@ -72,7 +72,7 @@
 				aria-hidden={i !== index}
 			>
 				<div
-					class="flex size-36 items-center justify-center rounded-[2rem] border border-fc-border bg-fc-component shadow-sm"
+					class="flex size-36 items-center justify-center rounded-[2rem] bg-fc-component shadow-sm"
 				>
 					{#if slide.icon}
 						<iconify-icon icon={slide.icon} width="56" height="56" aria-hidden="true"></iconify-icon>

@@ -76,7 +76,7 @@
 	<NativeIntro onfinish={finishIntro} />
 {:else}
 	<div class="min-h-screen bg-background text-foreground">
-		<header class="border-b border-border">
+		<header class="">
 			<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
 				<div class="flex h-14 items-center gap-3">
 					<iconify-icon
@@ -134,7 +134,7 @@
 					</a>
 					<a
 						href="/login"
-						class="inline-flex h-11 items-center justify-center rounded-md border border-border bg-background px-6 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+						class="inline-flex h-11 items-center justify-center rounded-md bg-background px-6 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
 					>
 						Log in
 					</a>
@@ -146,13 +146,11 @@
 				</div>
 			</section>
 
-			<div class="mx-auto max-w-5xl"><div class="h-px bg-border"></div></div>
-
 			<section class="mx-auto max-w-5xl px-6 py-20">
 				<div class="grid gap-6 md:grid-cols-3">
-					<div class="rounded-lg border border-border p-6">
+					<div class="rounded-lg p-6">
 						<div
-							class="mb-3 flex size-10 items-center justify-center rounded-md border border-border"
+							class="mb-3 flex size-10 items-center justify-center rounded-md "
 						>
 							<iconify-icon
 								icon="solar:inbox-in-linear"
@@ -167,9 +165,9 @@
 						</p>
 					</div>
 
-					<div class="rounded-lg border border-border p-6">
+					<div class="rounded-lg p-6">
 						<div
-							class="mb-3 flex size-10 items-center justify-center rounded-md border border-border"
+							class="mb-3 flex size-10 items-center justify-center rounded-md "
 						>
 							<iconify-icon
 								icon="solar:users-group-rounded-linear"
@@ -184,9 +182,9 @@
 						</p>
 					</div>
 
-					<div class="rounded-lg border border-border p-6">
+					<div class="rounded-lg p-6">
 						<div
-							class="mb-3 flex size-10 items-center justify-center rounded-md border border-border"
+							class="mb-3 flex size-10 items-center justify-center rounded-md "
 						>
 							<iconify-icon
 								icon="solar:lock-linear"
@@ -202,8 +200,6 @@
 					</div>
 				</div>
 			</section>
-
-			<div class="mx-auto max-w-5xl"><div class="h-px bg-border"></div></div>
 
 			<section class="mx-auto max-w-5xl px-6 py-20 text-center">
 				<h2 class="text-3xl font-bold font-heading tracking-tight">
@@ -223,7 +219,7 @@
 			</section>
 		</main>
 
-		<footer class="border-t border-border text-center">
+		<footer class="text-center">
 			<div class="mx-auto max-w-5xl px-6 py-6 text-sm text-muted-foreground">
 				© {new Date().getFullYear()} Courrier by <a
 					href="https://facile.studio"

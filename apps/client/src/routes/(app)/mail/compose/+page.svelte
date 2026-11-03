@@ -323,7 +323,7 @@
 <input type="file" multiple class="hidden" bind:this={fileInput} onchange={handleFileSelect} />
 
 <div class="flex h-full flex-col">
-	<div class="flex items-center justify-between gap-3 border-b border-fc-border px-4 py-3 sm:px-6">
+	<div class="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
 		<div class="flex min-w-0 items-center gap-3">
 			<h2 class="truncate text-fc-lg font-semibold text-fc-fg">New message</h2>
 			{#if lastSaved}
@@ -389,7 +389,7 @@
 			</EmptyState>
 		</div>
 	{:else}
-		<div class="flex flex-col gap-4 border-b border-fc-border px-4 py-4 sm:px-6">
+		<div class="flex flex-col gap-4 px-4 py-4 sm:px-6">
 			{#if app.accounts.length > 1}
 				<Field label="From">
 					<Select
@@ -433,7 +433,7 @@
 		</div>
 
 		{#if attachedFiles.length > 0}
-			<div class="flex flex-wrap gap-2 border-b border-fc-border px-4 py-3 sm:px-6">
+			<div class="flex flex-wrap gap-2 px-4 py-3 sm:px-6">
 				{#each attachedFiles as file, i (`${file.name}-${i}`)}
 					<Badge tone="neutral" class="max-w-full pr-1">
 						<span class="max-w-48 truncate">{file.name}</span>

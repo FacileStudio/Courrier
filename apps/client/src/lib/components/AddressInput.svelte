@@ -189,7 +189,7 @@
 
 	{#if showDropdown && suggestions.length > 0}
 		<div
-			class="absolute left-0 top-full z-50 mt-1 w-full rounded-fc-md border border-fc-border bg-fc-component p-1 shadow-lg"
+			class="absolute left-0 top-full z-50 mt-1 w-full rounded-fc-md bg-fc-component p-1 shadow-lg"
 			role="listbox"
 		>
 			{#each suggestions as contact, i (contact.email)}

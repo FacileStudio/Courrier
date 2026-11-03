@@ -38,7 +38,7 @@
 </svelte:head>
 
 <div class="min-h-dvh bg-fc-page text-fc-fg">
-	<header class="border-b border-fc-border">
+	<header class="">
 		<div class="mx-auto flex max-w-fc-lg items-center justify-between px-4 py-3 sm:px-6">
 			<a href="/" class="flex min-h-11 items-center gap-2" aria-label="Courrier home">
 				<AppMark size={24} />

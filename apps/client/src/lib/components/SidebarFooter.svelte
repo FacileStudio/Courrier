@@ -59,7 +59,7 @@
 			<div
 				role="menu"
 				aria-label="Account"
-				class="absolute bottom-full left-0 z-30 mb-2 flex flex-col gap-0.5 rounded-fc-lg bg-fc-page p-1.5 shadow-lg ring-1 ring-fc-border {collapsed
+				class="absolute bottom-full left-0 z-30 mb-2 flex flex-col gap-0.5 rounded-fc-lg bg-fc-page p-1.5 shadow-lg {collapsed
 					? 'w-60'
 					: 'right-0'}"
 			>

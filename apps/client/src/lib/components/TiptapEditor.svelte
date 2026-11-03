@@ -82,7 +82,7 @@
 			muse's `IconButton` has no pressed/active variant, so an active mark switches from
 			`ghost` to `default` (which carries the outline) and says so through `aria-pressed`.
 		-->
-		<div class="flex flex-wrap items-center gap-0.5 border-b border-fc-border px-3 py-1.5">
+		<div class="flex flex-wrap items-center gap-0.5 px-3 py-1.5">
 			{#each marks as mark, i (i)}
 				{#if 'separator' in mark}
 					<span class="mx-1 h-5 w-px shrink-0 bg-fc-border"></span>

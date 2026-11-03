@@ -18,7 +18,7 @@
 		class="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-8 text-center"
 	>
 		<div
-			class="flex size-32 items-center justify-center rounded-[2rem] border border-fc-border bg-fc-component shadow-sm"
+			class="flex size-32 items-center justify-center rounded-[2rem] bg-fc-component shadow-sm"
 		>
 			<AppMark size={64} />
 		</div>

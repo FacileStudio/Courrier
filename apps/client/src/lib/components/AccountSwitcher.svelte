@@ -107,7 +107,7 @@
 			<div
 				bind:this={menuEl}
 				role="menu"
-				class="absolute z-50 {menuPosition} flex w-64 flex-col overflow-hidden rounded-fc-md border border-fc-border bg-fc-component p-1 shadow-lg"
+				class="absolute z-50 {menuPosition} flex w-64 flex-col overflow-hidden rounded-fc-md bg-fc-component p-1 shadow-lg"
 			>
 				{#each app.accounts as account (account.id)}
 					{@const active = account.id === current.id}
@@ -133,7 +133,7 @@
 				{/each}
 				<a
 					href="/settings/accounts"
-					class="mt-1 flex min-h-11 items-center rounded-fc-sm border-t border-fc-border px-2.5 py-2 text-fc-sm text-fc-fg-muted transition-colors hover:bg-fc-surface hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-fc-ring"
+					class="mt-1 flex min-h-11 items-center rounded-fc-sm px-2.5 py-2 text-fc-sm text-fc-fg-muted transition-colors hover:bg-fc-surface hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-fc-ring"
 					onclick={() => (open = false)}
 				>
 					Manage accounts

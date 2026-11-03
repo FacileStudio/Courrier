@@ -503,7 +503,7 @@
 
 {#snippet listPane()}
 	<div class="flex h-full flex-col">
-		<div class="flex flex-col gap-3 border-b border-fc-border px-4 py-3">
+		<div class="flex flex-col gap-3 px-4 py-3">
 			<div class="relative">
 				<iconify-icon
 					icon={icons.search}
@@ -604,7 +604,7 @@
 				     same two text lines as a real row, so nothing moves when the data lands. -->
 				{#each Array(8) as _, i (i)}
 					<div
-						class="mail-skeleton flex items-center gap-3 border-b border-fc-border px-4 py-2.5"
+						class="mail-skeleton flex items-center gap-3 px-4 py-2.5"
 						style="--delay: {i * 60}ms"
 					>
 						<Skeleton class="size-8 shrink-0 rounded-fc-pill" />
@@ -670,7 +670,7 @@
 {#snippet readingPane()}
 	<div class="flex h-full flex-col">
 		{#if selected}
-			<div class="mail-detail-header flex flex-col gap-2 border-b border-fc-border px-4 py-4 sm:px-6">
+			<div class="mail-detail-header flex flex-col gap-2 px-4 py-4 sm:px-6">
 				<div class="flex items-center gap-2">
 					<h1 class="text-fc-xl font-semibold text-fc-fg">{selected.subject || '(no subject)'}</h1>
 					{#if threadMessages.length > 1}
@@ -763,7 +763,7 @@
 	</Resizable.PaneGroup>
 {:else if selected}
 	<div class="flex h-full flex-col">
-		<div class="flex flex-shrink-0 items-center border-b border-fc-border px-2 py-1.5">
+		<div class="flex flex-shrink-0 items-center px-2 py-1.5">
 			<Button variant="ghost" size="sm" icon={icons.chevronLeft} onclick={() => (selectedId = null)}>
 				Back
 			</Button>
