@@ -13,6 +13,7 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 - A first-run flow at `/welcome`: connect a mailbox or pick the one that opens first, turn on notifications, done. It runs once per device in the app, and on the web only for someone with no mailbox.
 - Settings > Notifications turns push on for this phone or browser and sends a test.
 - A public `/downloads` page with the Android APK, its SHA-256 checksum and install steps, linked from the landing page header, hero and footer. The Android app hides it.
+- `.github/workflows/release.yml` builds the signed APK when a release is published and attaches `courrier-android.apk` and its `.sha256`.
 
 ### Changed
 

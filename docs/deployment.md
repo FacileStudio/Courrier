@@ -111,6 +111,34 @@ dokploy compose --help
 Environment values are set in the Dokploy project, not committed. `.env.example` is the
 template — at minimum `ENCRYPTION_KEY`, `POSTGRES_USER`, and `POSTGRES_PASSWORD`.
 
+## Android app
+
+`apps/client` is also a Capacitor 8 Android app (`studio.facile.courrier`). It loads the
+static build from `https://localhost` and talks to `https://courrier.facile.studio`, so it
+needs the production API, not a local one.
+
+Build a debug APK locally (JDK 21 and the Android SDK; the Capacitor CLI wants Node 22):
+
+```sh
+cd apps/client
+bun run build
+mise x node@22 -- bunx cap sync android
+cd android && ./gradlew assembleDebug
+```
+
+`.github/workflows/release.yml` runs when a GitHub release is published, or by hand with
+a tag. It builds a signed universal APK and attaches `courrier-android.apk` and
+`courrier-android.apk.sha256`, so `releases/latest/download/courrier-android.apk` is a
+stable link. It reads the GitHub secrets `ANDROID_KEYSTORE_BASE64`,
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`. The version
+code is `major*1000000 + minor*1000 + patch`. The signing key can never change: Android
+refuses an update signed with another key.
+
+`apps/client/android/app/google-services.json` belongs to the Firebase project
+`courrier-de1ea`. Without it the Gradle build skips the google-services plugin and still
+succeeds, but push registration crashes, which is why the app only registers while
+`GET /api/push` answers `native: true`.
+
 ## Migrations
 
 There is no migration step to run. On every boot, in order:
