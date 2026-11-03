@@ -157,7 +157,9 @@
 	]);
 
 	const navUser = $derived(
-		user ? { name: user.name?.trim() || user.email, avatar: user.avatar_url || undefined } : undefined
+		user
+			? { name: user.name?.trim() || user.email, email: user.email, avatar: user.avatar_url || undefined }
+			: undefined
 	);
 
 	const mobileItems = $derived([
@@ -196,7 +198,7 @@
 					</div>
 				{/if}
 			</div>
-			<SidebarFooter user={navUser} href="/settings" active={onSettings} {collapsed} />
+			<SidebarFooter user={navUser} active={onSettings} {collapsed} />
 		</div>
 
 		<div class="flex min-w-0 flex-1 flex-col">
