@@ -19,10 +19,10 @@
 	const entries: Entry[] = [
 		{ href: '/settings', label: 'Settings', icon: icons.settings },
 		...(isDesktop()
-			? [{ href: '/downloads', label: 'Get the Android app', icon: icons.download }]
+			? [{ href: '/downloads', label: 'Android app', icon: icons.download }]
 			: isApp()
 				? []
-				: [{ href: '/downloads', label: 'Download the desktop app', icon: icons.download }])
+				: [{ href: '/downloads', label: 'Desktop app', icon: icons.download }])
 	];
 
 	let open = $state(false);
@@ -76,11 +76,11 @@
 						href={entry.href}
 						role="menuitem"
 						onclick={() => (open = false)}
-						class="flex min-h-10 items-center gap-2.5 rounded-fc-md px-2.5 text-fc-sm text-fc-fg transition-colors hover:bg-fc-surface focus-visible:bg-fc-surface focus-visible:outline-none"
+						class="flex min-h-10 items-center gap-2.5 whitespace-nowrap rounded-fc-md px-2.5 text-fc-sm text-fc-fg transition-colors hover:bg-fc-surface focus-visible:bg-fc-surface focus-visible:outline-none"
 					>
 						<iconify-icon icon={entry.icon} width="16" height="16" class="block shrink-0 text-fc-fg-muted"
 						></iconify-icon>
-						{entry.label}
+						<span class="truncate">{entry.label}</span>
 					</a>
 				{/each}
 				<div class="my-1 h-px bg-fc-border"></div>
