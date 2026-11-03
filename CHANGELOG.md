@@ -4,6 +4,13 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-03
+
+### Fixed
+
+- The account menu items stay on one line: they read "Desktop app" and "Android app".
+- The sidebar user card sits inside the sidebar, with one background, instead of a second card below it.
+
 ## [0.5.0] - 2026-11-03
 
 ### Added
