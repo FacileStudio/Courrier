@@ -1,7 +1,7 @@
 import { goto } from '$app/navigation';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { backend, type PushConfig } from '$lib/backend';
-import { isNative } from '$lib/platform';
+import { isDesktop, isNative } from '$lib/platform';
 import { routeFor } from '$lib/push-route';
 
 export type Permission = 'granted' | 'denied' | 'prompt' | 'unsupported';
@@ -10,6 +10,7 @@ let listening = false;
 
 /** Reads whether this device lets Courrier show notifications. */
 export async function permission(): Promise<Permission> {
+	if (isDesktop()) return 'unsupported';
 	if (isNative()) {
 		const { receive } = await PushNotifications.checkPermissions();
 		return receive === 'granted' ? 'granted' : receive === 'denied' ? 'denied' : 'prompt';
@@ -27,7 +28,7 @@ export async function permission(): Promise<Permission> {
  * crashes on it.
  */
 export function supported(config: PushConfig | null): boolean {
-	if (!config) return false;
+	if (!config || isDesktop()) return false;
 	return isNative() ? config.native : !!config.web_push_key;
 }
 

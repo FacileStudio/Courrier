@@ -3,7 +3,7 @@
 	import { Alert, Button, Spinner, StatusDot, icons, toast } from '@facile/muse';
 	import { backend, type PushConfig } from '$lib/backend';
 	import { enable, permission, supported, type Permission } from '$lib/notifications';
-	import { isNative } from '$lib/platform';
+	import { isDesktop, isNative } from '$lib/platform';
 
 	let { showTest = false }: { showTest?: boolean } = $props();
 
@@ -12,6 +12,7 @@
 	let busy = $state(false);
 	let testing = $state(false);
 	const native = isNative();
+	const desktop = isDesktop();
 
 	onMount(async () => {
 		try {
@@ -50,6 +51,10 @@
 <div class="flex flex-col gap-4" aria-live="polite">
 	{#if access === 'loading'}
 		<Spinner size="sm" />
+	{:else if desktop}
+		<p class="text-fc-sm text-fc-fg-muted">
+			The desktop app does not show notifications yet. The Android app and a browser tab do.
+		</p>
 	{:else if !supported(push)}
 		<p class="text-fc-sm text-fc-fg-muted">
 			{native ? 'Phone notifications' : 'Browser notifications'} are not set up on this server yet.

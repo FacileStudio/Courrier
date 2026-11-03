@@ -3,15 +3,17 @@
 	import { browser } from '$app/environment';
 	import { Toaster } from '@facile/muse';
 	import { registerDeepLinks } from '$lib/native';
-	import { isNative } from '$lib/platform';
+	import { isApp, isDesktop } from '$lib/platform';
 	import { theme } from '$lib/theme.svelte';
+	import { offerUpdate } from '$lib/updater';
 
 	let { children } = $props();
 
 	if (browser) {
 		theme.restore();
 		void import('iconify-icon');
-		if (isNative()) registerDeepLinks();
+		if (isApp()) registerDeepLinks();
+		if (isDesktop()) void offerUpdate();
 	}
 </script>
 

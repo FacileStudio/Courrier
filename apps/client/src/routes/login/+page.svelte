@@ -5,7 +5,7 @@
 	import { page as livePage } from '$app/state';
 	import { backend } from '$lib/backend';
 	import NativeLogin from '$lib/components/native/NativeLogin.svelte';
-	import { isNative } from '$lib/platform';
+	import { isApp } from '$lib/platform';
 
 	const inputClass =
 		'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
@@ -21,7 +21,7 @@
 	let oidcEnabled = $state(false);
 	let configLoaded = $state(false);
 	let nativeError = $state('');
-	const native = isNative();
+	const native = isApp();
 
 	$effect(() => {
 		nativeError = livePage.url.searchParams.get('error') ?? '';

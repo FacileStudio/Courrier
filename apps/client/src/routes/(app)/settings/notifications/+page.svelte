@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { SettingsRow, SettingsSection } from '@facile/muse';
 	import NotificationControl from '$lib/components/NotificationControl.svelte';
-	import { isNative } from '$lib/platform';
+	import { isDesktop, isNative } from '$lib/platform';
 
-	const device = isNative() ? 'this phone' : 'this browser';
+	const device = isNative() ? 'this phone' : isDesktop() ? 'this computer' : 'this browser';
 </script>
 
 <div class="flex flex-col gap-10">
