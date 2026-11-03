@@ -2,7 +2,7 @@
 
 use tauri::Manager;
 
-/// Starts the Courrier window with sign-in deep links, the system browser and self-update wired in.
+/// Starts the Courrier window with sign-in deep links, notifications, the system browser and self-update wired in.
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
@@ -12,6 +12,7 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
