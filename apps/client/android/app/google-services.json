@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "735156442849",
+    "project_id": "courrier-de1ea",
+    "storage_bucket": "courrier-de1ea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:735156442849:android:2383b044ae2d58cedd89a0",
+        "android_client_info": {
+          "package_name": "studio.facile.courrier"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-4WkSYTq7GSRWaZeHKQScR_wfPILHHZY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
