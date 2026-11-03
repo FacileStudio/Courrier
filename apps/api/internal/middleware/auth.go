@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/porte"
@@ -22,6 +23,19 @@ type Authenticator interface {
 	IdentityForUser(ctx context.Context, userID int64) (id string, email string, err error)
 }
 
+// managesCredentials reports whether the route mints, lists or revokes API
+// tokens, or edits the profile that holds the sign-in password and address. A
+// delegated suite token (porte sets Actor from its act.sub claim) is refused on
+// these: a five-minute delegation must not turn itself into a credential that
+// outlives it.
+func managesCredentials(method, path string) bool {
+	path = strings.TrimSuffix(strings.TrimPrefix(path, "/api"), "/")
+	if path == "/users/me" {
+		return method != http.MethodGet
+	}
+	return strings.HasPrefix(path, "/users/me/api-token") || strings.HasPrefix(path, "/users/me/password")
+}
+
 // RequireAuth runs porte's middleware and then fills in what porte
 // deliberately does not carry.
 //
@@ -38,6 +52,10 @@ func RequireAuth(auth Authenticator) func(http.Handler) http.Handler {
 			authenticated, ok := porte.From(request.Context())
 			if !ok {
 				httpjson.WriteError(w, errors.Unauthorized("missing auth"))
+				return
+			}
+			if authenticated.Actor != "" && managesCredentials(request.Method, request.URL.Path) {
+				httpjson.WriteError(w, errors.Forbidden("a delegated token cannot manage credentials"))
 				return
 			}
 			userID, email, err := auth.IdentityForUser(request.Context(), authenticated.UserID)
