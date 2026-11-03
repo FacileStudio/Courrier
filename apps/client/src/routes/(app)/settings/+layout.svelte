@@ -1,14 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { Divider, PageTransition, Tabs, icons } from '@facile/muse';
+	import { isDesktop } from '$lib/platform';
 
 	let { children } = $props();
 
-	/*
-	 * The section is a route, not a `$state`: /settings/accounts survives a reload, can be
-	 * linked to, and browser-back walks the sections instead of leaving the page.
-	 */
-	const sections = [
+	const baseSections = [
 		{ id: 'profile', label: 'Profile', icon: icons.userCircle },
 		{ id: 'appearance', label: 'Appearance', icon: icons.palette },
 		{ id: 'accounts', label: 'Accounts', icon: icons.mail },
@@ -17,6 +14,10 @@
 		{ id: 'api', label: 'API', icon: icons.key },
 		{ id: 'advanced', label: 'Advanced', icon: icons.shield }
 	];
+
+	const sections = isDesktop()
+		? [...baseSections, { id: 'updates', label: 'Updates', icon: icons.refresh }]
+		: baseSections;
 
 	const items = sections.map((section) => ({ ...section, href: `/settings/${section.id}` }));
 	const active = $derived(

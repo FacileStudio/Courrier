@@ -6,7 +6,7 @@
 	import { registerDeepLinks } from '$lib/native';
 	import { isApp, isDesktop } from '$lib/platform';
 	import { theme } from '$lib/theme.svelte';
-	import { offerUpdate } from '$lib/updater';
+	import { updater } from '$lib/updater.svelte';
 
 	let { children } = $props();
 
@@ -16,7 +16,7 @@
 		if (isApp()) registerDeepLinks();
 		if (isDesktop()) {
 			document.documentElement.dataset.desktop = '';
-			void offerUpdate();
+			void updater.checkNow(true);
 		}
 	}
 </script>
