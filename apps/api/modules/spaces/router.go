@@ -33,7 +33,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 				httpjson.WriteError(w, err)
 				return
 			}
-			httpjson.WriteJSON(w, http.StatusCreated, toSpaceResponse(space, role))
+			httpjson.WriteJSON(w, http.StatusCreated, service.toSpaceResponse(space, role))
 		})
 
 		r.Get("/", func(w http.ResponseWriter, req *http.Request) {
@@ -49,9 +49,9 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			}
 			resp := make([]SpaceResponse, len(spaceList))
 			for i, s := range spaceList {
-				resp[i] = toSpaceResponse(s, roleMap[s.ID])
+				resp[i] = service.toSpaceResponse(s, roleMap[s.ID])
 			}
-			httpjson.WriteJSON(w, http.StatusOK, map[string]any{"spaces": resp})
+			httpjson.WriteJSON(w, http.StatusOK, SpaceListResponse{Spaces: resp, ManageURL: service.ManageURL()})
 		})
 
 		r.Route("/{spaceId}", func(r chi.Router) {
@@ -72,7 +72,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 					httpjson.WriteError(w, err)
 					return
 				}
-				httpjson.WriteJSON(w, http.StatusOK, toSpaceDetailResponse(space, role, members))
+				httpjson.WriteJSON(w, http.StatusOK, service.toSpaceDetailResponse(space, role, members))
 			})
 
 			r.Put("/", func(w http.ResponseWriter, req *http.Request) {
@@ -93,7 +93,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 					return
 				}
 				role, _ := service.memberRole(req.Context(), spaceID, uid)
-				httpjson.WriteJSON(w, http.StatusOK, toSpaceResponse(space, role))
+				httpjson.WriteJSON(w, http.StatusOK, service.toSpaceResponse(space, role))
 			})
 
 			r.Delete("/", func(w http.ResponseWriter, req *http.Request) {

@@ -124,13 +124,14 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 
 // services are the long-lived pieces run builds once: porte's session manager,
 // password login and OIDC kit, the mail service the watcher shares with the
-// HTTP routes, and the push hub.
+// HTTP routes, the push hub, and the Registre space sync when SSO is on.
 type services struct {
 	sessions  *session.Manager
 	passwords *local.Kit
 	kit       *oidc.Kit
 	mail      *mail.Service
 	push      *push.Hub
+	directory *spaces.Directory
 }
 
 // buildRouter wires every module service and the shared middleware onto the
@@ -145,7 +146,6 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 	accountService := accounts.NewService(db, appEnv.EncryptionKey)
 	userService := users.NewService(db, appEnv.StorageDir, authService)
 	settingsService := settings.NewService(len(appEnv.EncryptionKey) > 0)
-	spaceService := spaces.NewService(db)
 
 	router := httpx.NewRouter(httpx.Config{
 		TrustedProxies: appEnv.TrustedProxies,
@@ -173,7 +173,7 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 		pushmodule.RegisterRoutes(r, svc.push, authService)
 		users.RegisterRoutes(r, userService, authService)
 		settings.RegisterRoutes(r, settingsService, authService)
-		spaces.RegisterRoutes(r, spaceService, authService)
+		registerSpaces(r, db, appEnv, svc.directory, authService)
 	})
 
 	clientDir := spa.DirFromEnv()
@@ -251,6 +251,7 @@ func run() int {
 	}
 	svc.push = newPushHub(db, appEnv.Push, appLogger)
 	svc.mail = mail.NewService(db, appEnv.EncryptionKey).WithNotifier(svc.push)
+	svc.directory = newDirectory(db, appEnv, appLogger)
 
 	router := buildRouter(db, health.DB(sqlDB), appEnv, appLogger, svc)
 
@@ -272,6 +273,9 @@ func run() int {
 	defer stop()
 	if svc.push.Enabled() && appEnv.Push.PollInterval > 0 {
 		go svc.mail.WatchInboxes(shutdownSignal, appEnv.Push.PollInterval, appLogger)
+	}
+	if svc.directory != nil {
+		go svc.directory.Run(shutdownSignal)
 	}
 
 	appLogger.Info("server starting", slog.String("addr", addr))

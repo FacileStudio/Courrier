@@ -48,7 +48,9 @@
 		toast.success(`Espace actif : ${space.name}`);
 	}
 
-	const isOwnerOrAdmin = $derived(space?.role === 'owner' || space?.role === 'admin');
+	const isOwnerOrAdmin = $derived(
+		!space?.manage_url && (space?.role === 'owner' || space?.role === 'admin')
+	);
 	const isActive = $derived(spaceStore.active?.id === spaceId);
 </script>
 
@@ -84,7 +86,11 @@
 					<Button icon={icons.check} disabled={isActive} onclick={switchToSpace}>
 						{isActive ? 'Espace actif' : 'Basculer vers cet espace'}
 					</Button>
-					{#if isOwnerOrAdmin}
+					{#if space.manage_url}
+						<Button variant="outline" href={space.manage_url} icon={icons.shield}>
+							Gérer dans Registre
+						</Button>
+					{:else if isOwnerOrAdmin}
 						<Button variant="outline" href="/spaces/{spaceId}/settings" icon={icons.settings}>
 							Paramètres
 						</Button>
@@ -120,7 +126,9 @@
 					<EmptyState
 						icon={icons.usersGroup}
 						title="Personne ici pour l'instant"
-						description="Ajoutez un coéquipier et il verra cet espace immédiatement."
+						description={space.manage_url
+							? 'Ajoutez un coéquipier dans Registre et il verra cet espace en quelques secondes.'
+							: 'Ajoutez un coéquipier et il verra cet espace immédiatement.'}
 					/>
 				{:else}
 					<Card class="flex flex-col">

@@ -16,7 +16,8 @@ import (
 // Service is the spaces module's data access: it owns spaces, their
 // memberships and the role checks that gate mutation.
 type Service struct {
-	orm *gorm.DB
+	orm      *gorm.DB
+	registre string
 }
 
 // NewService builds a spaces Service over the database.
@@ -25,6 +26,9 @@ func NewService(orm *gorm.DB) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, userID int64, req CreateSpaceRequest) (schemas.Space, string, error) {
+	if err := s.refuseCreate(); err != nil {
+		return schemas.Space{}, "", err
+	}
 	if req.Name == "" {
 		return schemas.Space{}, "", errors.Invalid("name is required")
 	}
@@ -97,6 +101,9 @@ func (s *Service) Get(ctx context.Context, userID int64, spaceID string) (schema
 }
 
 func (s *Service) Update(ctx context.Context, userID int64, spaceID string, req UpdateSpaceRequest) (schemas.Space, error) {
+	if err := s.refuseLinked(ctx, spaceID); err != nil {
+		return schemas.Space{}, err
+	}
 	role, err := s.memberRole(ctx, spaceID, userID)
 	if err != nil {
 		return schemas.Space{}, err
@@ -125,6 +132,9 @@ func (s *Service) Update(ctx context.Context, userID int64, spaceID string, req 
 }
 
 func (s *Service) Delete(ctx context.Context, userID int64, spaceID string) error {
+	if err := s.refuseLinked(ctx, spaceID); err != nil {
+		return err
+	}
 	role, err := s.memberRole(ctx, spaceID, userID)
 	if err != nil {
 		return err
@@ -134,21 +144,26 @@ func (s *Service) Delete(ctx context.Context, userID int64, spaceID string) erro
 	}
 
 	return s.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("space_id = ?", spaceID).Delete(&schemas.Contact{}).Error; err != nil {
-			return errors.Internal("failed to delete space contacts", err)
-		}
-		if err := tx.Where("space_id = ?", spaceID).Delete(&schemas.SpaceMember{}).Error; err != nil {
-			return errors.Internal("failed to delete space members", err)
-		}
-		result := tx.Where("id = ?", spaceID).Delete(&schemas.Space{})
-		if result.Error != nil {
-			return errors.Internal("failed to delete space", result.Error)
-		}
-		if result.RowsAffected == 0 {
-			return errors.NotFound("space not found")
-		}
-		return nil
+		return deleteSpaceRows(tx, spaceID)
 	})
+}
+
+// deleteSpaceRows removes a space with its contacts and memberships.
+func deleteSpaceRows(tx *gorm.DB, spaceID string) error {
+	if err := tx.Where("space_id = ?", spaceID).Delete(&schemas.Contact{}).Error; err != nil {
+		return errors.Internal("failed to delete space contacts", err)
+	}
+	if err := tx.Where("space_id = ?", spaceID).Delete(&schemas.SpaceMember{}).Error; err != nil {
+		return errors.Internal("failed to delete space members", err)
+	}
+	result := tx.Where("id = ?", spaceID).Delete(&schemas.Space{})
+	if result.Error != nil {
+		return errors.Internal("failed to delete space", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return errors.NotFound("space not found")
+	}
+	return nil
 }
 
 func (s *Service) resolveTargetUser(ctx context.Context, req AddMemberRequest) (int64, error) {
@@ -170,6 +185,9 @@ func (s *Service) resolveTargetUser(ctx context.Context, req AddMemberRequest) (
 }
 
 func (s *Service) AddMember(ctx context.Context, actorID int64, spaceID string, req AddMemberRequest) (schemas.SpaceMember, error) {
+	if err := s.refuseLinked(ctx, spaceID); err != nil {
+		return schemas.SpaceMember{}, err
+	}
 	role, err := s.memberRole(ctx, spaceID, actorID)
 	if err != nil {
 		return schemas.SpaceMember{}, err
@@ -205,6 +223,9 @@ func (s *Service) AddMember(ctx context.Context, actorID int64, spaceID string, 
 }
 
 func (s *Service) UpdateMember(ctx context.Context, actorID int64, spaceID string, memberID string, req UpdateMemberRequest) (schemas.SpaceMember, error) {
+	if err := s.refuseLinked(ctx, spaceID); err != nil {
+		return schemas.SpaceMember{}, err
+	}
 	role, err := s.memberRole(ctx, spaceID, actorID)
 	if err != nil {
 		return schemas.SpaceMember{}, err
@@ -235,6 +256,9 @@ func (s *Service) UpdateMember(ctx context.Context, actorID int64, spaceID strin
 }
 
 func (s *Service) RemoveMember(ctx context.Context, actorID int64, spaceID string, memberID string) error {
+	if err := s.refuseLinked(ctx, spaceID); err != nil {
+		return err
+	}
 	role, err := s.memberRole(ctx, spaceID, actorID)
 	if err != nil {
 		return err
@@ -266,6 +290,9 @@ func (s *Service) RemoveMember(ctx context.Context, actorID int64, spaceID strin
 // transfer the only exit from a space two people own equally, which is a
 // different rule from the one that keeps a space reachable.
 func (s *Service) Leave(ctx context.Context, userID int64, spaceID string) error {
+	if err := s.refuseLinked(ctx, spaceID); err != nil {
+		return err
+	}
 	var member schemas.SpaceMember
 	if err := s.orm.WithContext(ctx).Where("space_id = ? AND user_id = ?", spaceID, userID).First(&member).Error; err != nil {
 		return errors.NotFound("not a member of this space")
@@ -340,19 +367,20 @@ func (s *Service) memberRole(ctx context.Context, spaceID string, userID int64) 
 	return member.Role, nil
 }
 
-func toSpaceResponse(space schemas.Space, role string) SpaceResponse {
+func (s *Service) toSpaceResponse(space schemas.Space, role string) SpaceResponse {
 	return SpaceResponse{
 		ID:          space.ID,
 		Name:        space.Name,
 		Description: space.Description,
 		Role:        role,
+		ManageURL:   s.spaceManageURL(space),
 		CreatedAt:   space.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:   space.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 }
 
-func toSpaceDetailResponse(space schemas.Space, role string, members []MemberResponse) SpaceResponse {
-	resp := toSpaceResponse(space, role)
+func (s *Service) toSpaceDetailResponse(space schemas.Space, role string, members []MemberResponse) SpaceResponse {
+	resp := s.toSpaceResponse(space, role)
 	resp.Members = members
 	return resp
 }

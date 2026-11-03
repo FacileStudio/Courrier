@@ -114,36 +114,47 @@
 				<Button variant="ghost" href="/spaces/{spaceId}" icon={icons.chevronLeft}>Espace</Button>
 			</div>
 
-			<SettingsSection title="Général" description="Ce que les membres voient de cet espace.">
-				<Field label="Nom" error={nameError}>
-					<Input bind:value={name} placeholder="ex. Équipe Marketing" />
-				</Field>
-				<Field label="Description" helper="Optionnel — à quoi sert cet espace ?">
-					<Textarea bind:value={description} rows={3} />
-				</Field>
-				<div>
-					<Button icon={icons.check} disabled={saving} onclick={saveSettings}>
-						{saving ? 'Enregistrement…' : 'Enregistrer'}
-					</Button>
-				</div>
-			</SettingsSection>
-
-			{#if isOwner}
+			{#if space.manage_url}
 				<SettingsSection
-					title="Zone de danger"
-					description="Supprimer cet espace est immédiat et définitif."
+					title="Géré dans Registre"
+					description="Le nom, les membres et leurs rôles se modifient dans Registre, pour toutes les apps Facile à la fois."
 				>
-					<p class="text-fc-sm text-fc-fg-muted">
-						Tous les membres perdent leur accès, et les comptes mail rattachés à cet espace
-						disparaissent de la liste : ils ne sont ni supprimés ni rendus personnels, ils ne sont
-						simplement plus rattachés à rien. Les identifiants IMAP/SMTP restent en base.
-					</p>
 					<div>
-						<Button variant="danger" icon={icons.remove} onclick={() => (confirmDelete = true)}>
-							Supprimer l'espace
+						<Button href={space.manage_url} icon={icons.shield}>Gérer dans Registre</Button>
+					</div>
+				</SettingsSection>
+			{:else}
+				<SettingsSection title="Général" description="Ce que les membres voient de cet espace.">
+					<Field label="Nom" error={nameError}>
+						<Input bind:value={name} placeholder="ex. Équipe Marketing" />
+					</Field>
+					<Field label="Description" helper="Optionnel — à quoi sert cet espace ?">
+						<Textarea bind:value={description} rows={3} />
+					</Field>
+					<div>
+						<Button icon={icons.check} disabled={saving} onclick={saveSettings}>
+							{saving ? 'Enregistrement…' : 'Enregistrer'}
 						</Button>
 					</div>
 				</SettingsSection>
+
+				{#if isOwner}
+					<SettingsSection
+						title="Zone de danger"
+						description="Supprimer cet espace est immédiat et définitif."
+					>
+						<p class="text-fc-sm text-fc-fg-muted">
+							Tous les membres perdent leur accès, et les comptes mail rattachés à cet espace
+							disparaissent de la liste : ils ne sont ni supprimés ni rendus personnels, ils ne sont
+							simplement plus rattachés à rien. Les identifiants IMAP/SMTP restent en base.
+						</p>
+						<div>
+							<Button variant="danger" icon={icons.remove} onclick={() => (confirmDelete = true)}>
+								Supprimer l'espace
+							</Button>
+						</div>
+					</SettingsSection>
+				{/if}
 			{/if}
 		{/if}
 	</div>

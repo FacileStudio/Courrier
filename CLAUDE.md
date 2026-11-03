@@ -96,6 +96,7 @@ Client dev only (in `apps/client/.env`):
 - Users: `/api/users/me`, `/api/users`
 - Settings: `/api/settings/`
 - Spaces: `/api/spaces` (CRUD), `/api/spaces/{id}/members` (member management), `/api/spaces/{id}/leave`
+- Registre nudge: `POST /api/registre/sync` (anonymous, answers 202, mounted only with OIDC on)
 
 Every API route is registered inside a single `router.Route("/api", ...)` in `main.go`; the
 modules declare relative prefixes (`/auth`, `/accounts`, ...). That subtree is what makes an
@@ -118,6 +119,15 @@ unknown `/api/*` path return 404 instead of falling through to the SPA catch-all
   photo, else the upload, else nothing — never a stored third copy. Uploading is *rejected*
   while an SSO photo exists, and clearing removes only the upload. `avatar_url` and
   `avatar_source` remain as unread columns until a later release drops them.
+- **Registre owns shared spaces when OIDC is on.** `spaces.Directory` imports every local space
+  once (`POST <issuer>/api/directory/import`, retried with backoff from 30 s to 5 min while
+  Registre answers 404), and only then starts `porte/directory`'s Syncer: a pull at boot, every
+  5 minutes and 2 s after a nudge. `Apply` links by `spaces.registre_space_id`, else by an
+  unlinked space of the same `lower(name)`, else creates; resolves members by porte identity
+  (issuer, sub), else email, else pre-provisions a user plus identity row. It only removes
+  members who hold an identity under the issuer, so password-only accounts keep their seat.
+  Creating a space, and editing a linked one, answer 409 naming the Registre page; the client
+  shows "Gérer dans Registre" from `manage_url`. Mail accounts in a space stay Courrier's.
 - **Database-backed tests need Postgres.** `TEST_DATABASE_URL` points at a scratch database
   (`github.com/FacileStudio/tronc/testdb` gives each test binary its own schema); without it
   those tests skip loudly. SQLite is not an option here — the gate rejects the driver.

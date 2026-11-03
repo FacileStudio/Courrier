@@ -25,12 +25,14 @@ type UpdateMemberRequest struct {
 }
 
 // SpaceResponse is the space shape returned to the client, including the
-// caller's role and, for detail views, its members.
+// caller's role and, for detail views, its members. ManageURL is set when
+// Registre owns the space, and is the only place to edit it.
 type SpaceResponse struct {
 	ID          string           `json:"id"`
 	Name        string           `json:"name"`
 	Description string           `json:"description"`
 	Role        string           `json:"role"`
+	ManageURL   string           `json:"manage_url,omitempty"`
 	CreatedAt   string           `json:"created_at"`
 	UpdatedAt   string           `json:"updated_at"`
 	Members     []MemberResponse `json:"members,omitempty"`
@@ -47,8 +49,11 @@ type MemberResponse struct {
 	JoinedAt  string `json:"joined_at"`
 }
 
+// SpaceListResponse is GET /spaces. ManageURL is set when Registre owns
+// spaces, and is where new ones are created.
 type SpaceListResponse struct {
-	Spaces []SpaceResponse `json:"spaces"`
+	Spaces    []SpaceResponse `json:"spaces"`
+	ManageURL string          `json:"manage_url,omitempty"`
 }
 
 type DeleteSpaceResponse struct {

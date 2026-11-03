@@ -17,9 +17,12 @@ var memberPath = []documentation.Field{
 
 var unauthenticated = documentation.Error{Status: 401, Code: "unauthenticated", Description: "No valid session cookie, bearer token or API token."}
 
+var managed = documentation.Error{Status: 409, Code: "already_exists", Description: "Registre manages this space; the message names the page to edit it on."}
+
 var Documentation = documentation.Module{
-	Name:        "spaces",
-	Description: "Shared workspaces and their membership. Roles are owner, admin and member.",
+	Name: "spaces",
+	Description: "Shared workspaces and their membership. Roles are owner, admin and member. " +
+		"With SSO on, Registre owns spaces and their members: creating a space, and editing a linked one, answer 409.",
 	Routes: []documentation.Route{
 		{
 			Method:       "GET",
@@ -42,6 +45,7 @@ var Documentation = documentation.Module{
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body or missing name."},
 				unauthenticated,
+				{Status: 409, Code: "already_exists", Description: "Registre manages spaces; the message names its page."},
 			},
 		},
 		{
@@ -71,6 +75,7 @@ var Documentation = documentation.Module{
 				unauthenticated,
 				{Status: 403, Code: "permission_denied", Description: "The caller is not an owner or admin of the space."},
 				{Status: 404, Code: "not_found", Description: "No such space."},
+				managed,
 			},
 		},
 		{
@@ -85,6 +90,7 @@ var Documentation = documentation.Module{
 				unauthenticated,
 				{Status: 403, Code: "permission_denied", Description: "Only the owner can delete a space."},
 				{Status: 404, Code: "not_found", Description: "No such space."},
+				managed,
 			},
 		},
 		{
@@ -98,7 +104,7 @@ var Documentation = documentation.Module{
 			Errors: []documentation.Error{
 				unauthenticated,
 				{Status: 404, Code: "not_found", Description: "The caller is not a member of that space."},
-				{Status: 409, Code: "already_exists", Description: "The caller is the space's only owner."},
+				{Status: 409, Code: "already_exists", Description: "The caller is the space's only owner, or Registre manages the space."},
 			},
 		},
 		{
@@ -128,7 +134,7 @@ var Documentation = documentation.Module{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body or unknown role."},
 				unauthenticated,
 				{Status: 403, Code: "permission_denied", Description: "The caller is not an owner or admin of the space."},
-				{Status: 409, Code: "already_exists", Description: "That user is already a member."},
+				{Status: 409, Code: "already_exists", Description: "That user is already a member, or Registre manages the space."},
 			},
 		},
 		{
@@ -145,6 +151,7 @@ var Documentation = documentation.Module{
 				unauthenticated,
 				{Status: 403, Code: "permission_denied", Description: "The caller is not an owner or admin of the space."},
 				{Status: 404, Code: "not_found", Description: "No such membership."},
+				managed,
 			},
 		},
 		{
@@ -159,7 +166,16 @@ var Documentation = documentation.Module{
 				unauthenticated,
 				{Status: 403, Code: "permission_denied", Description: "The caller is not an owner or admin of the space."},
 				{Status: 404, Code: "not_found", Description: "No such membership."},
+				managed,
 			},
+		},
+		{
+			Method:      "POST",
+			Path:        "/registre/sync",
+			Summary:     "Nudge the Registre space sync",
+			Description: "Registre posts here after any space change. Mounted only with SSO on. It carries nothing and needs no credentials: it schedules an authenticated pull of Registre's snapshot two seconds later.",
+			Auth:        "public",
+			Status:      http.StatusAccepted,
 		},
 	},
 }

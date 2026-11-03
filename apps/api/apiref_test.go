@@ -12,6 +12,8 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
+	"github.com/FacileStudio/Courrier/apps/api/modules/spaces"
+	"github.com/FacileStudio/porte/directory"
 	"github.com/FacileStudio/porte/local"
 	"github.com/FacileStudio/porte/oidc"
 	portepg "github.com/FacileStudio/porte/pg"
@@ -20,6 +22,9 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// referenceRouter is buildRouter as run() wires it with SSO on, so the
+// Registre nudge route is mounted and has to be documented too. The OIDC
+// block is set after the kit is built, which keeps discovery off the network.
 func referenceRouter(t *testing.T) chi.Router {
 	t.Helper()
 	appEnv := env.Config{StorageDir: t.TempDir()}
@@ -43,7 +48,11 @@ func referenceRouter(t *testing.T) chi.Router {
 	if err != nil {
 		t.Fatalf("local.New: %v", err)
 	}
-	svc := services{sessions: sessions, passwords: passwords, kit: kit, mail: mail.NewService(nil, nil)}
+	appEnv.OIDC = &env.OIDCConfig{Issuer: "https://sso.test"}
+	svc := services{
+		sessions: sessions, passwords: passwords, kit: kit, mail: mail.NewService(nil, nil),
+		directory: spaces.NewDirectory(nil, directory.Client{Issuer: appEnv.OIDC.Issuer}, appLogger),
+	}
 	return buildRouter(nil, func(context.Context) error { return nil }, appEnv, appLogger, svc)
 }
 
@@ -70,6 +79,7 @@ func TestRegistryIsComplete(t *testing.T) {
 		"/accounts/{accountId}/mail/emails/{emailId}/cid/{cid}",
 		"/users/me/avatar",
 		"/spaces/{spaceId}/leave",
+		"/registre/sync",
 	); len(issues) > 0 {
 		t.Errorf("incomplete documentation routes: %v", issues)
 	}

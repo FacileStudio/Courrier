@@ -3,13 +3,18 @@ package schemas
 import "time"
 
 // Space is a shared workspace whose members collaborate on accounts.
+//
+// RegistreSpaceID links the row to the Registre space it mirrors. A linked
+// space takes its name and members from Registre's snapshot and refuses local
+// edits; the mail accounts attached to it stay Courrier's own.
 type Space struct {
-	ID          string        `gorm:"column:id;primaryKey;type:uuid;default:gen_random_uuid()"`
-	Name        string        `gorm:"column:name;not null"`
-	Description string        `gorm:"column:description"`
-	CreatedAt   time.Time     `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt   time.Time     `gorm:"column:updated_at;autoUpdateTime"`
-	Members     []SpaceMember `gorm:"foreignKey:SpaceID"`
+	ID              string        `gorm:"column:id;primaryKey;type:uuid;default:gen_random_uuid()"`
+	Name            string        `gorm:"column:name;not null"`
+	Description     string        `gorm:"column:description"`
+	RegistreSpaceID *string       `gorm:"column:registre_space_id;uniqueIndex"`
+	CreatedAt       time.Time     `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt       time.Time     `gorm:"column:updated_at;autoUpdateTime"`
+	Members         []SpaceMember `gorm:"foreignKey:SpaceID"`
 }
 
 func (Space) TableName() string { return "spaces" }

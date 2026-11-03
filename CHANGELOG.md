@@ -4,6 +4,16 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- Registre owns shared spaces when Facile SSO is on. At boot Courrier hands Registre its existing spaces and members once, retrying with backoff while Registre is not deployed, and then keeps every space, member and role equal to Registre's: at boot, every 5 minutes, and within seconds of Registre's nudge on `POST /api/registre/sync`. A member added in Registre gets a Courrier account before their first sign-in. Mail accounts attached to a space stay Courrier's own.
+- `spaces.registre_space_id` links a space to its Registre twin. The column and its unique index are added at boot.
+
+### Changed
+
+- With SSO on, the spaces pages show "Gérer dans Registre" in place of creating a space, renaming it, adding, removing or re-ranking members and deleting it. Member lists stay, read-only, with pictures.
+- With SSO on, `POST /api/spaces` and every edit of a linked space (`PUT`/`DELETE /api/spaces/{id}`, its members routes and `leave`) answer 409 with the Registre page to use. Password-only instances manage spaces as before.
+
 ## [0.5.1] - 2026-11-03
 
 ### Fixed

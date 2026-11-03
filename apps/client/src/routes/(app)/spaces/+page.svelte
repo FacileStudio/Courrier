@@ -19,6 +19,7 @@
 	import { roleLabel, roleTone } from './roles';
 
 	let spaces = $state<Space[]>([]);
+	let manageUrl = $state('');
 	let loading = $state(true);
 
 	let createOpen = $state(false);
@@ -36,6 +37,7 @@
 		try {
 			const res = await backend.listSpaces();
 			spaces = res.spaces ?? [];
+			manageUrl = res.manage_url ?? '';
 		} catch {
 			spaces = [];
 		}
@@ -89,7 +91,11 @@
 			</div>
 			<div class="flex items-center gap-2">
 				<Button variant="ghost" href="/settings" icon={icons.chevronLeft}>Réglages</Button>
-				<Button icon={icons.plus} onclick={openCreate}>Nouvel espace</Button>
+				{#if manageUrl}
+					<Button href={manageUrl} icon={icons.shield}>Gérer dans Registre</Button>
+				{:else}
+					<Button icon={icons.plus} onclick={openCreate}>Nouvel espace</Button>
+				{/if}
 			</div>
 		</div>
 
@@ -103,9 +109,15 @@
 			<EmptyState
 				icon={icons.usersGroup}
 				title="Aucun espace"
-				description="Créez un espace pour partager des comptes mail et des dossiers avec votre équipe."
+				description={manageUrl
+					? 'Les espaces se créent dans Registre et apparaissent ici en quelques secondes.'
+					: 'Créez un espace pour partager des comptes mail et des dossiers avec votre équipe.'}
 			>
-				<Button icon={icons.plus} onclick={openCreate}>Créer votre premier espace</Button>
+				{#if manageUrl}
+					<Button href={manageUrl} icon={icons.shield}>Gérer dans Registre</Button>
+				{:else}
+					<Button icon={icons.plus} onclick={openCreate}>Créer votre premier espace</Button>
+				{/if}
 			</EmptyState>
 		{:else}
 			<section class="grid gap-4 sm:grid-cols-2">

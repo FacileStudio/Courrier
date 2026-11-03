@@ -16,7 +16,7 @@ Live at [courrier.facile.studio](https://courrier.facile.studio).
 - Compose, reply, and forward with attachments, plus drafts appended back to the IMAP server
 - Reusable email templates, per user or per space
 - Bulk delete, archive, and read-state changes over up to 200 messages at a time
-- Spaces that group users and scope accounts and templates
+- Spaces that group users and scope accounts and templates. With Facile SSO on, Registre owns the spaces and their members, and Courrier keeps them in step
 - Email/password auth with optional OIDC SSO and an `SSO_ONLY` mode
 
 ## Stack

@@ -105,6 +105,7 @@ export type Space = {
 	name: string;
 	description: string;
 	role: string;
+	manage_url?: string;
 	created_at: string;
 	updated_at: string;
 	members?: SpaceMember[];
@@ -451,7 +452,7 @@ export const backend = {
 	},
 
 	listSpaces() {
-		return apiFetch<{ spaces: Space[] }>('/api/spaces');
+		return apiFetch<{ spaces: Space[]; manage_url?: string }>('/api/spaces');
 	},
 
 	getSpace(spaceId: string) {

@@ -118,7 +118,9 @@
 		pendingRemoval = null;
 	}
 
-	const isOwnerOrAdmin = $derived(space?.role === 'owner' || space?.role === 'admin');
+	const isOwnerOrAdmin = $derived(
+		!space?.manage_url && (space?.role === 'owner' || space?.role === 'admin')
+	);
 	const isOwner = $derived(space?.role === 'owner');
 </script>
 
@@ -147,7 +149,12 @@
 					<h1 class="text-fc-2xl font-semibold text-fc-fg">Membres</h1>
 					<p class="text-fc-sm text-fc-fg-muted">{space.name}</p>
 				</div>
-				<Button variant="ghost" href="/spaces/{spaceId}" icon={icons.chevronLeft}>Espace</Button>
+				<div class="flex flex-wrap items-center gap-2">
+					<Button variant="ghost" href="/spaces/{spaceId}" icon={icons.chevronLeft}>Espace</Button>
+					{#if space.manage_url}
+						<Button href={space.manage_url} icon={icons.shield}>Gérer dans Registre</Button>
+					{/if}
+				</div>
 			</div>
 
 			{#if isOwnerOrAdmin}
