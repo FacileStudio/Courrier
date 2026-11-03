@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-03
+
 ### Added
 
 - Push notifications for new inbox mail: the Android app through Firebase Cloud Messaging (`FCM_SERVICE_ACCOUNT`), browsers through Web Push (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`). A watcher syncs the inbox of every account whose owner registered a device every `MAIL_POLL_INTERVAL` (default `2m`). Bulk and automated mail never notifies, and a notification names the sender, never the subject or the body.
@@ -18,6 +20,10 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 ### Changed
 
 - porte v0.8.0.
+
+### Fixed
+
+- A delegated suite token (one Registre minted for another app acting for the user) can no longer mint or revoke API tokens or edit the sign-in profile.
 
 ## [0.2.7] - 2026-11-02
 
