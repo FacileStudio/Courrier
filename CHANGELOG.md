@@ -4,6 +4,19 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-03
+
+### Added
+
+- Space members carry `avatar_url`, and the space overview and members pages show each member's picture, with the initial when there is none.
+
+### Changed
+
+- Every federated user gets the identity provider's avatar URL (`<OIDC_ISSUER>/avatars/<subject>`) at boot when none is stored, so a Facile SSO picture shows without signing in again. A changed picture shows on the next page load.
+- The sidebar card renders the picture with muse `Avatar`, so a missing picture falls back to the initial instead of a broken image.
+- The profile page sends photo changes to the Facile account page at sso.facile.studio.
+- muse is pinned to v0.6.5.
+
 ## [0.3.0] - 2026-11-03
 
 ### Added
