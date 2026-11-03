@@ -4,6 +4,24 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-03
+
+### Added
+
+- A Tauri 2 desktop app (`apps/desktop`) for macOS, Windows and Linux. It signs in through the same Facile SSO flow as the Android app (system browser, then the `studio.facile.courrier://auth` link), keeps a bearer token, and updates itself from the GitHub release's `latest.json`.
+- `desktop.yml` builds the signed installers when a release is published and attaches `Courrier-macos-universal.dmg`, `Courrier-windows-x64-setup.exe`, `Courrier-linux-x64.AppImage`, `Courrier-linux-x64.deb`, `desktop-checksums.txt` and `latest.json`.
+- The downloads page lists the desktop installers, with the visitor's system highlighted.
+
+### Changed
+
+- The sidebar user card opens a menu with Settings, the desktop app download and Sign out, in place of the settings cog. The desktop app shows the Android download there instead.
+- The API allows the desktop app origins `tauri://localhost` and `http://tauri.localhost` while SSO is on.
+- The landing page links read "Get the apps".
+
+### Fixed
+
+- Inline (`cid:`) images load in the Android and desktop apps, which have no session cookie: the thread view now adds a short-lived resource token to their URLs.
+
 ## [0.4.0] - 2026-11-03
 
 ### Added
