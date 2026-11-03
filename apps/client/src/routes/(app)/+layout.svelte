@@ -176,7 +176,7 @@
 {#if loaded}
 	<div class="flex h-dvh w-full overflow-hidden bg-fc-page">
 		<div class="hidden h-full shrink-0 flex-col gap-3 p-3 md:flex">
-			<div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-fc-lg bg-fc-component">
+			<div class="flex min-h-0 flex-1 flex-col rounded-fc-lg bg-fc-component">
 				<SideBar
 					icon="solar:letter-bold-duotone"
 					title="Courrier"
@@ -197,8 +197,8 @@
 						<AccountSwitcher rail {collapsed} />
 					</div>
 				{/if}
+				<SidebarFooter user={navUser} {collapsed} />
 			</div>
-			<SidebarFooter user={navUser} active={onSettings} {collapsed} />
 		</div>
 
 		<div class="flex min-w-0 flex-1 flex-col">

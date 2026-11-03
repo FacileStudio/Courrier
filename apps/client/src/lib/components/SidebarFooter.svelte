@@ -8,11 +8,9 @@
 
 	let {
 		user,
-		active = false,
 		collapsed = false
 	}: {
 		user?: { name: string; email?: string; avatar?: string };
-		active?: boolean;
 		collapsed?: boolean;
 	} = $props();
 
@@ -55,7 +53,7 @@
 	});
 </script>
 
-<div bind:this={root} class="relative flex w-0 min-w-full shrink-0 flex-col gap-1 rounded-fc-lg bg-fc-component p-1.5">
+<div bind:this={root} class="relative flex w-0 min-w-full shrink-0 flex-col px-3 pb-3">
 	{#if user}
 		{#if open}
 			<div
@@ -106,7 +104,7 @@
 			class={twMerge(
 				'flex items-center gap-2.5 overflow-hidden rounded-fc-md text-left text-fc-sm text-fc-fg transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fc-ring',
 				collapsed ? 'size-fc-nav-item shrink-0 self-center justify-center gap-0 p-0' : 'min-h-11 w-full px-2.5 py-2',
-				(open || active) && 'bg-fc-surface'
+				open && 'bg-fc-surface'
 			)}
 		>
 			<Avatar src={user.avatar} name={user.name} alt="" size="sm" class="size-7 text-fc-xs" />
