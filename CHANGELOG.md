@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-03
+
+### Changed
+
+- Spaces use the share-circle icon, through muse v0.8.1.
+
 ## [0.8.0] - 2026-11-03
 
 ### Added
