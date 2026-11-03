@@ -58,10 +58,6 @@ type Push struct {
 	PollInterval   time.Duration
 }
 
-// NativeOrigin is the origin the Capacitor Android app serves its pages from.
-// It is always allowed by CORS while the mobile login is on, so a deploy that
-// overrides CORS_ALLOWED_ORIGINS cannot lock the app out.
-const NativeOrigin = "https://localhost"
 
 // DefaultMobileRedirect is the deep link the Courrier Android app registers.
 const DefaultMobileRedirect = "studio.facile.courrier://auth"
@@ -129,7 +125,7 @@ func Load() (Config, error) {
 			ScopePrefix:     troncenv.String("OIDC_SCOPE_PREFIX", ""),
 			MobileRedirect:  troncenv.String("OIDC_MOBILE_REDIRECT", DefaultMobileRedirect),
 		}
-		cfg.CORSAllowedOrigins = withNativeOrigin(cfg.CORSAllowedOrigins, cfg.OIDC.MobileRedirect)
+		cfg.CORSAllowedOrigins = withAppOrigins(cfg.CORSAllowedOrigins, cfg.OIDC.MobileRedirect)
 	}
 
 	if cfg.Push, err = loadPush(); err != nil {
@@ -139,14 +135,22 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
-// withNativeOrigin adds the Android app's origin to the CORS list when the
-// mobile login is on. It runs after OIDC_SUCCESS_URL has defaulted to the
-// first origin, so the app origin never becomes the web success page.
-func withNativeOrigin(origins []string, mobileRedirect string) []string {
-	if mobileRedirect == "" || slices.Contains(origins, NativeOrigin) {
+// withAppOrigins adds the origins the installed apps serve their pages from to
+// the CORS list when the app login is on: the Capacitor Android app, then the
+// Tauri desktop app on macOS and Linux, then on Windows. A deploy that
+// overrides CORS_ALLOWED_ORIGINS therefore cannot lock the apps out. It runs
+// after OIDC_SUCCESS_URL has defaulted to the first origin, so an app origin
+// never becomes the web success page.
+func withAppOrigins(origins []string, mobileRedirect string) []string {
+	if mobileRedirect == "" {
 		return origins
 	}
-	return append(origins, NativeOrigin)
+	for _, origin := range []string{"https://localhost", "tauri://localhost", "http://tauri.localhost"} {
+		if !slices.Contains(origins, origin) {
+			origins = append(origins, origin)
+		}
+	}
+	return origins
 }
 
 // loadPush reads the FCM service account, the VAPID key pair and the mail
