@@ -3,6 +3,7 @@
 	import MailBody from './MailBody.svelte';
 	import { backend, type EmailMessage, type EmailAttachment } from '$lib/backend';
 	import { Avatar, Button, Spinner, icons } from '@facile/muse';
+	import { isApp } from '$lib/platform';
 
 	let {
 		accountId,
@@ -24,10 +25,16 @@
 	let loadingBodies = $state<Set<number>>(new Set());
 	let loadingThread = $state(false);
 	let loadSeq = 0;
+	let cidToken = $state('');
+
+	$effect(() => {
+		if (!isApp() || !email.id) return;
+		backend.resourceToken().then((r) => (cidToken = r.token), () => undefined);
+	});
 
 	function resolveCIDImages(html: string, emailId: number): string {
 		return html.replace(/src=["']cid:([^"']+)["']/gi, (_match, cid) => {
-			return `src="${backend.getCIDImageUrl(accountId, emailId, cid)}"`;
+			return `src="${backend.getCIDImageUrl(accountId, emailId, cid, cidToken)}"`;
 		});
 	}
 

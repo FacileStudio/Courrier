@@ -1,4 +1,4 @@
-import { apiBase, clearToken, getToken, isNative } from '$lib/platform';
+import { apiBase, clearToken, getToken, isApp } from '$lib/platform';
 
 const backendBaseUrl = apiBase();
 
@@ -192,13 +192,13 @@ function withCSRF(headers: Headers, method: string): Headers {
 }
 
 /**
- * Adds the credential to a request. The Android app holds no cookie for the API's origin, so
+ * Adds the credential to a request. The installed apps hold no cookie for the API's origin, so
  * it sends the bearer token from the mobile sign-in, which porte never asks a CSRF header of.
  * The web app sends its session cookie and the CSRF header on writes.
  */
 export async function authed(options: RequestInit = {}): Promise<RequestInit> {
 	const headers = new Headers(options.headers);
-	if (isNative()) {
+	if (isApp()) {
 		const token = await getToken();
 		if (token) headers.set('Authorization', `Bearer ${token}`);
 		return { ...options, headers };
@@ -208,7 +208,7 @@ export async function authed(options: RequestInit = {}): Promise<RequestInit> {
 
 async function send(path: string, options: RequestInit = {}): Promise<Response> {
 	const response = await fetch(`${backendBaseUrl}${path}`, await authed(options));
-	if (response.status === 401 && isNative()) await clearToken();
+	if (response.status === 401 && isApp()) await clearToken();
 	return response;
 }
 
@@ -358,8 +358,13 @@ export const backend = {
 		return `${backendBaseUrl}/api/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download`;
 	},
 
-	getCIDImageUrl(accountId: number, emailId: number, cid: string): string {
-		return `${backendBaseUrl}/api/accounts/${accountId}/mail/emails/${emailId}/cid/${encodeURIComponent(cid)}`;
+	getCIDImageUrl(accountId: number, emailId: number, cid: string, token = ''): string {
+		const query = token ? `?token=${encodeURIComponent(token)}` : '';
+		return `${backendBaseUrl}/api/accounts/${accountId}/mail/emails/${emailId}/cid/${encodeURIComponent(cid)}${query}`;
+	},
+
+	resourceToken() {
+		return apiFetch<{ token: string }>('/api/auth/resource-token');
 	},
 
 	searchContacts(accountId: number, query: string) {
@@ -540,7 +545,7 @@ export const backend = {
 
 			const xhr = new XMLHttpRequest();
 			xhr.open('POST', `${backendBaseUrl}/api/users/me/avatar`);
-			xhr.withCredentials = !isNative();
+			xhr.withCredentials = !isApp();
 			credential.forEach((value, name) => xhr.setRequestHeader(name, value));
 			xhr.upload.addEventListener('progress', (event) => {
 				if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
