@@ -4,6 +4,13 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-03
+
+### Added
+
+- Desktop self-update system with a dedicated updates settings page, status badges, download progress bar, and action triggers.
+- Root layout checks for desktop updates in background on startup.
+
 ## [0.7.1] - 2026-11-03
 
 ### Fixed
