@@ -35,3 +35,26 @@
 	--radius-lg: var(--radius-fc-lg);
 	--radius-xl: var(--radius-fc-lg);
 }
+
+html[data-desktop] {
+	--titlebar-h: 36px;
+}
+
+html[data-desktop] body {
+	padding-top: var(--titlebar-h);
+	background: var(--color-fc-page);
+}
+
+html[data-desktop] .h-dvh,
+html[data-desktop] .h-screen {
+	height: calc(100dvh - var(--titlebar-h));
+}
+
+html[data-desktop] .min-h-dvh,
+html[data-desktop] .min-h-screen {
+	min-height: calc(100dvh - var(--titlebar-h));
+}
+
+html[data-desktop] .fixed.inset-0 {
+	top: var(--titlebar-h);
+}

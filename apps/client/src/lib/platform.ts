@@ -25,6 +25,11 @@ export function isDesktop(): boolean {
 	return isTauri();
 }
 
+/** True on macOS in the desktop app, where the window keeps the system's own traffic lights. */
+export function hasNativeTrafficLights(): boolean {
+	return isDesktop() && /mac/i.test(navigator.userAgent);
+}
+
 /** True in either installed app, which signs in with a bearer token instead of a cookie. */
 export function isApp(): boolean {
 	return isNative() || isDesktop();

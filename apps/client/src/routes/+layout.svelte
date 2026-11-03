@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { browser } from '$app/environment';
 	import { Toaster } from '@facile/muse';
+	import TitleBar from '$lib/components/native/TitleBar.svelte';
 	import { registerDeepLinks } from '$lib/native';
 	import { isApp, isDesktop } from '$lib/platform';
 	import { theme } from '$lib/theme.svelte';
@@ -13,9 +14,16 @@
 		theme.restore();
 		void import('iconify-icon');
 		if (isApp()) registerDeepLinks();
-		if (isDesktop()) void offerUpdate();
+		if (isDesktop()) {
+			document.documentElement.dataset.desktop = '';
+			void offerUpdate();
+		}
 	}
 </script>
+
+{#if browser && isDesktop()}
+	<TitleBar />
+{/if}
 
 {@render children()}
 
