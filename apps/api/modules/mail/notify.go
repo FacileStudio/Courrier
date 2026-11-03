@@ -38,7 +38,7 @@ func (s *Service) lockFolder(folderID int64) func() {
 }
 
 // WatchInboxes syncs, every interval, the inbox of each account whose owner
-// has a device registered for push, and notifies the owner of the mail it
+// has a device registered for push or a desktop app listening, and notifies the owner of the mail it
 // finds. A sync the web app already ran wins: mail it cached is not new here.
 // It returns when ctx ends.
 func (s *Service) WatchInboxes(ctx context.Context, interval time.Duration, logger *slog.Logger) {
@@ -56,11 +56,12 @@ func (s *Service) WatchInboxes(ctx context.Context, interval time.Duration, logg
 
 func (s *Service) pollInboxes(ctx context.Context, logger *slog.Logger) {
 	var inboxes []watchedInbox
+	live := append([]int64{0}, s.notifier.LiveUsers()...)
 	err := s.orm.WithContext(ctx).Raw(
 		`SELECT f.id AS folder_id, a.id AS account_id, a.user_id
 		   FROM folders f JOIN accounts a ON a.id = f.account_id
-		  WHERE f.type = ? AND a.user_id IN (SELECT DISTINCT user_id FROM push_devices)`,
-		schemas.FolderTypeInbox,
+		  WHERE f.type = ? AND (a.user_id IN (SELECT DISTINCT user_id FROM push_devices) OR a.user_id IN ?)`,
+		schemas.FolderTypeInbox, live,
 	).Scan(&inboxes).Error
 	if err != nil {
 		logger.Warn("listing watched inboxes failed", slog.Any("error", err))

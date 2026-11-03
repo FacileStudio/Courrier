@@ -9,13 +9,14 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// RegisterRoutes mounts /push and /push/devices behind the session.
+// RegisterRoutes mounts /push, /push/stream and /push/devices behind the session.
 func RegisterRoutes(router chi.Router, hub *pushsender.Hub, authenticator middleware.Authenticator) {
 	handler := &Handler{hub: hub}
 	router.Route("/push", func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authenticator))
 		r.Get("/", handler.status)
 		r.Post("/test", handler.test)
+		r.Get("/stream", handler.stream)
 		r.Post("/devices", handler.registerDevice)
 		r.Delete("/devices", handler.forgetDevice)
 	})

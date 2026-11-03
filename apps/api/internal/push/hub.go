@@ -6,10 +6,12 @@ import (
 	"log/slog"
 )
 
-// HubConfig lists the delivery channels. FCM and Web may each be nil.
+// HubConfig lists the delivery channels. FCM and Web may each be nil; a nil
+// Live gets an empty one.
 type HubConfig struct {
 	FCM     *FCM
 	Web     *WebPush
+	Live    *Live
 	Devices DeviceStore
 	Logger  *slog.Logger
 }
@@ -22,6 +24,9 @@ type Hub struct{ cfg HubConfig }
 func NewHub(cfg HubConfig) *Hub {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
+	}
+	if cfg.Live == nil {
+		cfg.Live = NewLive()
 	}
 	return &Hub{cfg: cfg}
 }
@@ -37,8 +42,22 @@ func (h *Hub) WebPushKey() string {
 	return h.cfg.Web.publicKey
 }
 
-// Enabled reports whether any channel delivers notifications.
-func (h *Hub) Enabled() bool { return h.Native() || h.WebPushKey() != "" }
+// Enabled reports whether any channel delivers notifications. The live
+// stream to desktop apps is always on.
+func (h *Hub) Enabled() bool { return h != nil }
+
+// Subscribe streams the user's notifications to an open desktop app.
+func (h *Hub) Subscribe(userID int64) (<-chan Notification, func()) {
+	return h.cfg.Live.Subscribe(userID)
+}
+
+// LiveUsers lists the users with a desktop app listening right now.
+func (h *Hub) LiveUsers() []int64 {
+	if h == nil {
+		return nil
+	}
+	return h.cfg.Live.Users()
+}
 
 // Register records a device when the server can send to its kind.
 func (h *Hub) Register(ctx context.Context, d Device) error {
@@ -59,10 +78,14 @@ func (h *Hub) Unregister(ctx context.Context, userID int64, token string) error 
 	return h.cfg.Devices.DeleteDevice(ctx, userID, token)
 }
 
-// Notify delivers to every device of the user. Failures are logged and never
+// Notify delivers to the user's open desktop apps and every device. Failures are logged and never
 // returned; a device the push service reports as gone is forgotten.
 func (h *Hub) Notify(ctx context.Context, userID int64, n Notification) {
-	if !h.Enabled() {
+	if h == nil {
+		return
+	}
+	h.cfg.Live.publish(userID, n)
+	if h.cfg.Devices == nil || (h.cfg.FCM == nil && h.cfg.Web == nil) {
 		return
 	}
 	devices, err := h.cfg.Devices.Devices(ctx, userID)

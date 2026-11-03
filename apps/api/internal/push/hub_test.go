@@ -72,10 +72,10 @@ func TestHubDeliversToFCMAndForgetsGoneTokens(t *testing.T) {
 	}
 }
 
-func TestHubWithoutChannelsIsOff(t *testing.T) {
+func TestHubWithoutChannelsKeepsOnlyTheLiveStream(t *testing.T) {
 	hub := NewHub(HubConfig{Devices: &memDevices{}})
-	if hub.Enabled() || hub.Native() || hub.WebPushKey() != "" {
-		t.Fatal("a hub with no FCM and no VAPID keys must report every channel off")
+	if !hub.Enabled() || hub.Native() || hub.WebPushKey() != "" {
+		t.Fatal("a hub with no FCM and no VAPID keys must report only the live stream on")
 	}
 	if err := hub.Register(context.Background(), Device{UserID: 1, Kind: KindFCM, Token: "t"}); err != ErrUnsupported {
 		t.Fatalf("fcm device without FCM: %v", err)

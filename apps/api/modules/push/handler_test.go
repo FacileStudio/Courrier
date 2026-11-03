@@ -35,17 +35,17 @@ func serve(t *testing.T, method, path, body string) *httptest.ResponseRecorder {
 	return rec
 }
 
-func TestPushIsOffWithoutChannels(t *testing.T) {
+func TestOnlyTheLiveStreamIsOnWithoutChannels(t *testing.T) {
 	rec := serve(t, http.MethodGet, "/push", "")
 	var status push.StatusResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &status); err != nil || rec.Code != http.StatusOK {
 		t.Fatalf("status %d %s", rec.Code, rec.Body.String())
 	}
-	if status.Enabled || status.Native || status.WebPushKey != "" {
-		t.Fatalf("every channel should be off: %+v", status)
+	if !status.Enabled || status.Native || status.WebPushKey != "" {
+		t.Fatalf("only the live stream should be on: %+v", status)
 	}
-	if rec := serve(t, http.MethodPost, "/push/test", ""); rec.Code != http.StatusConflict {
-		t.Fatalf("test send without a channel: want 409, got %d", rec.Code)
+	if rec := serve(t, http.MethodPost, "/push/test", ""); rec.Code != http.StatusNoContent {
+		t.Fatalf("test send to the live stream: want 204, got %d", rec.Code)
 	}
 	if rec := serve(t, http.MethodPost, "/push/devices", `{"kind":"fcm","token":"t"}`); rec.Code != http.StatusConflict {
 		t.Fatalf("fcm device without FCM: want 409, got %d", rec.Code)

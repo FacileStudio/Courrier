@@ -10,7 +10,8 @@ var unauthorized = documentation.Error{
 var Documentation = documentation.Module{
 	Name: "push",
 	Description: "Push notifications for new inbox mail: the Android app through Firebase Cloud Messaging, " +
-		"browsers through Web Push. Each channel is off until its server settings are set.",
+		"browsers through Web Push, the desktop app through a live event stream. FCM and Web Push are " +
+		"off until their server settings are set.",
 	Routes: []documentation.Route{
 		{
 			Method:  "GET",
@@ -24,17 +25,25 @@ var Documentation = documentation.Module{
 			Errors:       []documentation.Error{unauthorized},
 		},
 		{
+			Method:  "GET",
+			Path:    "/push/stream",
+			Summary: "Stream notifications to the desktop app",
+			Description: "A text/event-stream the desktop app keeps open: one \"notification\" event whose data is " +
+				"the JSON notification, and a comment every 25 seconds. While it is open, the inbox watcher " +
+				"polls the caller's inboxes. Notifications live in memory, so this assumes one API replica.",
+			Auth:         "session cookie or bearer token",
+			ResponseBody: StreamNotification{},
+			Errors:       []documentation.Error{unauthorized},
+		},
+		{
 			Method:       "POST",
 			Path:         "/push/test",
 			Summary:      "Send a test notification",
-			Description:  "Sends a generic test notification to every registered device of the caller.",
+			Description:  "Sends a generic test notification to every registered device and open desktop app of the caller.",
 			Auth:         "session cookie or bearer token",
 			RequestBody:  EmptyRequest{},
 			ResponseBody: EmptyResponse{},
-			Errors: []documentation.Error{
-				unauthorized,
-				{Status: 409, Code: "already_exists", Description: "No push channel is configured on this server."},
-			},
+			Errors:       []documentation.Error{unauthorized},
 		},
 		{
 			Method:  "POST",

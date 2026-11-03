@@ -41,10 +41,6 @@ func (h *Handler) test(w http.ResponseWriter, r *http.Request) {
 		httpjson.WriteError(w, troncerrors.Unauthorized("not authenticated"))
 		return
 	}
-	if !h.hub.Enabled() {
-		httpjson.WriteError(w, troncerrors.Conflict("push is not configured on this server"))
-		return
-	}
 	h.hub.Notify(r.Context(), id, pushsender.Notification{Title: "Courrier", Body: "Test notification", Path: "mail"})
 	w.WriteHeader(http.StatusNoContent)
 }

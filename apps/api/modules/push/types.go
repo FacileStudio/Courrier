@@ -28,3 +28,11 @@ type EmptyRequest struct{}
 
 // EmptyResponse documents a 204 answer.
 type EmptyResponse struct{}
+
+// StreamNotification is the data of one "notification" event on
+// GET /push/stream.
+type StreamNotification struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+	Path  string `json:"path"`
+}
