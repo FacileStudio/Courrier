@@ -12,6 +12,7 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 - The client builds as a Capacitor 8 Android app (`studio.facile.courrier`): an intro carousel, sign-in through the system browser, and a bearer token in place of the session cookie.
 - A first-run flow at `/welcome`: connect a mailbox or pick the one that opens first, turn on notifications, done. It runs once per device in the app, and on the web only for someone with no mailbox.
 - Settings > Notifications turns push on for this phone or browser and sends a test.
+- A public `/downloads` page with the Android APK, its SHA-256 checksum and install steps, linked from the landing page header, hero and footer. The Android app hides it.
 
 ### Changed
 
