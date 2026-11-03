@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { Avatar, icons, springPress, twMerge } from '@facile/muse';
 	import { backend } from '$lib/backend';
-	import { isApp, isDesktop } from '$lib/platform';
+	import { isApp } from '$lib/platform';
 
 	type Entry = { href: string; label: string; icon: string };
 
@@ -16,11 +16,7 @@
 
 	const entries: Entry[] = [
 		{ href: '/settings', label: 'Settings', icon: icons.settings },
-		...(isDesktop()
-			? [{ href: '/downloads', label: 'Android app', icon: icons.download }]
-			: isApp()
-				? []
-				: [{ href: '/downloads', label: 'Desktop app', icon: icons.download }])
+		...(isApp() ? [] : [{ href: '/downloads', label: 'Desktop app', icon: icons.download }])
 	];
 
 	let open = $state(false);
