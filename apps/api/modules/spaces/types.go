@@ -38,12 +38,13 @@ type SpaceResponse struct {
 
 // MemberResponse is a space membership as returned to the client.
 type MemberResponse struct {
-	ID       string `json:"id"`
-	UserID   string `json:"user_id"`
-	Email    string `json:"email"`
-	Name     string `json:"name"`
-	Role     string `json:"role"`
-	JoinedAt string `json:"joined_at"`
+	ID        string `json:"id"`
+	UserID    string `json:"user_id"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	AvatarURL string `json:"avatar_url"`
+	Role      string `json:"role"`
+	JoinedAt  string `json:"joined_at"`
 }
 
 type SpaceListResponse struct {

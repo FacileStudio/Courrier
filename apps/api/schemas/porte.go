@@ -10,9 +10,9 @@ import "gorm.io/gorm"
 // or with a placeholder — would leave every existing SSO user unmatched, which
 // degrades silently to the email fallback rather than failing.
 //
-// An empty issuer skips only the identity backfill. The sessions, the API
-// tokens and the passwords still move, because they are what keeps people
-// signed in and able to sign in again.
+// An empty issuer skips only the identity and picture backfills. The sessions,
+// the API tokens and the passwords still move, because they are what keeps
+// people signed in and able to sign in again.
 func AdoptPorte(db *gorm.DB, issuer string) error {
 	statements := []string{porteSchema, carryLegacySessionsOver, carryAPITokensOver, adoptExistingPasswords}
 	for _, statement := range statements {
@@ -23,7 +23,10 @@ func AdoptPorte(db *gorm.DB, issuer string) error {
 	if issuer == "" {
 		return nil
 	}
-	return db.Exec(adoptOIDCSubjects, issuer).Error
+	if err := db.Exec(adoptOIDCSubjects, issuer).Error; err != nil {
+		return err
+	}
+	return db.Exec(backfillIssuerPictures, issuer, issuer).Error
 }
 
 // porteSchema is porte/pg's Schema with its porte_users table left out and the
@@ -190,4 +193,21 @@ SELECT id, ?, oidc_subject
   FROM users
  WHERE oidc_subject IS NOT NULL AND oidc_subject <> ''
 ON CONFLICT (provider, subject) DO NOTHING;
+`
+
+// backfillIssuerPictures gives every federated user without a stored picture
+// the identity provider's stable avatar URL, <issuer>/avatars/<subject>.
+//
+// Registre serves that URL for every human and answers 404 when there is no
+// picture, which the client draws as initials. Before this, a user who signed
+// in before Registre emitted the claim showed initials until their next
+// sign-in. It only fills empty values, so it is idempotent and never
+// overwrites what the last sign-in or profile sync wrote.
+const backfillIssuerPictures = `
+UPDATE users u
+   SET oidc_picture_url = rtrim(?, '/') || '/avatars/' || i.subject
+  FROM porte_identities i
+ WHERE i.user_id = u.id
+   AND i.provider = ?
+   AND coalesce(u.oidc_picture_url, '') = '';
 `

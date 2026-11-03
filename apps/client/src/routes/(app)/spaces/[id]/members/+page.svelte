@@ -207,7 +207,7 @@
 								<tr>
 									<td>
 										<div class="flex min-w-0 items-center gap-3">
-											<Avatar name={member.name || member.email} size="sm" />
+											<Avatar src={member.avatar_url || undefined} name={member.name || member.email} size="sm" />
 											<div class="min-w-0">
 												<p class="truncate font-medium text-fc-fg">{member.name || member.email}</p>
 												{#if member.name}

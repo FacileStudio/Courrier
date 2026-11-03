@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { icons, springPress, twMerge } from '@facile/muse';
+	import { Avatar, icons, springPress, twMerge } from '@facile/muse';
 
 	let {
 		user,
@@ -29,15 +29,7 @@
 				active && 'bg-fc-surface'
 			)}
 		>
-			{#if user.avatar}
-				<img src={user.avatar} alt="" class="size-7 shrink-0 rounded-fc-pill object-cover" />
-			{:else}
-				<span
-					class="flex size-7 shrink-0 items-center justify-center rounded-fc-pill bg-fc-accent text-fc-xs font-semibold text-fc-accent-fg"
-				>
-					{user.name.charAt(0).toUpperCase()}
-				</span>
-			{/if}
+			<Avatar src={user.avatar} name={user.name} alt="" size="sm" class="size-7 text-fc-xs" />
 			{#if !collapsed}
 				<span class="flex min-w-0 flex-1 items-center justify-between gap-2">
 					<span class="truncate">{user.name}</span>

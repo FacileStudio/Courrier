@@ -115,6 +115,7 @@ export type SpaceMember = {
 	user_id: string;
 	email: string;
 	name: string;
+	avatar_url: string;
 	role: string;
 	joined_at: string;
 };
@@ -479,7 +480,9 @@ export const backend = {
 	},
 
 	listSpaceMembers(spaceId: string) {
-		return apiFetch<{ members: SpaceMember[] }>(`/api/spaces/${spaceId}/members`);
+		return apiFetch<{ members: SpaceMember[] }>(`/api/spaces/${spaceId}/members`).then((r) => ({
+			members: (r.members ?? []).map((m) => ({ ...m, avatar_url: resolveFileUrl(m.avatar_url) }))
+		}));
 	},
 
 	addSpaceMember(spaceId: string, data: { user_id?: number; email?: string; role?: string }) {

@@ -1,6 +1,7 @@
 package schemas
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -290,5 +291,32 @@ func TestAdoptPorteWithoutAnIssuerStillMovesTheCredentials(t *testing.T) {
 	}
 	if federated != 0 {
 		t.Fatalf("an identity was keyed against no provider: %d rows", federated)
+	}
+}
+
+// A federated user who signed in before the picture claim existed gets the
+// issuer's stable avatar URL without signing in again, a picture written by a
+// sign-in is never overwritten, and a password-only user gets nothing.
+func TestAdoptPorteBackfillsTheIssuerPicture(t *testing.T) {
+	db := openTestDatabase(t)
+	seedPrePorte(t, db)
+	if err := db.Exec(`INSERT INTO users (id, email, name, oidc_subject, oidc_picture_url, created_at)
+		VALUES (3, 'lea@facile.studio', 'Lea', 'sub-3', 'https://sso.test/avatars/kept', now())`).Error; err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	for range 2 {
+		if err := AdoptPorte(db, testIssuer); err != nil {
+			t.Fatalf("adopt: %v", err)
+		}
+	}
+
+	var pictures []string
+	if err := db.Raw(`SELECT coalesce(oidc_picture_url, '') FROM users ORDER BY id`).Scan(&pictures).Error; err != nil {
+		t.Fatalf("read pictures: %v", err)
+	}
+	want := []string{"https://porte.test/application/o/courrier/avatars/sub-1", "", "https://sso.test/avatars/kept"}
+	if !slices.Equal(pictures, want) {
+		t.Errorf("pictures = %q, want %q", pictures, want)
 	}
 }

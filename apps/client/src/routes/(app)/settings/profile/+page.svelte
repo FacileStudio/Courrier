@@ -187,7 +187,7 @@
 		<SettingsRow
 			label="Email"
 			description={ssoManaged
-				? 'Managed by Facile SSO — change it at porte.facile.studio and it syncs back here.'
+				? 'Managed by Facile SSO — change it at sso.facile.studio and it syncs back here.'
 				: 'The address you sign in with. Mail accounts have their own addresses.'}
 			for="profile-email"
 			stacked
@@ -229,9 +229,10 @@
 		bare
 	>
 		{#if fromSSO}
-			<Alert tone="info" title="Your photo comes from single sign-on">
-				Change it at porte.facile.studio and it lands here within a few minutes. Courrier keeps
-				no copy, so there is nothing to upload or delete on this side.
+			<Alert tone="info" title="Your photo comes from Facile SSO">
+				Change it in your <a href="https://sso.facile.studio/account" class="underline">Facile
+				account</a> and it shows here on the next page load. Courrier keeps no copy, so there is
+				nothing to upload or delete on this side.
 			</Alert>
 		{:else}
 			<Dropzone
@@ -269,7 +270,7 @@
 	<SettingsSection
 		title="Session"
 		description={ssoManaged
-			? 'Signed in through Facile SSO at porte.facile.studio.'
+			? 'Signed in through Facile SSO at sso.facile.studio.'
 			: 'Signed in with a password on this instance.'}
 	>
 		<SettingsRow

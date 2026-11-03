@@ -2,11 +2,11 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import {
+		Avatar,
 		Badge,
 		Button,
 		Card,
 		EmptyState,
-		SettingsRow,
 		Skeleton,
 		StatCard,
 		icons,
@@ -125,12 +125,20 @@
 				{:else}
 					<Card class="flex flex-col">
 						{#each members as member (member.id)}
-							<SettingsRow
-								label={member.name || member.email}
-								description={member.name ? member.email : undefined}
+							<div
+								class="flex items-center justify-between gap-3 border-t border-fc-border py-4 first:border-t-0 first:pt-0 last:pb-0"
 							>
+								<div class="flex min-w-0 items-center gap-3">
+									<Avatar src={member.avatar_url || undefined} name={member.name || member.email} size="sm" />
+									<div class="min-w-0">
+										<p class="truncate text-fc-sm font-medium text-fc-fg">{member.name || member.email}</p>
+										{#if member.name}
+											<p class="truncate text-fc-xs text-fc-fg-muted">{member.email}</p>
+										{/if}
+									</div>
+								</div>
 								<Badge tone={roleTone(member.role)}>{roleLabel(member.role)}</Badge>
-							</SettingsRow>
+							</div>
 						{/each}
 					</Card>
 				{/if}

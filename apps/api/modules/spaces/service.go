@@ -319,12 +319,13 @@ func (s *Service) ListMembers(ctx context.Context, userID int64, spaceID string)
 	for i, m := range members {
 		u := userMap[m.UserID]
 		resp[i] = MemberResponse{
-			ID:       m.ID,
-			UserID:   strconv.FormatInt(m.UserID, 10),
-			Email:    u.Email,
-			Name:     u.Name,
-			Role:     m.Role,
-			JoinedAt: m.JoinedAt.UTC().Format(time.RFC3339),
+			ID:        m.ID,
+			UserID:    strconv.FormatInt(m.UserID, 10),
+			Email:     u.Email,
+			Name:      u.Name,
+			AvatarURL: u.Avatar(),
+			Role:      m.Role,
+			JoinedAt:  m.JoinedAt.UTC().Format(time.RFC3339),
 		}
 	}
 
