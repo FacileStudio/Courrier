@@ -1,6 +1,7 @@
 import { goto } from '$app/navigation';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { backend, type PushConfig } from '$lib/backend';
+import { desktopPermission, enableDesktop } from '$lib/desktop-notifications';
 import { isDesktop, isNative } from '$lib/platform';
 import { routeFor } from '$lib/push-route';
 
@@ -10,7 +11,7 @@ let listening = false;
 
 /** Reads whether this device lets Courrier show notifications. */
 export async function permission(): Promise<Permission> {
-	if (isDesktop()) return 'unsupported';
+	if (isDesktop()) return desktopPermission();
 	if (isNative()) {
 		const { receive } = await PushNotifications.checkPermissions();
 		return receive === 'granted' ? 'granted' : receive === 'denied' ? 'denied' : 'prompt';
@@ -25,10 +26,11 @@ export async function permission(): Promise<Permission> {
 /**
  * Says whether the server can deliver to this kind of device. The Android app must not call
  * PushNotifications.register() unless native is on: an APK built without google-services.json
- * crashes on it.
+ * crashes on it. The desktop app listens on the server's live stream, which is always on.
  */
 export function supported(config: PushConfig | null): boolean {
-	if (!config || isDesktop()) return false;
+	if (!config) return false;
+	if (isDesktop()) return true;
 	return isNative() ? config.native : !!config.web_push_key;
 }
 
@@ -70,9 +72,14 @@ async function subscribeWeb(publicKey: string) {
 
 /**
  * Registers this device with the server when permission is already granted, so a rotated FCM
- * token or a fresh browser subscription keeps working. Never prompts.
+ * token or a fresh browser subscription keeps working. Never prompts, except that the desktop
+ * app asks the OS once and then opens its live stream: notifications are on there by default.
  */
 export async function syncDevice(config: PushConfig | null): Promise<void> {
+	if (isDesktop()) {
+		await enableDesktop();
+		return;
+	}
 	if (!supported(config) || (await permission()) !== 'granted') return;
 	if (isNative()) {
 		listenNative();
@@ -85,6 +92,7 @@ export async function syncDevice(config: PushConfig | null): Promise<void> {
 /** Asks the system for permission, then registers this device. Call it from a click. */
 export async function enable(config: PushConfig | null): Promise<Permission> {
 	if (!supported(config)) return 'unsupported';
+	if (isDesktop()) return enableDesktop();
 	if (isNative()) {
 		listenNative();
 		const { receive } = await PushNotifications.requestPermissions();

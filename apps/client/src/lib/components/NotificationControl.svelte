@@ -51,10 +51,6 @@
 <div class="flex flex-col gap-4" aria-live="polite">
 	{#if access === 'loading'}
 		<Spinner size="sm" />
-	{:else if desktop}
-		<p class="text-fc-sm text-fc-fg-muted">
-			The desktop app does not show notifications yet. The Android app and a browser tab do.
-		</p>
 	{:else if !supported(push)}
 		<p class="text-fc-sm text-fc-fg-muted">
 			{native ? 'Phone notifications' : 'Browser notifications'} are not set up on this server yet.
@@ -65,7 +61,9 @@
 		<Alert tone="warning">
 			{native
 				? 'Notifications are blocked. Turn them on in Settings > Apps > Courrier > Notifications.'
-				: 'Notifications are blocked for this site. Allow them in your browser settings.'}
+				: desktop
+					? 'Notifications are blocked. Allow Courrier in your system notification settings.'
+					: 'Notifications are blocked for this site. Allow them in your browser settings.'}
 		</Alert>
 	{:else if access === 'prompt'}
 		<div>
