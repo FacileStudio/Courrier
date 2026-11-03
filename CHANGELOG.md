@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-03
+
+### Fixed
+
+- The desktop app account menu no longer shows a download option for the mobile app.
+
 ## [0.7.0] - 2026-11-03
 
 ### Added
