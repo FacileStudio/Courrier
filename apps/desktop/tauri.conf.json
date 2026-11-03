@@ -1,0 +1,68 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Courrier",
+  "mainBinaryName": "courrier-desktop",
+  "version": "../client/package.json",
+  "identifier": "studio.facile.courrier",
+  "build": {
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../client/build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Courrier",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 800,
+        "minHeight": 560,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; font-src 'self' data: https:; media-src 'self' data: blob: https:; connect-src 'self' ipc: http://ipc.localhost https://courrier.facile.studio https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com",
+      "dangerousDisableAssetCspModification": [
+        "style-src"
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": [
+      "deb",
+      "appimage",
+      "nsis",
+      "dmg",
+      "app"
+    ],
+    "category": "Productivity",
+    "shortDescription": "Self-hosted email for creative studios",
+    "publisher": "Facile",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "studio.facile.courrier"
+        ]
+      }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFEMTBBNUQ0QzQyRUQ2QzAKUldUQTFpN0UxS1VRSGNtOFNCMDVYa1hrL1lWcncvQ3lCNmN3SUNVdFVRYUl4OEhXRE1CU21SVXUK",
+      "endpoints": [
+        "https://github.com/FacileStudio/Courrier/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}
