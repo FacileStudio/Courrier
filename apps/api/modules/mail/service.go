@@ -14,6 +14,7 @@ import (
 	"github.com/emersion/go-imap/v2"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/crypto"
+	"github.com/FacileStudio/Courrier/apps/api/internal/push"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/tronc/errors"
 	"github.com/FacileStudio/tronc/httpjson"
@@ -31,6 +32,8 @@ type Service struct {
 	cooldowns     sync.Map
 	dial          imapDialer
 	deliver       smtpDeliverer
+	notifier      *push.Hub
+	folderLocks   sync.Map
 }
 
 // NewService builds a mail Service over the database and the app's encryption
@@ -199,20 +202,36 @@ func (s *Service) SyncAccount(ctx context.Context, userID, accountID int64) erro
 	return nil
 }
 
+// SyncFolderEmails caches the newest messages of one folder from IMAP.
 func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folderID int64) error {
+	_, _, err := s.syncFolder(ctx, userID, accountID, folderID)
+	return err
+}
+
+// syncFolder is SyncFolderEmails returning the account and the messages it
+// cached for the first time. fresh stays empty on a folder's first sync and
+// after a UIDVALIDITY reset, when every message is new to the cache but not
+// to the user.
+func (s *Service) syncFolder(ctx context.Context, userID, accountID, folderID int64) (schemas.Account, []schemas.Email, error) {
+	unlock := s.lockFolder(folderID)
+	defer unlock()
+
 	account, err := s.getAccountDecrypted(ctx, userID, accountID)
 	if err != nil {
-		return err
+		return account, nil, err
 	}
 
 	var folder schemas.Folder
 	if err := s.orm.WithContext(ctx).Where("id = ? AND account_id = ?", folderID, accountID).First(&folder).Error; err != nil {
-		return errors.NotFound("folder not found")
+		return account, nil, errors.NotFound("folder not found")
 	}
+	var cached int64
+	s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("folder_id = ?", folderID).Limit(1).Count(&cached)
+	var fresh []schemas.Email
 
 	client, err := s.connect(account)
 	if err != nil {
-		return errors.Failed(err.Error())
+		return account, nil, errors.Failed(err.Error())
 	}
 	defer func() {
 		client.Logout().Wait()
@@ -221,11 +240,12 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 
 	msgs, selectData, err := fetchEnvelopes(client, folder.Path, 100)
 	if err != nil {
-		return errors.Internal("failed to fetch emails", err)
+		return account, nil, errors.Internal("failed to fetch emails", err)
 	}
 
 	if selectData != nil && selectData.UIDValidity != folder.UIDValidity && folder.UIDValidity != 0 {
 		s.orm.WithContext(ctx).Where("folder_id = ?", folderID).Delete(&schemas.Email{})
+		cached = 0
 	}
 
 	if selectData != nil {
@@ -284,6 +304,9 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 
 		s.orm.WithContext(ctx).Create(&email)
 		s.recordSyncedSent(ctx, folder, account.SpaceID, env)
+		if cached > 0 && email.ID != 0 {
+			fresh = append(fresh, email)
+		}
 
 		if len(attachments) > 0 {
 			for i := range attachments {
@@ -325,7 +348,7 @@ func (s *Service) SyncFolderEmails(ctx context.Context, userID, accountID, folde
 	s.orm.WithContext(ctx).Model(&folder).Update("unread_count", unreadCount)
 	s.backfillAfterSync(userID, accountID)
 
-	return nil
+	return account, fresh, nil
 }
 
 func (s *Service) GetFolders(ctx context.Context, userID, accountID int64) ([]schemas.Folder, error) {

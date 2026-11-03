@@ -2,6 +2,9 @@ package env
 
 import (
 	"fmt"
+	"slices"
+	"strings"
+	"time"
 
 	troncenv "github.com/FacileStudio/tronc/env"
 
@@ -38,7 +41,30 @@ type OIDCConfig struct {
 	// courrier.write, anything else needs courrier.write. It requires
 	// MachineAudience.
 	ScopePrefix string
+
+	// MobileRedirect is where porte's ?flow=mobile login hands the one-time
+	// code back to the Android app: its custom scheme, never a value taken
+	// from the request.
+	MobileRedirect string
 }
+
+// Push holds the notification channels. Each one is off while its values
+// are empty, and the mail watcher only runs while a channel is on.
+type Push struct {
+	FCMCredentials string
+	VAPIDPublic    string
+	VAPIDPrivate   string
+	VAPIDSubject   string
+	PollInterval   time.Duration
+}
+
+// NativeOrigin is the origin the Capacitor Android app serves its pages from.
+// It is always allowed by CORS while the mobile login is on, so a deploy that
+// overrides CORS_ALLOWED_ORIGINS cannot lock the app out.
+const NativeOrigin = "https://localhost"
+
+// DefaultMobileRedirect is the deep link the Courrier Android app registers.
+const DefaultMobileRedirect = "studio.facile.courrier://auth"
 
 // Config is the fully-resolved application configuration: the core tronc
 // settings plus the storage, SSO and encryption values this app reads.
@@ -49,6 +75,7 @@ type Config struct {
 	SSOOnly             bool
 	ResourceTokenSecret []byte
 	EncryptionKey       []byte
+	Push                Push
 }
 
 // Load reads the configuration from the environment, deriving the encryption
@@ -100,10 +127,45 @@ func Load() (Config, error) {
 
 			MachineAudience: troncenv.String("OIDC_MACHINE_AUDIENCE", ""),
 			ScopePrefix:     troncenv.String("OIDC_SCOPE_PREFIX", ""),
+			MobileRedirect:  troncenv.String("OIDC_MOBILE_REDIRECT", DefaultMobileRedirect),
 		}
+		cfg.CORSAllowedOrigins = withNativeOrigin(cfg.CORSAllowedOrigins, cfg.OIDC.MobileRedirect)
+	}
+
+	if cfg.Push, err = loadPush(); err != nil {
+		return Config{}, err
 	}
 
 	return cfg, nil
+}
+
+// withNativeOrigin adds the Android app's origin to the CORS list when the
+// mobile login is on. It runs after OIDC_SUCCESS_URL has defaulted to the
+// first origin, so the app origin never becomes the web success page.
+func withNativeOrigin(origins []string, mobileRedirect string) []string {
+	if mobileRedirect == "" || slices.Contains(origins, NativeOrigin) {
+		return origins
+	}
+	return append(origins, NativeOrigin)
+}
+
+// loadPush reads the FCM service account, the VAPID key pair and the mail
+// watcher interval. MAIL_POLL_INTERVAL=0 turns the watcher off.
+func loadPush() (Push, error) {
+	interval, err := troncenv.Duration("MAIL_POLL_INTERVAL", 2*time.Minute)
+	if err != nil {
+		return Push{}, err
+	}
+	if interval < 0 {
+		return Push{}, fmt.Errorf("MAIL_POLL_INTERVAL must not be negative")
+	}
+	return Push{
+		FCMCredentials: troncenv.String("FCM_SERVICE_ACCOUNT", ""),
+		VAPIDPublic:    strings.TrimSpace(troncenv.String("VAPID_PUBLIC_KEY", "")),
+		VAPIDPrivate:   strings.TrimSpace(troncenv.String("VAPID_PRIVATE_KEY", "")),
+		VAPIDSubject:   troncenv.String("VAPID_SUBJECT", "mailto:contact@facile.studio"),
+		PollInterval:   interval,
+	}, nil
 }
 
 // Porte is the one configuration porte's session manager, OIDC kit and local
@@ -137,6 +199,7 @@ func (c Config) Porte() porte.Config {
 	cfg.CLIAudience = c.OIDC.CLIAudience
 	cfg.MachineAudience = c.OIDC.MachineAudience
 	cfg.ScopePrefix = c.OIDC.ScopePrefix
+	cfg.MobileRedirect = c.OIDC.MobileRedirect
 	return cfg
 }
 

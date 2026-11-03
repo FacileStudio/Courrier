@@ -17,9 +17,11 @@ import (
 	documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
+	"github.com/FacileStudio/Courrier/apps/api/internal/push"
 	"github.com/FacileStudio/Courrier/apps/api/modules/accounts"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
+	pushmodule "github.com/FacileStudio/Courrier/apps/api/modules/push"
 	"github.com/FacileStudio/Courrier/apps/api/modules/settings"
 	"github.com/FacileStudio/Courrier/apps/api/modules/spaces"
 	"github.com/FacileStudio/Courrier/apps/api/modules/users"
@@ -64,6 +66,7 @@ func referenceConfig() apiref.Config {
 				users.Documentation,
 				settings.Documentation,
 				spaces.Documentation,
+				pushmodule.Documentation,
 			},
 		},
 	}
@@ -83,10 +86,10 @@ func referenceConfig() apiref.Config {
 // Courrier's password floor has always been eight characters while porte
 // defaults to twelve; raising it here would reject a password this app
 // accepted yesterday — a product decision, not a migration.
-func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *slog.Logger) (*session.Manager, *local.Kit, *oidc.Kit, error) {
+func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *slog.Logger) (services, error) {
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, nil, nil, err
+		return services{}, err
 	}
 	store := portepg.New(sqlDB)
 	users := auth.NewUserStore(db)
@@ -94,7 +97,7 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 
 	sessions, err := session.New(cfg, session.Deps{Sessions: store.Sessions(), Logger: appLogger})
 	if err != nil {
-		return nil, nil, nil, err
+		return services{}, err
 	}
 	kit, err := oidc.New(ctx, cfg, oidc.Deps{
 		Users:      users,
@@ -104,7 +107,7 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 		Logger:     appLogger,
 	})
 	if err != nil {
-		return nil, nil, nil, err
+		return services{}, err
 	}
 	passwords, err := local.New(local.Config{AllowRegistration: !appEnv.SSOOnly, MinPasswordLength: 8}, local.Deps{
 		Users:      users,
@@ -114,9 +117,20 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 		Count:      users.CountUsers,
 	})
 	if err != nil {
-		return nil, nil, nil, err
+		return services{}, err
 	}
-	return sessions, passwords, kit, nil
+	return services{sessions: sessions, passwords: passwords, kit: kit}, nil
+}
+
+// services are the long-lived pieces run builds once: porte's session manager,
+// password login and OIDC kit, the mail service the watcher shares with the
+// HTTP routes, and the push hub.
+type services struct {
+	sessions  *session.Manager
+	passwords *local.Kit
+	kit       *oidc.Kit
+	mail      *mail.Service
+	push      *push.Hub
 }
 
 // buildRouter wires every module service and the shared middleware onto the
@@ -126,10 +140,9 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 // trusted: Traefik replaces the forwarded chain rather than extending it, so
 // the visitor survives in Cf-Connecting-Ip alone. TRUSTED_PROXIES=private,cloudflare
 // fills all three.
-func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger *slog.Logger, sessions *session.Manager, passwords *local.Kit, kit *oidc.Kit) chi.Router {
-	authService := auth.NewService(db, sessions, passwords, appLogger)
+func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger *slog.Logger, svc services) chi.Router {
+	authService := auth.NewService(db, svc.sessions, svc.passwords, appLogger)
 	accountService := accounts.NewService(db, appEnv.EncryptionKey)
-	mailService := mail.NewService(db, appEnv.EncryptionKey)
 	userService := users.NewService(db, appEnv.StorageDir, authService)
 	settingsService := settings.NewService(len(appEnv.EncryptionKey) > 0)
 	spaceService := spaces.NewService(db)
@@ -152,11 +165,12 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 	router.Route("/api", func(r chi.Router) {
 		r.Handle("/files/*", http.StripPrefix("/api/files/", http.FileServer(http.Dir(appEnv.StorageDir))))
 
-		sessions.Mount(r)
-		kit.Mount(r)
+		svc.sessions.Mount(r)
+		svc.kit.Mount(r)
 		auth.RegisterRoutes(r, authService, appEnv)
 		accounts.RegisterRoutes(r, accountService, authService)
-		mail.RegisterRoutes(r, mailService, authService, appEnv.ResourceTokenSecret)
+		mail.RegisterRoutes(r, svc.mail, authService, appEnv.ResourceTokenSecret)
+		pushmodule.RegisterRoutes(r, svc.push, authService)
 		users.RegisterRoutes(r, userService, authService)
 		settings.RegisterRoutes(r, settingsService, authService)
 		spaces.RegisterRoutes(r, spaceService, authService)
@@ -230,13 +244,15 @@ func run() int {
 		}
 	}()
 
-	sessions, passwords, kit, err := buildAuth(context.Background(), db, appEnv, appLogger)
+	svc, err := buildAuth(context.Background(), db, appEnv, appLogger)
 	if err != nil {
 		appLogger.Error("failed to build authentication", slog.Any("error", err))
 		return 1
 	}
+	svc.push = newPushHub(db, appEnv.Push, appLogger)
+	svc.mail = mail.NewService(db, appEnv.EncryptionKey).WithNotifier(svc.push)
 
-	router := buildRouter(db, health.DB(sqlDB), appEnv, appLogger, sessions, passwords, kit)
+	router := buildRouter(db, health.DB(sqlDB), appEnv, appLogger, svc)
 
 	addr := ":" + strconv.Itoa(appEnv.Port)
 	server := &http.Server{
@@ -254,6 +270,9 @@ func run() int {
 
 	shutdownSignal, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if svc.push.Enabled() && appEnv.Push.PollInterval > 0 {
+		go svc.mail.WatchInboxes(shutdownSignal, appEnv.Push.PollInterval, appLogger)
+	}
 
 	appLogger.Info("server starting", slog.String("addr", addr))
 	select {

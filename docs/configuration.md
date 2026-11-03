@@ -96,6 +96,40 @@ prefix on every boot.
 Setting `OIDC_ISSUER` without all three of the client id, secret, and redirect URL fails
 startup with an explicit error.
 
+`OIDC_MOBILE_REDIRECT` (default `studio.facile.courrier://auth`) is where porte's
+`?flow=mobile` login hands the one-time code back to the Android app. It must match the
+scheme in `apps/client/capacitor.config.ts`. While SSO is on, the API also adds the
+Capacitor origin `https://localhost` to the CORS list by itself, so a deploy that sets
+`CORS_ALLOWED_ORIGINS` explicitly cannot lock the app out of `/api/auth/oidc/exchange`.
+The Registre client needs no new redirect URI: the browser still returns to
+`/api/auth/oidc/callback`.
+
+## Push notifications
+
+New inbox mail reaches the Android app through Firebase Cloud Messaging and browsers
+through Web Push. Each channel is off while its variables are empty, and the API logs which
+one is off at boot.
+
+| Variable | Required | Default | What it does |
+|---|---|---|---|
+| `FCM_SERVICE_ACCOUNT` | no | — | Firebase service-account JSON, raw or base64, from the project the Android app's `google-services.json` belongs to (`courrier-de1ea`). Turns native Android push on |
+| `VAPID_PUBLIC_KEY` | no | — | Web Push public key, base64url. Browsers subscribe with it |
+| `VAPID_PRIVATE_KEY` | no | — | Web Push private key. Both VAPID keys turn browser push on |
+| `VAPID_SUBJECT` | no | `mailto:contact@facile.studio` | Contact the push services see on every request |
+| `MAIL_POLL_INTERVAL` | no | `2m` | How often the API syncs the inbox of every account whose owner registered a device. `0` turns the watcher off |
+
+The watcher only runs while a channel is on. It notifies for unread mail under a day old
+that the classifier did not mark as bulk or automated, and it says the sender's name and
+the receiving address, never a subject or a body. Mail the web app already synced is not
+new to the watcher, so an open inbox does not also buzz the phone.
+
+**Ship an APK with `google-services.json` before setting `FCM_SERVICE_ACCOUNT`.** The
+app calls `PushNotifications.register()` only when `GET /api/push` says `native: true`,
+and an APK built without the Firebase file crashes on that call.
+
+Generate a VAPID pair once with `bunx web-push generate-vapid-keys` and keep it: rotating
+it drops every browser subscription.
+
 ## Compose-only
 
 `POSTGRES_USER` and `POSTGRES_PASSWORD` are **required** by `docker-compose.yml` —

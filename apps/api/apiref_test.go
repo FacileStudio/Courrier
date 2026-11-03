@@ -11,6 +11,7 @@ import (
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
+	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/porte/local"
 	"github.com/FacileStudio/porte/oidc"
 	portepg "github.com/FacileStudio/porte/pg"
@@ -42,7 +43,8 @@ func referenceRouter(t *testing.T) chi.Router {
 	if err != nil {
 		t.Fatalf("local.New: %v", err)
 	}
-	return buildRouter(nil, func(context.Context) error { return nil }, appEnv, appLogger, sessions, passwords, kit)
+	svc := services{sessions: sessions, passwords: passwords, kit: kit, mail: mail.NewService(nil, nil)}
+	return buildRouter(nil, func(context.Context) error { return nil }, appEnv, appLogger, svc)
 }
 
 func TestEveryRouteIsDocumented(t *testing.T) {

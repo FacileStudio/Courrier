@@ -34,6 +34,10 @@ func MigrateWithIssuer(db *gorm.DB, issuer string) error {
 		return err
 	}
 
+	if err := ensurePushDevices(db); err != nil {
+		return err
+	}
+
 	ensureSearchIndexes(db)
 
 	if err := backfillAvatarURLs(db); err != nil {
