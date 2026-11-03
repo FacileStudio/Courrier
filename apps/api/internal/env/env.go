@@ -58,7 +58,6 @@ type Push struct {
 	PollInterval   time.Duration
 }
 
-
 // DefaultMobileRedirect is the deep link the Courrier Android app registers.
 const DefaultMobileRedirect = "studio.facile.courrier://auth"
 
