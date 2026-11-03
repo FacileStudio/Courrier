@@ -92,7 +92,7 @@
 			<div class="flex items-center gap-2">
 				<Button variant="ghost" href="/settings" icon={icons.chevronLeft}>Réglages</Button>
 				{#if manageUrl}
-					<Button href={manageUrl} icon={icons.shield}>Gérer dans Registre</Button>
+					<Button href={manageUrl} icon={icons.space}>Gérer dans Registre</Button>
 				{:else}
 					<Button icon={icons.plus} onclick={openCreate}>Nouvel espace</Button>
 				{/if}
@@ -107,14 +107,14 @@
 			</div>
 		{:else if spaces.length === 0}
 			<EmptyState
-				icon={icons.usersGroup}
+				icon={icons.space}
 				title="Aucun espace"
 				description={manageUrl
 					? 'Les espaces se créent dans Registre et apparaissent ici en quelques secondes.'
 					: 'Créez un espace pour partager des comptes mail et des dossiers avec votre équipe.'}
 			>
 				{#if manageUrl}
-					<Button href={manageUrl} icon={icons.shield}>Gérer dans Registre</Button>
+					<Button href={manageUrl} icon={icons.space}>Gérer dans Registre</Button>
 				{:else}
 					<Button icon={icons.plus} onclick={openCreate}>Créer votre premier espace</Button>
 				{/if}
@@ -129,7 +129,7 @@
 									class="flex size-10 shrink-0 items-center justify-center rounded-fc-md bg-fc-surface text-fc-fg-muted transition-colors group-hover:bg-fc-accent group-hover:text-fc-accent-fg"
 								>
 									<iconify-icon
-										icon={icons.usersGroup}
+										icon={icons.space}
 										width="20"
 										height="20"
 										class="block size-5"

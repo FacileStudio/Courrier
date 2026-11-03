@@ -99,7 +99,7 @@
 			</div>
 		{:else if !space}
 			<EmptyState
-				icon={icons.warning}
+				icon={icons.space}
 				title="Espace introuvable"
 				description="Il a peut-être été supprimé, ou votre accès a été retiré."
 			>
@@ -120,7 +120,7 @@
 					description="Le nom, les membres et leurs rôles se modifient dans Registre, pour toutes les apps Facile à la fois."
 				>
 					<div>
-						<Button href={space.manage_url} icon={icons.shield}>Gérer dans Registre</Button>
+						<Button href={space.manage_url} icon={icons.space}>Gérer dans Registre</Button>
 					</div>
 				</SettingsSection>
 			{:else}

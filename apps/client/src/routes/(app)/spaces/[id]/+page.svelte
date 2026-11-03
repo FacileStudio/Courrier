@@ -67,7 +67,7 @@
 			</div>
 		{:else if !space}
 			<EmptyState
-				icon={icons.warning}
+				icon={icons.space}
 				title="Espace introuvable"
 				description="Il a peut-être été supprimé, ou votre accès a été retiré."
 			>
@@ -87,7 +87,7 @@
 						{isActive ? 'Espace actif' : 'Basculer vers cet espace'}
 					</Button>
 					{#if space.manage_url}
-						<Button variant="outline" href={space.manage_url} icon={icons.shield}>
+						<Button variant="outline" href={space.manage_url} icon={icons.space}>
 							Gérer dans Registre
 						</Button>
 					{:else if isOwnerOrAdmin}

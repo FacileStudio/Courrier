@@ -137,7 +137,7 @@
 			</div>
 		{:else if !space}
 			<EmptyState
-				icon={icons.warning}
+				icon={icons.space}
 				title="Espace introuvable"
 				description="Il a peut-être été supprimé, ou votre accès a été retiré."
 			>
@@ -152,7 +152,7 @@
 				<div class="flex flex-wrap items-center gap-2">
 					<Button variant="ghost" href="/spaces/{spaceId}" icon={icons.chevronLeft}>Espace</Button>
 					{#if space.manage_url}
-						<Button href={space.manage_url} icon={icons.shield}>Gérer dans Registre</Button>
+						<Button href={space.manage_url} icon={icons.space}>Gérer dans Registre</Button>
 					{/if}
 				</div>
 			</div>
