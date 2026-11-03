@@ -26,7 +26,8 @@ apps/
     internal/             Shared infra (database, middleware, logger, env, errors, etc.)
     schemas/              GORM models and migrations (auto-run on startup)
     vendor/               Vendored Go dependencies
-  client/                 SvelteKit frontend
+  desktop/                Tauri 2 desktop shell (own Cargo workspace) around ../client/build
+  client/                 SvelteKit frontend (android/ is the Capacitor app)
     src/
       routes/             SvelteKit file-based routing
         (app)/            Authenticated layout group (mail, settings, profile)
@@ -121,4 +122,10 @@ unknown `/api/*` path return 404 instead of falling through to the SPA catch-all
   (`github.com/FacileStudio/tronc/testdb` gives each test binary its own schema); without it
   those tests skip loudly. SQLite is not an option here — the gate rejects the driver.
 - **Local dev** still uses two processes: `go run .` (API on :4000) + `bun run dev` (client on :5173 with `VITE_API_BASE_URL=http://localhost:4000`).
+- **Installed apps** -- `isNative()` is the Capacitor Android app, `isDesktop()` the Tauri app,
+  `isApp()` either. Both sign in with porte's `flow=mobile` (system browser, then the
+  `studio.facile.courrier://auth` deep link) and send a bearer token instead of the cookie.
+  The desktop version is read from `apps/client/package.json`; the updater key lives in tiroir
+  as `COURRIER_TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)` and in GitHub secrets
+  `TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)`. Never rotate it, or installed apps stop updating.
 - **One Dockerfile** at the repo root builds the whole app (bun build + go build -> distroless). There are no per-app Dockerfiles; local dev runs the two processes directly.

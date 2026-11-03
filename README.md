@@ -63,6 +63,9 @@ cp .env.example .env
 bun run dev
 ```
 
+The desktop app runs against that dev server with `cd apps/desktop && mise run dev`.
+On Linux it needs the WebKitGTK 4.1 development packages.
+
 The API does not read a `.env` file — it takes everything from the process environment.
 The client runs on <http://localhost:5173> and calls the API at `VITE_API_BASE_URL`.
 
@@ -85,7 +88,9 @@ Full reference: [docs/configuration.md](docs/configuration.md).
 apps/
   api/       Go backend — modules/ (auth, accounts, mail, users, settings, spaces),
              schemas/ (GORM models), internal/ (crypto, resourcetoken, middleware)
-  client/    SvelteKit 5 SPA, built into the API image and served by it
+  client/    SvelteKit 5 SPA, built into the API image and served by it; android/ wraps it
+             as the Capacitor app
+  desktop/   Tauri 2 shell around the same client build (mise run dev / mise run build)
 scripts/     check.sh, the quality gate the pre-push hook runs
 docs/        Architecture, configuration, development, deployment, API
 ```
