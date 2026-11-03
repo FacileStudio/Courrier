@@ -10,6 +10,9 @@
 	import { searchStore } from '$lib/stores/search.svelte';
 	import AccountSwitcher from '$lib/components/AccountSwitcher.svelte';
 	import SidebarFooter from '$lib/components/SidebarFooter.svelte';
+	import { syncDevice } from '$lib/notifications';
+	import { needsOnboarding, onboardingSeen } from '$lib/onboarding/steps';
+	import { isNative } from '$lib/platform';
 
 	let { children } = $props();
 
@@ -94,6 +97,12 @@
 				}
 			}).catch(() => {});
 			await Promise.all([refreshAccounts(), refreshSpaces()]);
+			const firstRun = needsOnboarding({ native: isNative(), seen: onboardingSeen(), accounts: accounts.length });
+			if (!spaceStore.active && firstRun) {
+				await goto('/welcome', { replaceState: true });
+				return;
+			}
+			void backend.getPush().then(syncDevice).catch(() => undefined);
 		} catch (err) {
 			if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
 				goto('/login');

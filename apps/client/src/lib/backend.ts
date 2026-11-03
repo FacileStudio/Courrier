@@ -1,4 +1,10 @@
-const backendBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || '';
+import { apiBase, clearToken, getToken, isNative } from '$lib/platform';
+
+const backendBaseUrl = apiBase();
+
+export type PushConfig = { enabled: boolean; native: boolean; web_push_key?: string };
+
+export type PushDevice = { kind: 'fcm' | 'web'; token: string; p256dh?: string; auth?: string };
 
 export type AuthResponse = {
 	user_id: string;
@@ -184,12 +190,33 @@ function withCSRF(headers: Headers, method: string): Headers {
 	return headers;
 }
 
+/**
+ * Adds the credential to a request. The Android app holds no cookie for the API's origin, so
+ * it sends the bearer token from the mobile sign-in, which porte never asks a CSRF header of.
+ * The web app sends its session cookie and the CSRF header on writes.
+ */
+export async function authed(options: RequestInit = {}): Promise<RequestInit> {
+	const headers = new Headers(options.headers);
+	if (isNative()) {
+		const token = await getToken();
+		if (token) headers.set('Authorization', `Bearer ${token}`);
+		return { ...options, headers };
+	}
+	return { ...options, headers: withCSRF(headers, options.method ?? 'GET'), credentials: 'include' };
+}
+
+async function send(path: string, options: RequestInit = {}): Promise<Response> {
+	const response = await fetch(`${backendBaseUrl}${path}`, await authed(options));
+	if (response.status === 401 && isNative()) await clearToken();
+	return response;
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}) {
-	const headers = withCSRF(new Headers(options.headers), options.method ?? 'GET');
+	const headers = new Headers(options.headers);
 	if (!headers.has('Content-Type') && options.body) {
 		headers.set('Content-Type', 'application/json');
 	}
-	const response = await fetch(`${backendBaseUrl}${path}`, { ...options, headers, credentials: 'include' });
+	const response = await send(path, { ...options, headers });
 	if (!response.ok) {
 		let payload: ApiErrorPayload | undefined;
 		try {
@@ -204,6 +231,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}) {
 			Number.isFinite(seconds) && seconds > 0 ? seconds : undefined
 		);
 	}
+	if (response.status === 204) return undefined as T;
 	return (await response.json()) as T;
 }
 
@@ -232,8 +260,12 @@ export const backend = {
 			body: JSON.stringify({ email, password })
 		});
 	},
-	logout() {
-		return apiFetch<{ ok: boolean }>('/api/auth/logout', { method: 'POST' });
+	async logout() {
+		try {
+			return await apiFetch<{ ok: boolean }>('/api/auth/logout', { method: 'POST' });
+		} finally {
+			await clearToken();
+		}
 	},
 	me() {
 		return apiFetch<MeResponse>('/api/users/me').then((r) => ({
@@ -336,12 +368,7 @@ export const backend = {
 	},
 
 	async sendEmailWithAttachments(accountId: number, data: FormData): Promise<{ sent: boolean }> {
-		const response = await fetch(`${backendBaseUrl}/api/accounts/${accountId}/mail/send`, {
-			method: 'POST',
-			credentials: 'include',
-			headers: withCSRF(new Headers(), 'POST'),
-			body: data
-		});
+		const response = await send(`/api/accounts/${accountId}/mail/send`, { method: 'POST', body: data });
 		if (!response.ok) {
 			let payload: ApiErrorPayload | undefined;
 			try {
@@ -368,9 +395,8 @@ export const backend = {
 	},
 
 	async downloadAttachment(accountId: number, emailId: number, attachmentId: number, filename: string): Promise<void> {
-		const response = await fetch(
-			`${backendBaseUrl}/api/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download`,
-			{ credentials: 'include' }
+		const response = await send(
+			`/api/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download`
 		);
 		if (!response.ok) {
 			throw new Error(`Download failed with status ${response.status}`);
@@ -503,14 +529,16 @@ export const backend = {
 	 * Uploaded over XHR rather than fetch because `UploadProgress` wants a real percentage and
 	 * `fetch` still cannot report request-body progress in any browser.
 	 */
-	uploadAvatar(file: File, onProgress: (percent: number) => void): Promise<UserProfile> {
+	async uploadAvatar(file: File, onProgress: (percent: number) => void): Promise<UserProfile> {
+		const credential = new Headers((await authed({ method: 'POST' })).headers);
 		return new Promise((resolve, reject) => {
 			const body = new FormData();
 			body.append('avatar', file);
 
 			const xhr = new XMLHttpRequest();
 			xhr.open('POST', `${backendBaseUrl}/api/users/me/avatar`);
-			xhr.withCredentials = true;
+			xhr.withCredentials = !isNative();
+			credential.forEach((value, name) => xhr.setRequestHeader(name, value));
 			xhr.upload.addEventListener('progress', (event) => {
 				if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
 			});
@@ -552,5 +580,18 @@ export const backend = {
 	},
 	deleteApiToken() {
 		return apiFetch<{ deleted: boolean }>('/api/users/me/api-token', { method: 'DELETE' });
+	},
+
+	getPush() {
+		return apiFetch<PushConfig>('/api/push');
+	},
+	testPush() {
+		return apiFetch<void>('/api/push/test', { method: 'POST' });
+	},
+	registerDevice(device: PushDevice) {
+		return apiFetch<void>('/api/push/devices', { method: 'POST', body: JSON.stringify(device) });
+	},
+	forgetDevice(token: string) {
+		return apiFetch<void>('/api/push/devices', { method: 'DELETE', body: JSON.stringify({ token }) });
 	}
 };

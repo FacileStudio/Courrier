@@ -1,23 +1,53 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { Button, Spinner, icons } from '@facile/muse';
 	import { backend } from '$lib/backend';
+	import NativeIntro from '$lib/components/native/NativeIntro.svelte';
+	import { isNative } from '$lib/platform';
+
+	const INTRO_SEEN_KEY = 'courrier.intro-seen';
+	const native = isNative();
 
 	let ready = $state(false);
 	let ssoOnly = $state(false);
 
+	function introSeen(): boolean {
+		try {
+			return localStorage.getItem(INTRO_SEEN_KEY) === '1';
+		} catch {
+			return false;
+		}
+	}
+
+	function markIntroSeen() {
+		try {
+			localStorage.setItem(INTRO_SEEN_KEY, '1');
+		} catch {
+			return;
+		}
+	}
+
+	async function finishIntro() {
+		markIntroSeen();
+		await goto('/login', { replaceState: true });
+	}
+
 	onMount(async () => {
 		try {
 			await backend.me();
-			goto('/mail');
+			goto('/mail', { replaceState: true });
 			return;
 		} catch {}
 
+		if (native) {
+			if (introSeen()) await goto('/login', { replaceState: true });
+			else ready = true;
+			return;
+		}
+
 		try {
-			const cfg = await fetch(`${backend.baseUrl}/api/auth/config`, {
-				credentials: 'include'
-			}).then((r) => r.json());
-			ssoOnly = cfg.sso_only ?? false;
+			ssoOnly = (await backend.authConfig()).sso_only ?? false;
 		} catch {}
 
 		ready = true;
@@ -32,7 +62,13 @@
 	/>
 </svelte:head>
 
-{#if ready}
+{#if !ready}
+	{#if native}
+		<div class="flex min-h-dvh items-center justify-center bg-fc-page"><Spinner /></div>
+	{/if}
+{:else if native}
+	<NativeIntro onfinish={finishIntro} />
+{:else}
 	<div class="min-h-screen bg-background text-foreground">
 		<header class="border-b border-border">
 			<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
@@ -46,6 +82,12 @@
 					<span class="text-2xl font-bold font-heading tracking-tight">Courrier</span>
 				</div>
 				<div class="flex items-center gap-2">
+					<a
+						href="/downloads"
+						class="hidden h-9 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground sm:inline-flex"
+					>
+						Get the app
+					</a>
 					<a
 						href="/login"
 						class="inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -90,6 +132,11 @@
 					>
 						Log in
 					</a>
+				</div>
+				<div class="mt-4 flex justify-center">
+					<Button href="/downloads" variant="ghost" size="lg" icon={icons.download} class="min-h-11">
+						Get the Android app
+					</Button>
 				</div>
 			</section>
 
@@ -176,6 +223,8 @@
 					href="https://facile.studio"
 					class="font-semibold underline hover:cursor-pointer">Facile.</a
 				>
+				<span aria-hidden="true">·</span>
+				<a href="/downloads" class="underline hover:text-foreground">Get the app</a>
 			</div>
 		</footer>
 	</div>

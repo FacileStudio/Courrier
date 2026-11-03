@@ -12,6 +12,7 @@
 		{ id: 'profile', label: 'Profile', icon: icons.userCircle },
 		{ id: 'appearance', label: 'Appearance', icon: icons.palette },
 		{ id: 'accounts', label: 'Accounts', icon: icons.mail },
+		{ id: 'notifications', label: 'Notifications', icon: icons.notification },
 		{ id: 'templates', label: 'Templates', icon: icons.edit },
 		{ id: 'api', label: 'API', icon: icons.key },
 		{ id: 'advanced', label: 'Advanced', icon: icons.shield }

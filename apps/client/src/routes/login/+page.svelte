@@ -2,7 +2,10 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { page as livePage } from '$app/state';
 	import { backend } from '$lib/backend';
+	import NativeLogin from '$lib/components/native/NativeLogin.svelte';
+	import { isNative } from '$lib/platform';
 
 	const inputClass =
 		'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
@@ -17,6 +20,12 @@
 	let ssoOnly = $state(false);
 	let oidcEnabled = $state(false);
 	let configLoaded = $state(false);
+	let nativeError = $state('');
+	const native = isNative();
+
+	$effect(() => {
+		nativeError = livePage.url.searchParams.get('error') ?? '';
+	});
 
 	onMount(async () => {
 		try {
@@ -30,9 +39,10 @@
 
 		const oidcError = $page.url.searchParams.get('error');
 		if (oidcError) message = oidcError;
+		if (native) return;
 
 		try {
-			const cfg = await fetch(`${backend.baseUrl}/api/auth/config`, { credentials: 'include' }).then(r => r.json());
+			const cfg = await backend.authConfig();
 			ssoOnly = cfg.sso_only ?? false;
 			oidcEnabled = cfg.oidc_enabled ?? false;
 			if (ssoOnly) tab = 'login';
@@ -62,6 +72,9 @@
 	<title>{!ssoOnly && tab === 'register' ? 'Create account' : 'Log in'} — Courrier</title>
 </svelte:head>
 
+{#if native}
+	<NativeLogin bind:error={nativeError} />
+{:else}
 <div class="flex min-h-screen">
 	<div class="hidden lg:flex lg:w-1/2 flex-col bg-black px-12 py-10">
 		<a href="/" class="flex items-center gap-3 mb-auto">
@@ -191,3 +204,4 @@
 		</div>
 	</div>
 </div>
+{/if}

@@ -9,6 +9,9 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 - Push notifications for new inbox mail: the Android app through Firebase Cloud Messaging (`FCM_SERVICE_ACCOUNT`), browsers through Web Push (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`). A watcher syncs the inbox of every account whose owner registered a device every `MAIL_POLL_INTERVAL` (default `2m`). Bulk and automated mail never notifies, and a notification names the sender, never the subject or the body.
 - `GET /api/push`, `POST /api/push/test`, `POST /api/push/devices` and `DELETE /api/push/devices`, with the `push_devices` table.
 - The Android app can sign in through porte's mobile flow (`OIDC_MOBILE_REDIRECT`, default `studio.facile.courrier://auth`). The API allows the app origin `https://localhost` while SSO is on.
+- The client builds as a Capacitor 8 Android app (`studio.facile.courrier`): an intro carousel, sign-in through the system browser, and a bearer token in place of the session cookie.
+- A first-run flow at `/welcome`: connect a mailbox or pick the one that opens first, turn on notifications, done. It runs once per device in the app, and on the web only for someone with no mailbox.
+- Settings > Notifications turns push on for this phone or browser and sends a test.
 
 ### Changed
 
