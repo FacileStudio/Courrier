@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-03
+
 ### Added
 
 - Registre owns shared spaces when Facile SSO is on. At boot Courrier hands Registre its existing spaces and members once, retrying with backoff while Registre is not deployed, and then keeps every space, member and role equal to Registre's: at boot, every 5 minutes, and within seconds of Registre's nudge on `POST /api/registre/sync`. A member added in Registre gets a Courrier account before their first sign-in. Mail accounts attached to a space stay Courrier's own.
