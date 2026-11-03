@@ -3,7 +3,16 @@
 	import { goto } from '$app/navigation';
 	import { Button, Card, Divider, icons } from '@facile/muse';
 	import AppMark from '$lib/components/native/AppMark.svelte';
-	import { APK_SHA256_URL, APK_URL, RELEASES_URL } from '$lib/downloads';
+	import {
+		APK_SHA256_URL,
+		APK_URL,
+		DEB_URL,
+		DESKTOP_BUILDS,
+		DESKTOP_CHECKSUMS_URL,
+		RELEASES_URL,
+		detectOS,
+		type DesktopOS
+	} from '$lib/downloads';
 	import { isNative } from '$lib/platform';
 
 	const STEPS = [
@@ -15,8 +24,11 @@
 		{ title: 'Open and sign in', body: 'Open the downloaded file, install it, and sign in with your Facile account.' }
 	];
 
+	let os = $state<DesktopOS | null>(null);
+
 	onMount(() => {
 		if (isNative()) void goto('/mail', { replaceState: true });
+		os = detectOS(navigator.userAgent);
 	});
 </script>
 
@@ -32,17 +44,50 @@
 				<AppMark size={24} />
 				<span class="font-fc-title text-fc-lg font-semibold tracking-tight">Courrier</span>
 			</a>
-			<Button href="/login" variant="ghost" class="min-h-11">Log in</Button>
+			<Button href="/mail" variant="ghost" class="min-h-11">Open Courrier</Button>
 		</div>
 	</header>
 
 	<main class="mx-auto flex max-w-fc-md flex-col gap-10 px-4 py-12 sm:px-6 sm:py-16">
 		<section class="flex flex-col items-center gap-4 text-center">
-			<h1 class="font-fc-title text-fc-3xl font-semibold tracking-tight sm:text-5xl">Courrier on your phone</h1>
+			<h1 class="font-fc-title text-fc-3xl font-semibold tracking-tight sm:text-5xl">Get Courrier</h1>
 			<p class="max-w-md text-fc-md text-fc-fg-muted">
-				The Android app reads the same mailboxes as the web, and tells you when a person writes to you.
+				The apps read the same mailboxes as the web. Sign in once with your Facile account.
 			</p>
 		</section>
+
+		<Card class="flex flex-col gap-6">
+			<div class="flex items-start gap-3">
+				<iconify-icon icon="solar:monitor-linear" width="24" height="24" aria-hidden="true"></iconify-icon>
+				<div class="flex flex-col gap-1">
+					<h2 class="font-fc-title text-fc-lg font-semibold">Desktop</h2>
+					<p class="text-fc-sm text-fc-fg-muted">Its own window, signed installers, and it updates itself.</p>
+				</div>
+			</div>
+			<ul class="flex flex-col gap-2">
+				{#each DESKTOP_BUILDS as build (build.os)}
+					<li class="flex flex-wrap items-center justify-between gap-3 rounded-fc-md bg-fc-surface px-3 py-2">
+						<div class="flex flex-col">
+							<span class="text-fc-sm font-medium">{build.label}</span>
+							<span class="text-fc-xs text-fc-fg-muted">{build.detail}</span>
+						</div>
+						<Button
+							href={build.url}
+							variant={os === build.os ? 'primary' : 'outline'}
+							icon={icons.download}
+							class="min-h-11"
+						>
+							Download
+						</Button>
+					</li>
+				{/each}
+			</ul>
+			<p class="text-fc-sm text-fc-fg-muted">
+				On Debian or Ubuntu, the <a href={DEB_URL} class="underline hover:text-fc-fg">.deb package</a> installs
+				Courrier system-wide. To check a file, compare it with the
+				<a href={DESKTOP_CHECKSUMS_URL} class="underline hover:text-fc-fg">published checksums</a>.
+			</p>
+		</Card>
 
 		<Card class="flex flex-col gap-6">
 			<div class="flex items-start gap-3">

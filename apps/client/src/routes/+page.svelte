@@ -4,10 +4,11 @@
 	import { Button, Spinner, icons } from '@facile/muse';
 	import { backend } from '$lib/backend';
 	import NativeIntro from '$lib/components/native/NativeIntro.svelte';
-	import { isNative } from '$lib/platform';
+	import { isDesktop, isNative } from '$lib/platform';
 
 	const INTRO_SEEN_KEY = 'courrier.intro-seen';
 	const native = isNative();
+	const desktop = isDesktop();
 
 	let ready = $state(false);
 	let ssoOnly = $state(false);
@@ -40,6 +41,11 @@
 			return;
 		} catch {}
 
+		if (desktop) {
+			await goto('/login', { replaceState: true });
+			return;
+		}
+
 		if (native) {
 			if (introSeen()) await goto('/login', { replaceState: true });
 			else ready = true;
@@ -63,7 +69,7 @@
 </svelte:head>
 
 {#if !ready}
-	{#if native}
+	{#if native || desktop}
 		<div class="flex min-h-dvh items-center justify-center bg-fc-page"><Spinner /></div>
 	{/if}
 {:else if native}
@@ -86,7 +92,7 @@
 						href="/downloads"
 						class="hidden h-9 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground sm:inline-flex"
 					>
-						Get the app
+						Get the apps
 					</a>
 					<a
 						href="/login"
@@ -135,7 +141,7 @@
 				</div>
 				<div class="mt-4 flex justify-center">
 					<Button href="/downloads" variant="ghost" size="lg" icon={icons.download} class="min-h-11">
-						Get the Android app
+						Get the desktop and Android apps
 					</Button>
 				</div>
 			</section>
@@ -224,7 +230,7 @@
 					class="font-semibold underline hover:cursor-pointer">Facile.</a
 				>
 				<span aria-hidden="true">·</span>
-				<a href="/downloads" class="underline hover:text-foreground">Get the app</a>
+				<a href="/downloads" class="underline hover:text-foreground">Get the apps</a>
 			</div>
 		</footer>
 	</div>
