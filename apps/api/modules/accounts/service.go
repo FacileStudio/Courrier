@@ -5,6 +5,7 @@ import (
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/crypto"
 	"github.com/FacileStudio/Courrier/apps/api/internal/plans"
+	"github.com/FacileStudio/Courrier/apps/api/internal/spaceid"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/tronc/errors"
 
@@ -62,9 +63,13 @@ func unsetDefault(db *gorm.DB, userID int64, spaceID *string) {
 }
 
 func (s *Service) List(ctx context.Context, userID int64, spaceID *string) ([]schemas.Account, error) {
+	spaceID, err := spaceid.Optional(spaceID)
+	if err != nil {
+		return nil, err
+	}
 	var accounts []schemas.Account
 	query := s.orm.WithContext(ctx)
-	if spaceID != nil && *spaceID != "" {
+	if spaceID != nil {
 		if err := s.requireSpaceMember(ctx, *spaceID, userID); err != nil {
 			return nil, err
 		}

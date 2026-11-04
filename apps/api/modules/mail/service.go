@@ -701,12 +701,13 @@ func (s *Service) ArchiveEmails(ctx context.Context, userID, accountID int64, em
 }
 
 func (s *Service) ListTemplates(ctx context.Context, userID int64, spaceID *string) ([]schemas.EmailTemplate, error) {
+	spaceID, err := s.templateSpace(ctx, userID, spaceID)
+	if err != nil {
+		return nil, err
+	}
 	var templates []schemas.EmailTemplate
 	query := s.orm.WithContext(ctx)
-	if spaceID != nil && *spaceID != "" {
-		if err := s.requireSpaceMember(ctx, *spaceID, userID); err != nil {
-			return nil, err
-		}
+	if spaceID != nil {
 		query = query.Where("space_id = ?", *spaceID)
 	} else {
 		query = query.Where("user_id = ? AND space_id IS NULL", userID)
@@ -728,9 +729,13 @@ func (s *Service) CreateTemplate(ctx context.Context, userID int64, req EmailTem
 		return schemas.EmailTemplate{}, errors.Invalid("template limit reached (max 50)")
 	}
 
+	spaceID, err := s.templateSpace(ctx, userID, req.SpaceID)
+	if err != nil {
+		return schemas.EmailTemplate{}, err
+	}
 	tmpl := schemas.EmailTemplate{
 		UserID:   userID,
-		SpaceID:  req.SpaceID,
+		SpaceID:  spaceID,
 		Name:     req.Name,
 		Subject:  req.Subject,
 		BodyHTML: req.BodyHTML,

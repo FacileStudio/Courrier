@@ -101,16 +101,22 @@ func TestStateSurvivesRestart(t *testing.T) {
 	expectLimit(t, check(restarted, alice, &pro), 1, testIssuer+"/spaces/spc_pro", "older revision after restart")
 }
 
-// TestCorruptRowFailsOpen logs a row Import refuses and keeps failing open.
-func TestCorruptRowFailsOpen(t *testing.T) {
+// TestCorruptRowFailsClosed enforces the defaults when the saved row cannot
+// be imported, and the next real snapshot replaces them.
+func TestCorruptRowFailsClosed(t *testing.T) {
 	requireDB(t)
 	if err := testORM.Exec(`INSERT INTO forfait_state (id, document) VALUES (1, '{"version":9}')`).Error; err != nil {
 		t.Fatal(err)
 	}
+	alice := newUser(t, "alice@facile.studio", "alice")
+	addAccounts(t, alice, nil, 1)
 	gate := newGate()
-	if err := gate.Load(context.Background()); err != nil || gate.Active() {
+	if err := gate.Load(context.Background()); err != nil || !gate.Active() {
 		t.Fatalf("Load = %v, active = %v", err, gate.Active())
 	}
+	expectLimit(t, check(gate, alice, nil), 1, testIssuer+"/spaces", "corrupt row")
+	apply(t, gate, entitled(1, nil, map[string]int{"alice": 5}))
+	expectAllowed(t, check(gate, alice, nil), "first snapshot after a corrupt row")
 }
 
 // expectAllowed fails when err is not nil.

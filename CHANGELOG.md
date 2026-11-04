@@ -13,7 +13,13 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 ### Changed
 
 - Once plans are enforced, a space not linked to Registre refuses new mail accounts with 412, because its plan cannot be read.
+- If the saved plan row cannot be read at boot, Courrier enforces the free defaults until the next pull instead of allowing everything.
+- Space ids from clients are canonicalised (lowercased) before they are stored or filtered on, for accounts and templates. `""` means the personal scope, and braced or unhyphenated spellings are refused with 400. At boot Courrier logs, without changing them, rows whose `space_id` is not canonical.
 - porte/directory v0.2.0.
+
+### Security
+
+- Creating a template in a space now requires membership of that space.
 
 ## [0.8.1] - 2026-11-03
 
