@@ -4,6 +4,20 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-04
+
+### Added
+
+- Inbox tabs: Primary, Newsletters and Notifications (`tab` on the folder list), filed by the header classifier.
+- `PUT /api/accounts/{id}/mail/sender-rules` and a "Move sender to" picker pin every message from one address to a tab.
+- After each inbox sync, mail the headers could not sort, from senders the user never wrote to, gets one jev decision (`TYPESAFE_API_KEY`); only a confident newsletter or notification verdict moves it.
+- The Bulle helper in the composer: a blob button in the toolbar and on any selection to rewrite, shorten, expand, fix, change tone, translate or draft a reply, with Replace, Insert below, Try again and Discard.
+- Threads get Summarize and an Ask Bulle link. `GET`/`POST /api/assist` run through the user's own Bulle model via a Registre token exchange (`BULLE_URL`); Courrier holds no model key.
+
+### Fixed
+
+- Search matches every word anywhere, so "Lisa Nay" finds a sender stored as "NAY Lisa".
+
 ## [0.9.0] - 2026-11-04
 
 ### Added
