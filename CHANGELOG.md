@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-04
+
 ### Added
 
 - Plans cap mail accounts per scope through `courrier.mailboxes` (porte/forfait v0.1.0, default 1). A space's accounts count against its Registre space's plan, and personal accounts against the owner's Registre subject. Only adding an account is refused; accounts already over the limit keep reading, syncing and sending.
