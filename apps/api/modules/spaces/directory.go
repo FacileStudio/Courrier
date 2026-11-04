@@ -2,6 +2,7 @@ package spaces
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -36,6 +37,18 @@ type Directory struct {
 func NewDirectory(orm *gorm.DB, client directory.Client, logger *slog.Logger) *Directory {
 	d := &Directory{orm: orm, issuer: client.Issuer, logger: logger}
 	d.syncer = &directory.Syncer{Client: client, Apply: d.Apply, Logger: logger}
+	return d
+}
+
+// WithEntitlements chains apply into every snapshot the Syncer pulls, ahead
+// of the space sync, so the plan values Registre serves beside the spaces land
+// with the same pull. Both run on every snapshot and both errors are reported,
+// so a failing space sync never freezes the plan values or the reverse.
+func (d *Directory) WithEntitlements(apply func(context.Context, directory.Snapshot) error) *Directory {
+	spaces := d.syncer.Apply
+	d.syncer.Apply = func(ctx context.Context, snapshot directory.Snapshot) error {
+		return errors.Join(apply(ctx, snapshot), spaces(ctx, snapshot))
+	}
 	return d
 }
 

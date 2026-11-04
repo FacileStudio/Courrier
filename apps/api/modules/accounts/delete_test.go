@@ -40,7 +40,7 @@ func TestDeleteRemovesContacts(t *testing.T) {
 	for _, id := range []int64{acc.ID, other.ID} {
 		testORM.Create(&schemas.Contact{AccountID: id, Email: "x@x.test", LastSentAt: time.Now()})
 	}
-	if err := NewService(testORM, nil).Delete(context.Background(), 1, acc.ID); err != nil {
+	if err := NewService(testORM, nil, nil).Delete(context.Background(), 1, acc.ID); err != nil {
 		t.Fatal(err)
 	}
 	var left []schemas.Contact

@@ -4,6 +4,17 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- Plans cap mail accounts per scope through `courrier.mailboxes` (porte/forfait v0.1.0, default 1). A space's accounts count against its Registre space's plan, and personal accounts against the owner's Registre subject. Only adding an account is refused; accounts already over the limit keep reading, syncing and sending.
+- A refused creation answers HTTP 402 with `{"error":{"code":"payment_required","message","upgrade_url","key","limit"}}`, and the account drawer shows an upgrade notice linking to Registre. Only an https or same-origin `upgrade_url` becomes a link.
+- The plan values ride the Registre directory pull and are saved in the new `forfait_state` table after every pull, so a restart keeps enforcing the last known values. Until the first entitlements snapshot ever arrives, every creation is allowed and a warning is logged.
+
+### Changed
+
+- Once plans are enforced, a space not linked to Registre refuses new mail accounts with 412, because its plan cannot be read.
+- porte/directory v0.2.0.
+
 ## [0.8.1] - 2026-11-03
 
 ### Changed

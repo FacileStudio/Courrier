@@ -15,7 +15,9 @@
 		isRedacted,
 		icons
 	} from '@facile/muse';
-	import { backend, type MailAccount } from '$lib/backend';
+	import { ApiError, backend, type MailAccount } from '$lib/backend';
+	import type { PlanLimit } from '$lib/plan-limit';
+	import PlanLimitAlert from './PlanLimitAlert.svelte';
 	import { spaceStore } from '$lib/stores/space.svelte';
 
 	let {
@@ -47,6 +49,7 @@
 
 	let saving = $state(false);
 	let error = $state('');
+	let planLimit = $state<PlanLimit | undefined>();
 	let testState = $state<'idle' | 'testing' | 'passed' | 'failed'>('idle');
 	let testError = $state('');
 
@@ -121,6 +124,7 @@
 		event.preventDefault();
 		saving = true;
 		error = '';
+		planLimit = undefined;
 		try {
 			const common = {
 				name: name.trim(),
@@ -156,6 +160,7 @@
 			open = false;
 			onSaved?.();
 		} catch (err) {
+			planLimit = err instanceof ApiError ? err.planLimit : undefined;
 			error = err instanceof Error ? err.message : 'Could not save the account';
 		}
 		saving = false;
@@ -274,7 +279,9 @@
 			{/if}
 		</div>
 
-		{#if error}
+		{#if planLimit}
+			<PlanLimitAlert limit={planLimit} />
+		{:else if error}
 			<Alert tone="danger">{error}</Alert>
 		{/if}
 

@@ -31,7 +31,7 @@ var Documentation = documentation.Module{
 			Method:       "POST",
 			Path:         "/accounts",
 			Summary:      "Create a mail account",
-			Description:  "Stores IMAP and SMTP credentials. IMAP defaults to port 993 and SMTP to 587.",
+			Description:  "Stores IMAP and SMTP credentials. IMAP defaults to port 993 and SMTP to 587. The space's plan, or the caller's personal plan without space_id, caps how many accounts the scope holds (courrier.mailboxes).",
 			Auth:         "bearer token required",
 			RequestBody:  CreateAccountRequest{},
 			ResponseBody: AccountResponse{},
@@ -39,6 +39,9 @@ var Documentation = documentation.Module{
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body or missing connection details."},
 				{Status: 401, Code: "unauthenticated", Description: "No valid session cookie, bearer token or API token."},
+				{Status: 402, Code: "payment_required", Description: "The scope's plan has no room for another mail account; the error carries upgrade_url, key and limit."},
+				{Status: 403, Code: "permission_denied", Description: "Not a member of the space."},
+				{Status: 412, Code: "failed_precondition", Description: "The space is not linked to Registre yet, so its plan cannot be read."},
 				{Status: 500, Code: "internal", Description: "Unexpected server error."},
 			},
 		},

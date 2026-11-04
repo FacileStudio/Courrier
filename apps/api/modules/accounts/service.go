@@ -4,23 +4,26 @@ import (
 	"context"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/crypto"
+	"github.com/FacileStudio/Courrier/apps/api/internal/plans"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/tronc/errors"
 
 	"gorm.io/gorm"
 )
 
-// Service is the accounts module's data access: it owns the accounts table
-// and encrypts IMAP and SMTP passwords at rest.
+// Service is the accounts module's data access: it owns the accounts table,
+// encrypts IMAP and SMTP passwords at rest and refuses an account the scope's
+// plan has no room for.
 type Service struct {
 	orm           *gorm.DB
 	encryptionKey []byte
+	plans         *plans.Gate
 }
 
-// NewService builds an accounts Service over the database and the app's
-// encryption key.
-func NewService(orm *gorm.DB, encryptionKey []byte) *Service {
-	return &Service{orm: orm, encryptionKey: encryptionKey}
+// NewService builds an accounts Service over the database, the app's
+// encryption key and the plan gate, which may be nil when no plan applies.
+func NewService(orm *gorm.DB, encryptionKey []byte, gate *plans.Gate) *Service {
+	return &Service{orm: orm, encryptionKey: encryptionKey, plans: gate}
 }
 
 func (s *Service) encryptPassword(plain string) (string, error) {
@@ -50,83 +53,12 @@ func (s *Service) requireSpaceMember(ctx context.Context, spaceID string, userID
 	return nil
 }
 
-func (s *Service) unsetDefault(ctx context.Context, userID int64, spaceID *string) {
+func unsetDefault(db *gorm.DB, userID int64, spaceID *string) {
 	if spaceID != nil && *spaceID != "" {
-		s.orm.WithContext(ctx).Model(&schemas.Account{}).Where("space_id = ?", *spaceID).Update("is_default", false)
+		db.Model(&schemas.Account{}).Where("space_id = ?", *spaceID).Update("is_default", false)
 		return
 	}
-	s.orm.WithContext(ctx).Model(&schemas.Account{}).Where("user_id = ? AND space_id IS NULL", userID).Update("is_default", false)
-}
-
-func validateCreateAccount(req CreateAccountRequest) error {
-	if req.Name == "" {
-		return errors.Invalid("name is required")
-	}
-	if req.Email == "" {
-		return errors.Invalid("email is required")
-	}
-	if req.IMAPHost == "" {
-		return errors.Invalid("imap_host is required")
-	}
-	if req.SMTPHost == "" {
-		return errors.Invalid("smtp_host is required")
-	}
-	return nil
-}
-
-func (s *Service) buildAccount(userID int64, req CreateAccountRequest) (schemas.Account, error) {
-	encIMAPPw, err := s.encryptPassword(req.IMAPPassword)
-	if err != nil {
-		return schemas.Account{}, errors.Internal("failed to encrypt IMAP password", err)
-	}
-	encSMTPPw, err := s.encryptPassword(req.SMTPPassword)
-	if err != nil {
-		return schemas.Account{}, errors.Internal("failed to encrypt SMTP password", err)
-	}
-	return schemas.Account{
-		UserID:       userID,
-		SpaceID:      req.SpaceID,
-		Name:         req.Name,
-		Email:        req.Email,
-		IMAPHost:     req.IMAPHost,
-		IMAPPort:     req.IMAPPort,
-		IMAPUser:     req.IMAPUser,
-		IMAPPassword: encIMAPPw,
-		SMTPHost:     req.SMTPHost,
-		SMTPPort:     req.SMTPPort,
-		SMTPUser:     req.SMTPUser,
-		SMTPPassword: encSMTPPw,
-		Signature:    req.Signature,
-		IsDefault:    req.IsDefault,
-	}, nil
-}
-
-func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountRequest) (schemas.Account, error) {
-	if err := validateCreateAccount(req); err != nil {
-		return schemas.Account{}, err
-	}
-	if req.IMAPPort == 0 {
-		req.IMAPPort = 993
-	}
-	if req.SMTPPort == 0 {
-		req.SMTPPort = 587
-	}
-	if req.SpaceID != nil && *req.SpaceID != "" {
-		if err := s.requireSpaceMember(ctx, *req.SpaceID, userID); err != nil {
-			return schemas.Account{}, err
-		}
-	}
-	account, err := s.buildAccount(userID, req)
-	if err != nil {
-		return schemas.Account{}, err
-	}
-	if req.IsDefault {
-		s.unsetDefault(ctx, userID, req.SpaceID)
-	}
-	if err := s.orm.WithContext(ctx).Create(&account).Error; err != nil {
-		return schemas.Account{}, errors.Internal("failed to create account", err)
-	}
-	return account, nil
+	db.Model(&schemas.Account{}).Where("user_id = ? AND space_id IS NULL", userID).Update("is_default", false)
 }
 
 func (s *Service) List(ctx context.Context, userID int64, spaceID *string) ([]schemas.Account, error) {
@@ -219,7 +151,7 @@ func (s *Service) Update(ctx context.Context, userID int64, accountID int64, req
 		return schemas.Account{}, err
 	}
 	if req.IsDefault != nil && *req.IsDefault {
-		s.unsetDefault(ctx, account.UserID, account.SpaceID)
+		unsetDefault(s.orm.WithContext(ctx), account.UserID, account.SpaceID)
 		account.IsDefault = true
 	}
 	if err := s.orm.WithContext(ctx).Save(&account).Error; err != nil {

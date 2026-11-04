@@ -34,7 +34,7 @@ func MigrateWithIssuer(db *gorm.DB, issuer string) error {
 		return err
 	}
 
-	if err := ensurePushDevices(db); err != nil {
+	if err := ensureRawTables(db); err != nil {
 		return err
 	}
 
