@@ -3,6 +3,9 @@ import { planLimitFrom, type PlanLimit } from '$lib/plan-limit';
 
 const backendBaseUrl = apiBase();
 
+/** An inbox tab: where the classifier, jev or a sender pin filed a conversation. */
+export type InboxTab = 'primary' | 'newsletters' | 'notifications';
+
 export type PushConfig = { enabled: boolean; native: boolean; web_push_key?: string };
 
 export type PushDevice = { kind: 'fcm' | 'web'; token: string; p256dh?: string; auth?: string };
@@ -320,12 +323,19 @@ export const backend = {
 	getFolders(accountId: number) {
 		return apiFetch<{ folders: Folder[] }>(`/api/accounts/${accountId}/mail/folders`);
 	},
-	getEmailsByFolder(accountId: number, folderType: string, page = 1, limit = 50, unreadOnly = false) {
+	getEmailsByFolder(accountId: number, folderType: string, page = 1, limit = 50, unreadOnly = false, tab?: InboxTab) {
 		const params = new URLSearchParams({ page: String(page), limit: String(limit) });
 		if (unreadOnly) params.set('unread', 'true');
+		if (tab) params.set('tab', tab);
 		return apiFetch<{ emails: EmailMessage[]; total: number; page: number; limit: number }>(
 			`/api/accounts/${accountId}/mail/folders/${folderType}/emails?${params}`
 		);
+	},
+	setSenderRule(accountId: number, address: string, tab: InboxTab | 'auto') {
+		return apiFetch<void>(`/api/accounts/${accountId}/mail/sender-rules`, {
+			method: 'PUT',
+			body: JSON.stringify({ address, tab })
+		});
 	},
 	searchEmails(accountId: number, query: string, page = 1, limit = 30) {
 		const params = new URLSearchParams({ q: query, page: String(page), limit: String(limit) });

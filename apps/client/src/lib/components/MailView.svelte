@@ -3,7 +3,9 @@
 	import { getContext } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { backend, type EmailMessage, type MailAccount } from '$lib/backend';
+	import { backend, type EmailMessage, type InboxTab, type MailAccount } from '$lib/backend';
+	import InboxTabs from '$lib/components/InboxTabs.svelte';
+	import SenderTabPicker from '$lib/components/SenderTabPicker.svelte';
 	import { mailCache } from '$lib/stores/mail-cache';
 	import { searchStore } from '$lib/stores/search.svelte';
 	import {
@@ -70,6 +72,9 @@
 	let deleteTarget = $state<number[]>([]);
 	let bulkLoading = $state(false);
 	let showUnreadOnly = $state(false);
+	let tab = $state<InboxTab>('primary');
+	const activeTab = $derived(folder === 'inbox' ? tab : undefined);
+	const cacheFolder = $derived(activeTab ? `inbox:${activeTab}` : folder);
 	let searchQuery = $state('');
 	let debouncedQuery = $state('');
 	let inputEl = $state<HTMLInputElement | null>(null);
@@ -154,7 +159,7 @@
 	async function loadEmails() {
 		if (!app.activeAccountId) return;
 
-		const cached = showUnreadOnly ? null : mailCache.get(app.activeAccountId, folder, 1);
+		const cached = showUnreadOnly ? null : mailCache.get(app.activeAccountId, cacheFolder, 1);
 		if (cached) {
 			emails = cached.emails;
 			totalEmails = cached.total;
@@ -163,11 +168,11 @@
 		loading = !cached && emails.length === 0;
 		currentPage = 1;
 		try {
-			const result = await backend.getEmailsByFolder(app.activeAccountId, folder, 1, LIMIT, showUnreadOnly);
+			const result = await backend.getEmailsByFolder(app.activeAccountId, folder, 1, LIMIT, showUnreadOnly, activeTab);
 			emails = result.emails;
 			totalEmails = result.total;
 			if (!showUnreadOnly) {
-				mailCache.set(app.activeAccountId, folder, 1, result.emails, result.total);
+				mailCache.set(app.activeAccountId, cacheFolder, 1, result.emails, result.total);
 			}
 		} catch {
 			if (!cached) {
@@ -197,7 +202,7 @@
 			return;
 		}
 
-		const cached = showUnreadOnly ? null : mailCache.get(app.activeAccountId, folder, nextPage);
+		const cached = showUnreadOnly ? null : mailCache.get(app.activeAccountId, cacheFolder, nextPage);
 		if (cached) {
 			emails = [...emails, ...cached.emails];
 			totalEmails = cached.total;
@@ -207,13 +212,13 @@
 		}
 
 		try {
-			const result = await backend.getEmailsByFolder(app.activeAccountId, folder, nextPage, LIMIT, showUnreadOnly);
+			const result = await backend.getEmailsByFolder(app.activeAccountId, folder, nextPage, LIMIT, showUnreadOnly, activeTab);
 			if (reqId === loadSeq) {
 				emails = [...emails, ...result.emails];
 				totalEmails = result.total;
 				currentPage = nextPage;
 				if (!showUnreadOnly) {
-					mailCache.set(app.activeAccountId, folder, nextPage, result.emails, result.total);
+					mailCache.set(app.activeAccountId, cacheFolder, nextPage, result.emails, result.total);
 				}
 			}
 		} catch {}
@@ -399,6 +404,8 @@
 
 	$effect(() => {
 		const _folder = folder;
+		const _tab = activeTab;
+		const _cacheFolder = cacheFolder;
 		const _unreadOnly = showUnreadOnly;
 		const _query = debouncedQuery.trim();
 		const accountId = app.activeAccountId;
@@ -437,7 +444,7 @@
 			return;
 		}
 
-		const cached = _unreadOnly ? null : mailCache.get(accountId, _folder, 1);
+		const cached = _unreadOnly ? null : mailCache.get(accountId, _cacheFolder, 1);
 		if (cached) {
 			emails = cached.emails;
 			totalEmails = cached.total;
@@ -449,12 +456,12 @@
 
 		(async () => {
 			try {
-				const result = await backend.getEmailsByFolder(accountId, _folder, 1, LIMIT, _unreadOnly);
+				const result = await backend.getEmailsByFolder(accountId, _folder, 1, LIMIT, _unreadOnly, _tab);
 				if (reqId !== loadSeq) return;
 				emails = result.emails;
 				totalEmails = result.total;
 				if (!_unreadOnly) {
-					mailCache.set(accountId, _folder, 1, result.emails, result.total);
+					mailCache.set(accountId, _cacheFolder, 1, result.emails, result.total);
 				}
 			} catch {
 				if (reqId !== loadSeq) return;
@@ -588,6 +595,10 @@
 			</div>
 		</div>
 
+		{#if activeTab && !searchMode}
+			<InboxTabs bind:tab />
+		{/if}
+
 		<BulkActionBar
 			count={checkedIds.size}
 			loading={bulkLoading}
@@ -708,6 +719,16 @@
 							<iconify-icon icon={mailIcons.forward} width="18" height="18" class="block size-4.5"
 							></iconify-icon>
 						</IconButton>
+						{#if folder === 'inbox' && selected.from_address}
+							<SenderTabPicker
+								accountId={app.activeAccountId!}
+								address={selected.from_address}
+								onchange={() => {
+									mailCache.invalidateFolder(app.activeAccountId!, 'inbox');
+									void loadEmails();
+								}}
+							/>
+						{/if}
 						<span class="mx-1 h-5 w-px shrink-0 bg-fc-border"></span>
 						{#if folder !== 'archive'}
 							<IconButton
