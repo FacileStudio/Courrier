@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/FacileStudio/Courrier/apps/api/modules/assist"
 	"log/slog"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
@@ -30,6 +31,7 @@ type services struct {
 	push      *push.Hub
 	directory *spaces.Directory
 	plans     *plans.Gate
+	assist    *assist.Service
 }
 
 // buildServices builds porte, then the mail service with its push hub, and,

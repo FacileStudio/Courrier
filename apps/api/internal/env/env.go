@@ -71,6 +71,7 @@ type Config struct {
 	ResourceTokenSecret []byte
 	EncryptionKey       []byte
 	Push                Push
+	BulleURL            string
 }
 
 // Load reads the configuration from the environment, deriving the encryption
@@ -101,6 +102,7 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	cfg.BulleURL = troncenv.String("BULLE_URL", "")
 	if issuer := troncenv.String("OIDC_ISSUER", ""); issuer != "" {
 		clientID := troncenv.String("OIDC_CLIENT_ID", "")
 		clientSecret := troncenv.String("OIDC_CLIENT_SECRET", "")

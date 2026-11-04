@@ -73,6 +73,8 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:contact@facile.studio}
+      BULLE_URL: ${BULLE_URL:-}
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
       MAIL_POLL_INTERVAL: ${MAIL_POLL_INTERVAL:-2m}
       SSO_ONLY: ${SSO_ONLY:-false}
       JOURNAL_URL: ${JOURNAL_URL:-}

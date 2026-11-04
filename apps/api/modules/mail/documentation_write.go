@@ -13,9 +13,10 @@ var writeRoutes = []documentation.Route{
 		Summary: "Pin a sender to an inbox tab",
 		Description: "Every message from address in this account lists under tab (primary, newsletters, " +
 			"notifications) from now on, whatever its headers say. tab auto removes the pin. Returns 204.",
-		Auth:        "bearer token required",
-		PathParams:  []documentation.Field{accountID},
-		RequestBody: SenderRuleRequest{},
+		Auth:         "bearer token required",
+		PathParams:   []documentation.Field{accountID},
+		RequestBody:  SenderRuleRequest{},
+		ResponseBody: struct{}{},
 		Errors: []documentation.Error{
 			{Status: 400, Code: "invalid_argument", Description: "Not an email address, or an unknown tab."},
 			unauthenticated,

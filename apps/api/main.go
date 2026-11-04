@@ -18,6 +18,7 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/modules/accounts"
+	"github.com/FacileStudio/Courrier/apps/api/modules/assist"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	pushmodule "github.com/FacileStudio/Courrier/apps/api/modules/push"
@@ -66,6 +67,7 @@ func referenceConfig() apiref.Config {
 				settings.Documentation,
 				spaces.Documentation,
 				pushmodule.Documentation,
+				assist.Documentation,
 			},
 		},
 	}
@@ -118,7 +120,7 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 	if err != nil {
 		return services{}, err
 	}
-	return services{sessions: sessions, passwords: passwords, kit: kit}, nil
+	return services{sessions: sessions, passwords: passwords, kit: kit, assist: newAssist(appEnv, store.Identities())}, nil
 }
 
 // buildRouter wires every module service and the shared middleware onto the
@@ -158,6 +160,7 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 		accounts.RegisterRoutes(r, accountService, authService)
 		mail.RegisterRoutes(r, svc.mail, authService, appEnv.ResourceTokenSecret)
 		pushmodule.RegisterRoutes(r, svc.push, authService)
+		assist.RegisterRoutes(r, svc.assist, authService)
 		users.RegisterRoutes(r, userService, authService)
 		settings.RegisterRoutes(r, settingsService, authService)
 		registerSpaces(r, db, appEnv, svc.directory, authService)
