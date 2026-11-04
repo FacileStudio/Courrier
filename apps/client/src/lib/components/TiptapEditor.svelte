@@ -6,15 +6,20 @@
 	import Link from '@tiptap/extension-link';
 	import Underline from '@tiptap/extension-underline';
 	import { IconButton, icons } from '@facile/muse';
+	import BulleAssist from './BulleAssist.svelte';
 
 	let {
 		content = '',
 		onchange,
-		placeholder = 'Write your message...'
+		placeholder = 'Write your message...',
+		assist = false,
+		assistContext = ''
 	}: {
 		content?: string;
 		onchange?: (html: string) => void;
 		placeholder?: string;
+		assist?: boolean;
+		assistContext?: string;
 	} = $props();
 
 	let element: HTMLDivElement;
@@ -100,6 +105,9 @@
 					</IconButton>
 				{/if}
 			{/each}
+			{#if assist && editor}
+				<BulleAssist {editor} context={assistContext} />
+			{/if}
 		</div>
 	{/if}
 

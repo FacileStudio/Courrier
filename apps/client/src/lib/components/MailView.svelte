@@ -6,6 +6,7 @@
 	import { backend, type EmailMessage, type InboxTab, type MailAccount } from '$lib/backend';
 	import InboxTabs from '$lib/components/InboxTabs.svelte';
 	import SenderTabPicker from '$lib/components/SenderTabPicker.svelte';
+	import ThreadAssist from '$lib/components/ThreadAssist.svelte';
 	import { mailCache } from '$lib/stores/mail-cache';
 	import { searchStore } from '$lib/stores/search.svelte';
 	import {
@@ -753,6 +754,9 @@
 						<span class="ml-2 shrink-0 text-fc-xs">{formatDate(selected.date)}</span>
 					</div>
 				</div>
+				{#key selected.id}
+					<ThreadAssist accountId={app.activeAccountId!} messages={threadMessages.length ? threadMessages : [selected]} />
+				{/key}
 			</div>
 			<div class="flex-1 overflow-auto pb-24 md:pb-0">
 				{#key selected.id}

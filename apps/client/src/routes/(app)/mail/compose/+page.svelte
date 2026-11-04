@@ -18,6 +18,7 @@
 		toast
 	} from '@facile/muse';
 	import type { EmailTemplate } from '$lib/backend';
+	import { plainOf } from '$lib/assist/text';
 	import TiptapEditor from '$lib/components/TiptapEditor.svelte';
 	import AddressInput from '$lib/components/AddressInput.svelte';
 
@@ -47,6 +48,7 @@
 	let subject = $state('');
 	let bodyHtml = $state('');
 	let bodyPlainText = $state('');
+	let assistContext = $state('');
 	let initialContent = $state('');
 	let sending = $state(false);
 	let inReplyTo = $state('');
@@ -228,6 +230,7 @@
 					subject = original.subject.replace(/^(Re:\s*)+/i, '');
 					subject = `Re: ${subject}`;
 
+					assistContext = `From: ${original.from_name} <${original.from_address}>\nSubject: ${original.subject}\n\n${plainOf(original.body_html || original.body_text)}`;
 					inReplyTo = original.message_id;
 					const existingRefs = original.references ? original.references.split(/\s+/).filter(Boolean) : [];
 					references = [...existingRefs, original.message_id];
@@ -465,6 +468,8 @@
 				</div>
 			{:else}
 				<TiptapEditor
+					assist
+					{assistContext}
 					content={initialContent}
 					onchange={(html) => {
 						bodyHtml = html;

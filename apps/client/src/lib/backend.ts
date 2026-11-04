@@ -4,6 +4,33 @@ import { planLimitFrom, type PlanLimit } from '$lib/plan-limit';
 const backendBaseUrl = apiBase();
 
 /** An inbox tab: where the classifier, jev or a sender pin filed a conversation. */
+/** A Bulle helper action, as POST /api/assist takes it. */
+export type AssistAction =
+	| 'rewrite'
+	| 'shorten'
+	| 'expand'
+	| 'fix'
+	| 'formal'
+	| 'friendly'
+	| 'translate'
+	| 'reply'
+	| 'summarize';
+
+export type AssistRequest = {
+	action: AssistAction;
+	text?: string;
+	context?: string;
+	language?: string;
+	instructions?: string;
+};
+
+export type AssistStatus = {
+	available: boolean;
+	reason?: 'off' | 'not_linked' | 'no_key' | 'unsupported' | 'unreachable';
+	actions: AssistAction[];
+	bulle_url?: string;
+};
+
 export type InboxTab = 'primary' | 'newsletters' | 'notifications';
 
 export type PushConfig = { enabled: boolean; native: boolean; web_push_key?: string };
@@ -330,6 +357,12 @@ export const backend = {
 		return apiFetch<{ emails: EmailMessage[]; total: number; page: number; limit: number }>(
 			`/api/accounts/${accountId}/mail/folders/${folderType}/emails?${params}`
 		);
+	},
+	assistStatus() {
+		return apiFetch<AssistStatus>('/api/assist');
+	},
+	assist(request: AssistRequest) {
+		return apiFetch<{ text: string }>('/api/assist', { method: 'POST', body: JSON.stringify(request) });
 	},
 	setSenderRule(accountId: number, address: string, tab: InboxTab | 'auto') {
 		return apiFetch<void>(`/api/accounts/${accountId}/mail/sender-rules`, {
