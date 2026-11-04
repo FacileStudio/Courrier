@@ -17,7 +17,6 @@ import (
 	documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
-	"github.com/FacileStudio/Courrier/apps/api/internal/push"
 	"github.com/FacileStudio/Courrier/apps/api/modules/accounts"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
@@ -122,18 +121,6 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 	return services{sessions: sessions, passwords: passwords, kit: kit}, nil
 }
 
-// services are the long-lived pieces run builds once: porte's session manager,
-// password login and OIDC kit, the mail service the watcher shares with the
-// HTTP routes, the push hub, and the Registre space sync when SSO is on.
-type services struct {
-	sessions  *session.Manager
-	passwords *local.Kit
-	kit       *oidc.Kit
-	mail      *mail.Service
-	push      *push.Hub
-	directory *spaces.Directory
-}
-
 // buildRouter wires every module service and the shared middleware onto the
 // chi router, then mounts the API routes and the static client files.
 //
@@ -143,7 +130,7 @@ type services struct {
 // fills all three.
 func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger *slog.Logger, svc services) chi.Router {
 	authService := auth.NewService(db, svc.sessions, svc.passwords, appLogger)
-	accountService := accounts.NewService(db, appEnv.EncryptionKey)
+	accountService := accounts.NewService(db, appEnv.EncryptionKey, svc.plans)
 	userService := users.NewService(db, appEnv.StorageDir, authService)
 	settingsService := settings.NewService(len(appEnv.EncryptionKey) > 0)
 
@@ -244,14 +231,11 @@ func run() int {
 		}
 	}()
 
-	svc, err := buildAuth(context.Background(), db, appEnv, appLogger)
+	svc, err := buildServices(context.Background(), db, appEnv, appLogger)
 	if err != nil {
-		appLogger.Error("failed to build authentication", slog.Any("error", err))
+		appLogger.Error("failed to build services", slog.Any("error", err))
 		return 1
 	}
-	svc.push = newPushHub(db, appEnv.Push, appLogger)
-	svc.mail = mail.NewService(db, appEnv.EncryptionKey).WithNotifier(svc.push)
-	svc.directory = newDirectory(db, appEnv, appLogger)
 
 	router := buildRouter(db, health.DB(sqlDB), appEnv, appLogger, svc)
 

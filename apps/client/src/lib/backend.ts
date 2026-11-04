@@ -1,4 +1,5 @@
 import { apiBase, clearToken, getToken, isApp } from '$lib/platform';
+import { planLimitFrom, type PlanLimit } from '$lib/plan-limit';
 
 const backendBaseUrl = apiBase();
 
@@ -163,16 +164,19 @@ type ApiErrorPayload = {
  * caller usually needs both: a 429 from the rate limiter and a 502 from a refused IMAP
  * handshake are the same `Error` otherwise, and a UI that cannot tell them apart ends up
  * blaming the mail server for the rate limiter. `retryAfter` is the header, in seconds.
+ * `planLimit` is set on a 402: the scope's plan has no room, and where to upgrade it.
  */
 export class ApiError extends Error {
 	status: number;
 	retryAfter?: number;
+	planLimit?: PlanLimit;
 
-	constructor(message: string, status: number, retryAfter?: number) {
+	constructor(message: string, status: number, retryAfter?: number, planLimit?: PlanLimit) {
 		super(message);
 		this.name = 'ApiError';
 		this.status = status;
 		this.retryAfter = retryAfter;
+		this.planLimit = planLimit;
 	}
 }
 
@@ -230,7 +234,8 @@ async function apiFetch<T>(path: string, options: RequestInit = {}) {
 		throw new ApiError(
 			payload?.error?.message || `Request failed with status ${response.status}`,
 			response.status,
-			Number.isFinite(seconds) && seconds > 0 ? seconds : undefined
+			Number.isFinite(seconds) && seconds > 0 ? seconds : undefined,
+			planLimitFrom(response.status, payload)
 		);
 	}
 	if (response.status === 204) return undefined as T;

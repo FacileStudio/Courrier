@@ -7,6 +7,7 @@ import (
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
+	"github.com/FacileStudio/Courrier/apps/api/internal/plans"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/tronc/errors"
@@ -35,7 +36,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			}
 			account, err := service.Create(req.Context(), uid, body)
 			if err != nil {
-				httpjson.WriteError(w, err)
+				plans.WriteError(w, err)
 				return
 			}
 			httpjson.WriteJSON(w, http.StatusCreated, toResponse(account))
