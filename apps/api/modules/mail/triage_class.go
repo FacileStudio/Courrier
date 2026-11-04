@@ -71,7 +71,7 @@ func parseClasses(raw string) (map[string]bool, error) {
 }
 
 func visibleBulkReason(reason string) string {
-	if reason == bulkReasonNone {
+	if reason == bulkReasonNone || reason == grayJudgedNone {
 		return ""
 	}
 	return reason
@@ -90,7 +90,7 @@ func bulkReasonOf(e schemas.Email) string {
 		_, reason := Classify(Signals{}, e.FromAddress)
 		return reason
 	}
-	if e.BulkReason == bulkReasonNone {
+	if e.BulkReason == bulkReasonNone || e.BulkReason == grayJudgedNone {
 		return ""
 	}
 	if e.BulkReason == "" {

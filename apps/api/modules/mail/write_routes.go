@@ -23,6 +23,7 @@ func registerWriteRoutes(r chi.Router, service *Service) {
 	r.Post("/drafts", service.handleSaveDraft)
 	r.Put("/drafts/{emailId}", service.handleUpdateDraft)
 	r.With(middleware.RateLimit(30, time.Minute)).Post("/emails/move", service.handleMoveEmails)
+	r.Put("/sender-rules", service.handleSenderRule)
 	registerFolderRoutes(r, service)
 }
 

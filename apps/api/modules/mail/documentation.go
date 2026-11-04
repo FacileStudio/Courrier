@@ -72,7 +72,7 @@ var Documentation = documentation.Module{
 			Method:      "GET",
 			Path:        "/accounts/{accountId}/mail/folders/{folderType}/emails",
 			Summary:     "List a folder's conversations",
-			Description: "Rows are collapsed conversations, not individual messages. Takes page (default 1), limit (default 50, capped at 100) and unread=true.",
+			Description: "Rows are collapsed conversations, not individual messages. Takes page (default 1), limit (default 50, capped at 100), unread=true and tab. A sender rule overrides the classifier's category.",
 			Auth:        "bearer token required",
 			PathParams: []documentation.Field{
 				accountID,
@@ -82,6 +82,7 @@ var Documentation = documentation.Module{
 				{Name: "page", Type: "int", Description: "Page number."},
 				{Name: "limit", Type: "int", Description: "Items per page."},
 				{Name: "unread", Type: "bool", Description: "Unread emails only."},
+				{Name: "tab", Type: "string", Description: "primary, newsletters, notifications, or all (default)."},
 			},
 			ResponseBody: ConversationListResponse{},
 			Errors:       []documentation.Error{unauthenticated, accountNotFound},

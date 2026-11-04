@@ -9,6 +9,21 @@ var folderID = documentation.Field{Name: "folderId", Type: "int", Description: "
 var writeRoutes = []documentation.Route{
 	{
 		Method:  "PUT",
+		Path:    "/accounts/{accountId}/mail/sender-rules",
+		Summary: "Pin a sender to an inbox tab",
+		Description: "Every message from address in this account lists under tab (primary, newsletters, " +
+			"notifications) from now on, whatever its headers say. tab auto removes the pin. Returns 204.",
+		Auth:        "bearer token required",
+		PathParams:  []documentation.Field{accountID},
+		RequestBody: SenderRuleRequest{},
+		Errors: []documentation.Error{
+			{Status: 400, Code: "invalid_argument", Description: "Not an email address, or an unknown tab."},
+			unauthenticated,
+			{Status: 404, Code: "not_found", Description: "No such account."},
+		},
+	},
+	{
+		Method:  "PUT",
 		Path:    "/accounts/{accountId}/mail/drafts/{emailId}",
 		Summary: "Update a draft in place",
 		Description: "Replaces the draft's recipients, subject and bodies with the request's and keeps its id " +

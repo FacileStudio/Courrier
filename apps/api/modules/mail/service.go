@@ -34,12 +34,14 @@ type Service struct {
 	deliver       smtpDeliverer
 	notifier      *push.Hub
 	folderLocks   sync.Map
+	judge         *jevClient
+	judging       sync.Map
 }
 
 // NewService builds a mail Service over the database and the app's encryption
 // key.
 func NewService(orm *gorm.DB, encryptionKey []byte) *Service {
-	return &Service{orm: orm, encryptionKey: encryptionKey, dial: connectIMAP, deliver: deliverSMTP}
+	return &Service{orm: orm, encryptionKey: encryptionKey, dial: connectIMAP, deliver: deliverSMTP, judge: jevFromEnv()}
 }
 
 func (s *Service) decryptPassword(cipher string) (string, error) {
@@ -348,6 +350,9 @@ func (s *Service) syncFolder(ctx context.Context, userID, accountID, folderID in
 	s.orm.WithContext(ctx).Model(&folder).Update("unread_count", unreadCount)
 	s.backfillAfterSync(userID, accountID)
 
+	if folder.Type == schemas.FolderTypeInbox {
+		go s.judgeGrayZone(folderID)
+	}
 	return account, fresh, nil
 }
 
@@ -366,7 +371,8 @@ func (s *Service) GetFolders(ctx context.Context, userID, accountID int64) ([]sc
 // GetConversationsByFolderType returns one row per conversation in a folder,
 // newest-first, paginated by conversation. Collapsing happens in SQL via window
 // functions so pagination stays correct even when a thread spans pages.
-func (s *Service) GetConversationsByFolderType(ctx context.Context, userID, accountID int64, folderType string, page, limit int, unreadOnly bool) ([]Conversation, int64, error) {
+func (s *Service) GetConversationsByFolderType(ctx context.Context, userID, accountID int64, q FolderQuery) ([]Conversation, int64, error) {
+	folderType, page, limit := q.FolderType, q.Page, q.Limit
 	if _, err := s.getAccount(ctx, userID, accountID); err != nil {
 		return nil, 0, err
 	}
@@ -376,7 +382,7 @@ func (s *Service) GetConversationsByFolderType(ctx context.Context, userID, acco
 		return nil, 0, errors.NotFound(fmt.Sprintf("folder type %q not found", folderType))
 	}
 
-	filter := conversationFilter{FolderIDs: []int64{folder.ID}, UnreadOnly: unreadOnly}
+	filter := conversationFilter{FolderIDs: []int64{folder.ID}, UnreadOnly: q.UnreadOnly, Category: q.Category}
 	total, err := s.countConversations(ctx, filter)
 	if err != nil {
 		return nil, 0, err
@@ -391,10 +397,11 @@ func (s *Service) SearchEmails(ctx context.Context, userID, accountID int64, que
 	}
 
 	offset := (page - 1) * limit
-	like := "%" + escapeLikePattern(query) + "%"
-
-	q := s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("account_id = ?", accountID).
-		Where("subject ILIKE ? OR from_name ILIKE ? OR from_address ILIKE ? OR body_text ILIKE ?", like, like, like, like)
+	q := s.orm.WithContext(ctx).Model(&schemas.Email{}).Where("account_id = ?", accountID)
+	for _, word := range searchWords(query) {
+		like := "%" + escapeLikePattern(word) + "%"
+		q = q.Where("subject ILIKE ? OR from_name ILIKE ? OR from_address ILIKE ? OR body_text ILIKE ?", like, like, like, like)
+	}
 
 	var excludedIDs []int64
 	s.orm.WithContext(ctx).Model(&schemas.Folder{}).

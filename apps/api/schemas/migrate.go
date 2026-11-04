@@ -26,6 +26,7 @@ func MigrateWithIssuer(db *gorm.DB, issuer string) error {
 		&EmailTemplate{},
 		&Space{},
 		&SpaceMember{},
+		&SenderRule{},
 	); err != nil {
 		return err
 	}

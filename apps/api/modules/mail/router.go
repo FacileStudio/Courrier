@@ -254,9 +254,13 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			if limit < 1 || limit > 100 {
 				limit = 50
 			}
-			unreadOnly := req.URL.Query().Get("unread") == "true"
-
-			conversations, total, err := service.GetConversationsByFolderType(req.Context(), uid, accountID, folderType, page, limit, unreadOnly)
+			category, err := tabCategory(req.URL.Query().Get("tab"))
+			if err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			query := FolderQuery{FolderType: folderType, Page: page, Limit: limit, UnreadOnly: req.URL.Query().Get("unread") == "true", Category: category}
+			conversations, total, err := service.GetConversationsByFolderType(req.Context(), uid, accountID, query)
 			if err != nil {
 				httpjson.WriteError(w, err)
 				return
