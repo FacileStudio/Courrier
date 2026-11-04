@@ -40,8 +40,10 @@ func New(orm *gorm.DB, issuer string, logger *slog.Logger) *Gate {
 }
 
 // Load restores the state the last Apply saved. Call it at boot, before the
-// first pull. A row that cannot be imported is logged and leaves the Gate
-// failing open until the next snapshot.
+// first pull. A row that cannot be imported is logged and the Gate fails
+// closed at the feature defaults until the next snapshot: a row exists, so
+// entitlements were authoritative once, and failing open would lift every
+// limit.
 func (g *Gate) Load(ctx context.Context) error {
 	var documents []string
 	if err := g.orm.WithContext(ctx).Raw(`SELECT document FROM forfait_state WHERE id = 1`).
@@ -52,7 +54,9 @@ func (g *Gate) Load(ctx context.Context) error {
 		return nil
 	}
 	if err := g.store.Import([]byte(documents[0])); err != nil {
-		g.logger.Error("plans: saved entitlements could not be restored, failing open", slog.Any("error", err))
+		g.logger.Error("plans: saved entitlements could not be restored, enforcing defaults", slog.Any("error", err))
+		g.store.Apply(directory.Snapshot{EntitlementsRevision: 1})
+		g.active.Store(true)
 		return nil
 	}
 	g.refresh([]byte(documents[0]))

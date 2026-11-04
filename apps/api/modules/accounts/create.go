@@ -1,8 +1,10 @@
 package accounts
 
 import (
+	"cmp"
 	"context"
 
+	"github.com/FacileStudio/Courrier/apps/api/internal/spaceid"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/tronc/errors"
 
@@ -52,20 +54,28 @@ func (s *Service) buildAccount(userID int64, req CreateAccountRequest) (schemas.
 	}, nil
 }
 
-func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountRequest) (schemas.Account, error) {
+// prepareCreate validates the request, fills the default ports and resolves
+// the space: "" is the personal scope, any other id must be canonical and
+// name a space the caller belongs to.
+func (s *Service) prepareCreate(ctx context.Context, userID int64, req CreateAccountRequest) (CreateAccountRequest, error) {
 	if err := validateCreateAccount(req); err != nil {
+		return req, err
+	}
+	req.IMAPPort = cmp.Or(req.IMAPPort, 993)
+	req.SMTPPort = cmp.Or(req.SMTPPort, 587)
+	spaceID, err := spaceid.Optional(req.SpaceID)
+	if err != nil || spaceID == nil {
+		req.SpaceID = nil
+		return req, err
+	}
+	req.SpaceID = spaceID
+	return req, s.requireSpaceMember(ctx, *spaceID, userID)
+}
+
+func (s *Service) Create(ctx context.Context, userID int64, req CreateAccountRequest) (schemas.Account, error) {
+	req, err := s.prepareCreate(ctx, userID, req)
+	if err != nil {
 		return schemas.Account{}, err
-	}
-	if req.IMAPPort == 0 {
-		req.IMAPPort = 993
-	}
-	if req.SMTPPort == 0 {
-		req.SMTPPort = 587
-	}
-	if req.SpaceID != nil && *req.SpaceID != "" {
-		if err := s.requireSpaceMember(ctx, *req.SpaceID, userID); err != nil {
-			return schemas.Account{}, err
-		}
 	}
 	account, err := s.buildAccount(userID, req)
 	if err != nil {

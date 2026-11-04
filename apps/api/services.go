@@ -9,6 +9,7 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/internal/push"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/Courrier/apps/api/modules/spaces"
+	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
 	"github.com/FacileStudio/porte/local"
 	"github.com/FacileStudio/porte/oidc"
@@ -45,5 +46,19 @@ func buildServices(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogge
 		return services{}, err
 	}
 	svc.directory = newDirectory(db, appEnv, svc.plans, appLogger)
+	reportSpaceIDs(db, appLogger)
 	return svc, nil
+}
+
+// reportSpaceIDs logs rows whose space_id is not canonical, which count
+// toward no plan and match no space filter. It changes nothing.
+func reportSpaceIDs(db *gorm.DB, appLogger *slog.Logger) {
+	found, err := schemas.NonCanonicalSpaceIDs(db)
+	if err != nil {
+		appLogger.Warn("space_id audit failed", slog.Any("error", err))
+		return
+	}
+	if len(found) > 0 {
+		appLogger.Warn("rows with a non-canonical space_id, left as they are", slog.Any("tables", found))
+	}
 }

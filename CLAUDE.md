@@ -129,6 +129,12 @@ unknown `/api/*` path return 404 instead of falling through to the SPA catch-all
   members who hold an identity under the issuer, so password-only accounts keep their seat.
   Creating a space, and editing a linked one, answer 409 naming the Registre page; the client
   shows "Gérer dans Registre" from `manage_url`. Mail accounts in a space stay Courrier's.
+- **Plans come from Registre through porte/forfait.** `internal/plans` caps mail accounts per
+  scope (`courrier.mailboxes`) and saves the store in the single-row `forfait_state` table after
+  every pull. The store ignores an older entitlements revision, so after Registre or Ardoise is
+  restored to an older revision, run `DELETE FROM forfait_state;` and restart Courrier: it fails
+  open until the boot pull applies the restored values. Client space ids go through
+  `internal/spaceid` before they touch a text `space_id` column.
 - **Database-backed tests need Postgres.** `TEST_DATABASE_URL` points at a scratch database
   (`github.com/FacileStudio/tronc/testdb` gives each test binary its own schema); without it
   those tests skip loudly. SQLite is not an option here — the gate rejects the driver.
