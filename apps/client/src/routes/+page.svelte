@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { Button, Spinner, icons } from '@facile/muse';
+	import { DownloadCta, PricingPlans, Spinner } from '@facile/muse';
 	import { backend } from '$lib/backend';
 	import NativeIntro from '$lib/components/native/NativeIntro.svelte';
 	import { isDesktop, isNative } from '$lib/platform';
@@ -140,9 +140,11 @@
 					</a>
 				</div>
 				<div class="mt-4 flex justify-center">
-					<Button href="/downloads" variant="ghost" size="lg" icon={icons.download} class="min-h-11">
-						Get the desktop and Android apps
-					</Button>
+					<DownloadCta
+						href="/downloads"
+						platforms={['macos', 'windows', 'linux', 'android']}
+						label="Get the desktop and Android apps"
+					/>
 				</div>
 			</section>
 
@@ -200,6 +202,13 @@
 					</div>
 				</div>
 			</section>
+
+			<PricingPlans
+				id="tarifs"
+				highlight={['courrier.mailboxes']}
+				title="Tarifs"
+				class="mx-auto max-w-5xl px-6 py-20"
+			/>
 
 			<section class="mx-auto max-w-5xl px-6 py-20 text-center">
 				<h2 class="text-3xl font-bold font-heading tracking-tight">
