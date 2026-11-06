@@ -79,19 +79,37 @@ func (g *Gate) checkPersonal(tx *gorm.DB, userID int64) error {
 	if err := tx.Raw(`SELECT id FROM users WHERE id = ? FOR UPDATE`, userID).Scan(&locked).Error; err != nil {
 		return errors.Internal("failed to read the user", err)
 	}
-	var subjects []string
-	if err := tx.Raw(`SELECT subject FROM porte_identities WHERE user_id = ? AND provider = ?`,
-		userID, g.issuer).Scan(&subjects).Error; err != nil {
-		return errors.Internal("failed to read the user's identity", err)
+	subject, err := g.personalSubject(tx, userID)
+	if err != nil {
+		return err
 	}
 	var used int64
 	if err := tx.Raw(`SELECT count(*) FROM accounts WHERE user_id = ? AND space_id IS NULL`, userID).
 		Scan(&used).Error; err != nil {
 		return errors.Internal("failed to count the user's accounts", err)
 	}
-	scope := forfait.Scope{}
-	if len(subjects) > 0 {
-		scope.Subject = subjects[0]
+	return g.store.Check(forfait.Scope{Subject: subject}, Mailboxes, used, 1)
+}
+
+// personalSubject picks the Registre subject whose plan governs the user's
+// personal scope. A user can hold several identities under the issuer, such
+// as a stale row from an earlier Authentik, so the order is fixed: the first
+// subject the last snapshot lists among its people, else the most recently
+// synced or created identity, ties broken by subject. "" means none.
+func (g *Gate) personalSubject(tx *gorm.DB, userID int64) (string, error) {
+	var subjects []string
+	if err := tx.Raw(`SELECT subject FROM porte_identities WHERE user_id = ? AND provider = ?
+		ORDER BY greatest(synced_at, created_at) DESC NULLS LAST, subject`,
+		userID, g.issuer).Scan(&subjects).Error; err != nil {
+		return "", errors.Internal("failed to read the user's identity", err)
 	}
-	return g.store.Check(scope, Mailboxes, used, 1)
+	for _, subject := range subjects {
+		if g.knows(subject) {
+			return subject, nil
+		}
+	}
+	if len(subjects) == 0 {
+		return "", nil
+	}
+	return subjects[0], nil
 }

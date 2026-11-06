@@ -27,6 +27,7 @@ type Gate struct {
 	logger *slog.Logger
 	store  *forfait.Store
 	active atomic.Bool
+	people atomic.Pointer[map[string]bool]
 }
 
 // New builds the Gate for the OIDC issuer Courrier signs users in with. The
@@ -88,12 +89,29 @@ func (g *Gate) Active() bool {
 	return g != nil && g.active.Load()
 }
 
-// refresh marks the Gate active once an exported document carries a revision.
+// refresh marks the Gate active once an exported document carries a
+// revision, and remembers the subjects of the people it holds.
 func (g *Gate) refresh(document []byte) {
 	var state struct {
-		Revision int64 `json:"entitlements_revision"`
+		Revision int64                      `json:"entitlements_revision"`
+		People   map[string]json.RawMessage `json:"people"`
 	}
-	if json.Unmarshal(document, &state) == nil && state.Revision > 0 {
+	if json.Unmarshal(document, &state) != nil {
+		return
+	}
+	people := make(map[string]bool, len(state.People))
+	for subject := range state.People {
+		people[subject] = true
+	}
+	g.people.Store(&people)
+	if state.Revision > 0 {
 		g.active.Store(true)
 	}
+}
+
+// knows reports whether the last applied snapshot listed subject among its
+// people.
+func (g *Gate) knows(subject string) bool {
+	people := g.people.Load()
+	return people != nil && (*people)[subject]
 }
