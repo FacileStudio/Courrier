@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { browser } from '$app/environment';
-	import { Toaster } from '@facile/muse';
+	import { Toaster, provideLocale } from '@facile/muse';
 	import TitleBar from '$lib/components/native/TitleBar.svelte';
 	import { registerDeepLinks } from '$lib/native';
 	import { isApp, isDesktop } from '$lib/platform';
@@ -9,6 +9,8 @@
 	import { updater } from '$lib/updater.svelte';
 
 	let { children } = $props();
+
+	provideLocale(() => 'fr');
 
 	if (browser) {
 		theme.restore();

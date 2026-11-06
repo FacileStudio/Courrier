@@ -4,6 +4,15 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- The landing page has a "Tarifs" section: muse's `PricingPlans` shows the live Facile plans from Ardoise's catalog with `courrier.mailboxes` first. It renders nothing while the catalog is empty or unreachable.
+
+### Changed
+
+- `@facile/muse` v0.8.1 to v0.11.0. The root layout calls `provideLocale(() => 'fr')`, so muse's own strings stay French and `<html lang>` is now `fr`.
+- The landing page's "Get the desktop and Android apps" link is muse's `DownloadCta`, with the macOS, Windows, Linux and Android icons. It still goes to `/downloads`.
+
 ## [0.10.1] - 2026-11-06
 
 ### Fixed
