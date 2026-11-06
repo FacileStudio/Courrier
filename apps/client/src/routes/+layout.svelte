@@ -10,7 +10,7 @@
 
 	let { children } = $props();
 
-	provideLocale(() => 'fr');
+	provideLocale(() => 'en');
 
 	if (browser) {
 		theme.restore();
