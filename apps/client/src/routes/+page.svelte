@@ -204,10 +204,10 @@
 			</section>
 
 			<PricingPlans
-				id="tarifs"
+				id="pricing"
 				highlight={['courrier.mailboxes']}
-				title="Tarifs"
-				class="mx-auto max-w-5xl px-6 py-20"
+				title="Pricing"
+				class="mx-auto max-w-5xl px-6 py-20 [&>div:first-child]:items-center [&>div:first-child]:sm:flex-col [&>div:first-child]:sm:items-center [&>div:first-child_fieldset]:items-center [&>div:first-child_fieldset>div]:self-center [&_h2]:text-3xl [&_h2]:font-bold [&_h2]:font-heading [&_h2]:tracking-tight [&_h2]:text-center [&_h2]:text-foreground"
 			/>
 
 			<section class="mx-auto max-w-5xl px-6 py-20 text-center">
