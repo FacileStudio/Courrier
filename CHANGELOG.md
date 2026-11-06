@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-11-06
+
 ### Fixed
 
 - The personal mail account limit now reads the right person's plan when a user holds several Registre identities, for example a stale row from an earlier Authentik. Courrier takes the subject the last directory snapshot lists among its people. If the snapshot lists none, it takes the most recently synced identity. Before, it took whichever row Postgres returned first.
