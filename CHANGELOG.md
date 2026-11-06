@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-06
+
 ### Added
 
 - The landing page has a "Pricing" section: muse's `PricingPlans` shows the live Facile plans from Ardoise's catalog with `courrier.mailboxes` first. It renders nothing while the catalog is empty or unreachable.
