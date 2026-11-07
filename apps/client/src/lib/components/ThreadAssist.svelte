@@ -5,6 +5,7 @@
 	import { backend, type EmailMessage } from '$lib/backend';
 	import { assistStatus } from '$lib/assist/status.svelte';
 	import { plainOf, reasonText } from '$lib/assist/text';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let { accountId, messages }: { accountId: number; messages: EmailMessage[] } = $props();
 
@@ -40,7 +41,7 @@
 		try {
 			summary = (await backend.assist({ action: 'summarize', context: await threadText() })).text;
 		} catch (err) {
-			toast.danger(err instanceof Error ? err.message : 'Bulle could not answer');
+			toast.danger(err instanceof Error ? err.message : t('assist.failed'));
 		}
 		busy = false;
 	}
@@ -51,16 +52,16 @@
 		<div class="flex flex-wrap items-center gap-2">
 			<Button size="sm" variant="outline" disabled={!available || busy || messages.length === 0} title={available ? '' : reasonText(status)} onclick={summarize}>
 				{#if busy}<Spinner size="sm" />{:else}<Blob name="Bulle" size={16} class="size-4" />{/if}
-				Summarize
+				{t('assist.summarize')}
 			</Button>
 			{#if status.bulle_url}
-				<Button size="sm" variant="ghost" href={status.bulle_url} target="_blank" rel="noopener">Ask Bulle</Button>
+				<Button size="sm" variant="ghost" href={status.bulle_url} target="_blank" rel="noopener">{t('assist.askBulle')}</Button>
 			{/if}
 		</div>
 		{#if summary}
-			<div class="flex flex-col gap-2 rounded-fc-lg border border-fc-border bg-fc-surface p-3" role="region" aria-label="Thread summary">
+			<div class="flex flex-col gap-2 rounded-fc-lg bg-fc-surface p-3" role="region" aria-label={t('assist.summary')}>
 				<p class="whitespace-pre-wrap text-fc-sm text-fc-fg">{summary}</p>
-				<Button size="sm" variant="ghost" class="self-start" onclick={() => (summary = '')}>Hide</Button>
+				<Button size="sm" variant="ghost" class="self-start" onclick={() => (summary = '')}>{t('assist.hide')}</Button>
 			</div>
 		{/if}
 	</div>

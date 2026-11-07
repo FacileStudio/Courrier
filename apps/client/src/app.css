@@ -5,7 +5,7 @@
 	--font-sans: var(--font-fc-body);
 	--font-heading: var(--font-fc-title);
 	--color-sidebar-ring: var(--color-fc-ring);
-	--color-sidebar-border: var(--color-fc-border);
+	--color-sidebar-border: var(--color-fc-surface);
 	--color-sidebar-accent-foreground: var(--color-fc-fg);
 	--color-sidebar-accent: var(--color-fc-surface);
 	--color-sidebar-primary-foreground: var(--color-fc-accent-fg);
@@ -13,8 +13,8 @@
 	--color-sidebar-foreground: var(--color-fc-fg);
 	--color-sidebar: var(--color-fc-component);
 	--color-ring: var(--color-fc-ring);
-	--color-input: var(--color-fc-border);
-	--color-border: var(--color-fc-border);
+	--color-input: var(--color-fc-surface);
+	--color-border: var(--color-fc-surface);
 	--color-destructive: var(--color-fc-danger);
 	--color-accent-foreground: var(--color-fc-fg);
 	--color-accent: var(--color-fc-surface);

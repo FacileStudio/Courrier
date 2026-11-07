@@ -14,6 +14,8 @@
 		icons
 	} from '@facile/muse';
 	import { backend, type ApiTokenStatus } from '$lib/backend';
+	import { formatDate } from '$lib/i18n/format';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let status = $state<ApiTokenStatus>({ has_token: false });
 	let loadError = $state('');
@@ -36,7 +38,7 @@
 			status = await backend.apiTokenStatus();
 			loadError = '';
 		} catch (err) {
-			loadError = err instanceof Error ? err.message : 'Could not read your token';
+			loadError = err instanceof Error ? err.message : t('api.readFailed');
 		}
 	}
 
@@ -56,7 +58,7 @@
 			issued = (await backend.createApiToken(newName.trim())).token;
 			await load();
 		} catch (err) {
-			createError = err instanceof Error ? err.message : 'Could not create the token';
+			createError = err instanceof Error ? err.message : t('api.createFailed');
 		}
 		creating = false;
 	}
@@ -67,33 +69,33 @@
 			await backend.deleteApiToken();
 			await load();
 		} catch (err) {
-			revokeError = err instanceof Error ? err.message : 'Could not revoke the token';
+			revokeError = err instanceof Error ? err.message : t('api.revokeFailed');
 		}
 	}
 
 	function when(raw?: string) {
 		if (!raw) return '—';
 		const date = new Date(raw);
-		return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString();
+		return Number.isNaN(date.getTime()) ? '—' : formatDate(date);
 	}
 </script>
 
 <div class="flex flex-col gap-10">
 	<SettingsSection
-		title="Endpoint"
-		description="Point a script or an HTTP client here. Not a secret — the token is."
+		title={t('api.endpoint')}
+		description={t('api.endpointBody')}
 	>
-		<SecretField value={endpoint} sensitive={false} label="Base URL" />
+		<SecretField value={endpoint} sensitive={false} label={t('api.baseUrl')} />
 	</SettingsSection>
 
 	<SettingsSection
-		title="Personal API token"
-		description="Authenticates a script as you. Courrier keeps one per person — issuing a new token retires the old one on the spot."
+		title={t('api.tokenTitle')}
+		description={t('api.tokenBody')}
 		bare
 	>
 		{#snippet actions()}
 			<Button icon={icons.plus} onclick={openCreate}>
-				{status.has_token ? 'Replace token' : 'New token'}
+				{status.has_token ? t('api.replace') : t('api.new')}
 			</Button>
 		{/snippet}
 
@@ -103,23 +105,22 @@
 
 		{#if !status.has_token}
 			<Alert tone="info">
-				No token yet. Nothing outside the browser can talk to this instance as you until there is
-				one.
+				{t('api.none')}
 			</Alert>
 		{:else}
 			<Table>
 				<thead>
 					<tr>
-						<th>Name</th>
-						<th>Token</th>
-						<th>Created</th>
-						<th class="text-right">Actions</th>
+						<th>{t('api.colName')}</th>
+						<th>{t('api.colToken')}</th>
+						<th>{t('api.colCreated')}</th>
+						<th class="text-right">{t('api.colActions')}</th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr>
 						<td class="font-medium text-fc-fg">{status.name || 'CLI'}</td>
-						<td class="font-fc-mono text-fc-xs text-fc-fg-muted">stored hashed</td>
+						<td class="font-fc-mono text-fc-xs text-fc-fg-muted">{t('api.storedHashed')}</td>
 						<td class="whitespace-nowrap text-fc-fg-muted">{when(status.created_at)}</td>
 						<td class="text-right">
 							<Button
@@ -131,7 +132,7 @@
 									revokeOpen = true;
 								}}
 							>
-								Revoke
+								{t('common.revoke')}
 							</Button>
 						</td>
 					</tr>
@@ -145,12 +146,11 @@
 	</SettingsSection>
 </div>
 
-<Drawer bind:open={createOpen} title={status.has_token && !issued ? 'Replace API token' : 'New API token'}>
+<Drawer bind:open={createOpen} title={status.has_token && !issued ? t('api.drawerReplace') : t('api.drawerNew')}>
 	{#if issued}
 		<div class="flex flex-col gap-4">
-			<Alert tone="warning" title="Copy it now">
-				Courrier stores only a hash of this token, so this is the one and only time it is shown.
-				Lose it and the fix is issuing another one.
+			<Alert tone="warning" title={t('api.copyNow')}>
+				{t('api.copyNowBody')}
 			</Alert>
 
 			<!--
@@ -161,25 +161,24 @@
 				value={issued}
 				visible
 				autoHideMs={0}
-				label="Token"
-				helper="Put it in your password manager or your CI secret store."
+				label={t('api.tokenLabel')}
+				helper={t('api.tokenHelp')}
 			/>
 
 			<div class="flex justify-end">
-				<Button onclick={() => (createOpen = false)}>Done</Button>
+				<Button onclick={() => (createOpen = false)}>{t('api.done')}</Button>
 			</div>
 		</div>
 	{:else}
 		<form class="flex flex-col gap-4" onsubmit={create}>
 			{#if status.has_token}
-				<Alert tone="warning" title="This replaces your current token">
-					The token named "{status.name || 'CLI'}" stops working the moment the new one is issued,
-					and anything still using it starts failing.
+				<Alert tone="warning" title={t('api.replacesTitle')}>
+					{t('api.replacesBody', { name: status.name || 'CLI' })}
 				</Alert>
 			{/if}
 
-			<Field label="Name" helper="Where the token will live — a machine, a cron job, a script.">
-				<Input bind:value={newName} placeholder="laptop-cli" required disabled={creating} />
+			<Field label={t('api.nameLabel')} helper={t('api.nameHelp')}>
+				<Input bind:value={newName} placeholder={t('api.namePlaceholder')} required disabled={creating} />
 			</Field>
 
 			{#if createError}
@@ -188,11 +187,11 @@
 
 			<div class="flex justify-end gap-2 pt-1">
 				<Button type="button" variant="ghost" disabled={creating} onclick={() => (createOpen = false)}>
-					Cancel
+					{t('common.cancel')}
 				</Button>
 				<Button type="submit" disabled={creating || newName.trim().length === 0}>
 					{#if creating}<Spinner size="sm" />{/if}
-					{creating ? 'Creating…' : 'Create token'}
+					{creating ? t('api.creating') : t('api.create')}
 				</Button>
 			</div>
 		</form>
@@ -202,9 +201,9 @@
 <ConfirmModal
 	bind:open={revokeOpen}
 	tone="danger"
-	title="Revoke this token?"
-	description="Every script, cron job and CLI still holding it starts getting 401s immediately, and it cannot be un-revoked — the only way back is issuing a new token and updating whatever used the old one."
-	confirmLabel="Revoke token"
-	cancelLabel="Keep it"
+	title={t('api.revokeTitle')}
+	description={t('api.revokeBody')}
+	confirmLabel={t('api.revokeConfirm')}
+	cancelLabel={t('accounts.keepIt')}
 	onConfirm={revoke}
 />

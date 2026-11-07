@@ -1,3 +1,5 @@
+import { t } from '$lib/i18n/index.svelte';
+
 /** A 402 refusal: the scope's plan has no room for what was being created. */
 export type PlanLimit = {
 	message: string;
@@ -29,7 +31,7 @@ export function planLimitFrom(status: number, payload: unknown): PlanLimit | und
 	if (status !== 402) return undefined;
 	const error = (payload as { error?: Record<string, unknown> } | undefined)?.error ?? {};
 	return {
-		message: typeof error.message === 'string' && error.message ? error.message : 'Your plan limit is reached.',
+		message: typeof error.message === 'string' && error.message ? error.message : t('plan.fallback'),
 		upgradeUrl: isSafeUpgradeUrl(error.upgrade_url) ? error.upgrade_url : undefined,
 		key: typeof error.key === 'string' ? error.key : undefined,
 		limit: typeof error.limit === 'number' && Number.isFinite(error.limit) ? error.limit : undefined

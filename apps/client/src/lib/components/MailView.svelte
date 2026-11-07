@@ -7,6 +7,8 @@
 	import InboxTabs from '$lib/components/InboxTabs.svelte';
 	import SenderTabPicker from '$lib/components/SenderTabPicker.svelte';
 	import ThreadAssist from '$lib/components/ThreadAssist.svelte';
+	import { formatListDate } from '$lib/i18n/format';
+	import { t } from '$lib/i18n/index.svelte';
 	import { mailCache } from '$lib/stores/mail-cache';
 	import { searchStore } from '$lib/stores/search.svelte';
 	import {
@@ -27,6 +29,7 @@
 	import ThreadView from '$lib/components/ThreadView.svelte';
 	import BulkActionBar from '$lib/components/BulkActionBar.svelte';
 	import MailFolderSwitcher from '$lib/components/MailFolderSwitcher.svelte';
+	import { MAIL_FOLDERS } from '$lib/mail-folders';
 
 	let { folder }: { folder: string } = $props();
 
@@ -45,16 +48,11 @@
 		refreshAccounts: () => Promise<void>;
 	}>('app');
 
-	const folderLabels: Record<string, string> = {
-		inbox: 'Inbox',
-		sent: 'Sent',
-		drafts: 'Drafts',
-		archive: 'Archive',
-		junk: 'Junk',
-		trash: 'Trash'
-	};
-
-	const folderLabel = $derived(folderLabels[folder] ?? folder);
+	const folderLabel = $derived(
+		MAIL_FOLDERS.find((entry) => entry.type === folder)
+			? t(MAIL_FOLDERS.find((entry) => entry.type === folder)!.labelKey)
+			: folder
+	);
 	const isTrash = $derived(folder === 'trash');
 
 	const isDesktop = new MediaQuery('(min-width: 768px)');
@@ -267,16 +265,6 @@
 		}
 	}
 
-	function formatDate(dateStr: string) {
-		const date = new Date(dateStr);
-		const now = new Date();
-		const diffMs = now.getTime() - date.getTime();
-		const diffDays = diffMs / (1000 * 60 * 60 * 24);
-		if (diffDays < 1) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-		if (diffDays < 7) return date.toLocaleDateString('fr-FR', { weekday: 'short' });
-		return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-	}
-
 	async function handleBulkDelete() {
 		deleteTarget = [...checkedIds];
 		deleteDialogOpen = true;
@@ -294,9 +282,9 @@
 			if (selectedId && deleteTarget.includes(selectedId)) selectedId = null;
 			checkedIds = new Set();
 			deleteTarget = [];
-			toast.success(isTrash ? `${count} permanently deleted` : `${count} moved to trash`);
+			toast.success(isTrash ? t('mail.deletedPermanently', { count }) : t('mail.movedToTrash', { count }));
 		} catch {
-			toast.danger('Failed to delete');
+			toast.danger(t('mail.deleteFailed'));
 		}
 		bulkLoading = false;
 	}
@@ -312,9 +300,9 @@
 			mailCache.removeEmails(ids);
 			if (selectedId && ids.includes(selectedId)) selectedId = null;
 			checkedIds = new Set();
-			toast.success(`${ids.length} archived`);
+			toast.success(t('mail.archivedCount', { count: ids.length }));
 		} catch {
-			toast.danger('Failed to archive');
+			toast.danger(t('mail.archiveFailed'));
 		}
 		bulkLoading = false;
 	}
@@ -334,7 +322,7 @@
 			}
 			checkedIds = new Set();
 		} catch {
-			toast.danger('Failed to mark as read');
+			toast.danger(t('mail.markReadFailed'));
 		}
 		bulkLoading = false;
 	}
@@ -348,7 +336,7 @@
 			emails = emails.map((e) => (ids.includes(e.id) ? { ...e, is_read: false, unread_count: e.message_count ?? 1 } : e));
 			checkedIds = new Set();
 		} catch {
-			toast.danger('Failed to mark as unread');
+			toast.danger(t('mail.markUnreadFailed'));
 		}
 		bulkLoading = false;
 	}
@@ -366,9 +354,9 @@
 			totalEmails = Math.max(0, totalEmails - 1);
 			mailCache.removeEmails([emailId]);
 			if (selectedId === emailId) selectedId = null;
-			toast.success('Archived');
+			toast.success(t('mail.archivedOne'));
 		} catch {
-			toast.danger('Failed to archive');
+			toast.danger(t('mail.archiveFailed'));
 		}
 	}
 
@@ -499,13 +487,11 @@
 	bind:open={deleteDialogOpen}
 	tone="danger"
 	icon={icons.remove}
-	title={isTrash
-		? `Permanently delete ${deleteCount === 1 ? 'this email' : `${deleteCount} emails`}?`
-		: `Delete ${deleteCount === 1 ? 'this email' : `${deleteCount} emails`}?`}
+	title={isTrash ? t('mail.deletePermTitle', { count: deleteCount }) : t('mail.deleteTitle', { count: deleteCount })}
 	description={isTrash
-		? `This cannot be undone. ${deleteCount === 1 ? 'This email' : 'These emails'} will be permanently removed.`
-		: `${deleteCount === 1 ? 'This email' : 'These emails'} will be moved to Trash. You can restore ${deleteCount === 1 ? 'it' : 'them'} from there.`}
-	confirmLabel="Delete"
+		? t('mail.deletePermBody', { count: deleteCount })
+		: t('mail.deleteBody', { count: deleteCount })}
+	confirmLabel={t('common.delete')}
 	onConfirm={confirmDelete}
 />
 
@@ -523,15 +509,15 @@
 					{@attach captureInput}
 					bind:value={searchQuery}
 					onkeydown={onSearchKeydown}
-					placeholder="Search all mail…"
-					aria-label="Search all mail"
+					placeholder={t('mail.search')}
+					aria-label={t('mail.searchLabel')}
 					aria-keyshortcuts="Meta+K Control+K"
 					class="pl-9 pr-14 text-fc-sm"
 				/>
 				{#if searchQuery}
 					<IconButton
 						variant="ghost"
-						aria-label="Clear search"
+						aria-label={t('mail.clearSearch')}
 						class="absolute right-0 top-0"
 						onclick={clearSearch}
 					>
@@ -550,15 +536,15 @@
 					{#if emails.length > 0}
 						<Checkbox
 							checked={allChecked}
-							aria-label={allChecked ? 'Deselect all' : 'Select all'}
+							aria-label={allChecked ? t('mail.deselectAll') : t('mail.selectAll')}
 							onchange={toggleAll}
 							class="size-8 shrink-0 justify-center"
 						/>
 					{/if}
 					{#if searchMode}
-						<h2 class="truncate text-fc-lg font-semibold text-fc-fg">Search</h2>
+						<h2 class="truncate text-fc-lg font-semibold text-fc-fg">{t('mail.searchHeading')}</h2>
 						<span class="shrink-0 text-fc-sm text-fc-fg-muted">
-							{totalEmails} result{totalEmails === 1 ? '' : 's'}
+							{t('mail.results', { count: totalEmails })}
 						</span>
 					{:else}
 						<div class="min-w-0">
@@ -576,12 +562,12 @@
 							showUnreadOnly = !showUnreadOnly;
 						}}
 					>
-						Unread
+						{t('mail.unread')}
 					</Button>
 					<IconButton
 						variant="ghost"
-						aria-label="Refresh"
-						title="Refresh"
+						aria-label={t('mail.refresh')}
+						title={t('mail.refresh')}
 						disabled={syncing}
 						onclick={syncAndLoad}
 					>
@@ -635,17 +621,17 @@
 						<EmptyState
 							bare
 							icon={icons.search}
-							title="No messages match “{debouncedQuery.trim()}”"
-							description="Try a different sender, subject or word from the body."
+							title={t('mail.noMatchTitle', { query: debouncedQuery.trim() })}
+							description={t('mail.noMatchBody')}
 						/>
 					{:else}
 						<EmptyState
 							bare
 							icon={icons.mail}
-							title={showUnreadOnly ? `No unread email in ${folderLabel}` : `No email in ${folderLabel}`}
-							description={showUnreadOnly
-								? 'Everything here has been read.'
-								: 'New messages appear here after a sync.'}
+							title={showUnreadOnly
+								? t('mail.emptyUnread', { folder: folderLabel })
+								: t('mail.emptyFolder', { folder: folderLabel })}
+							description={showUnreadOnly ? t('mail.emptyUnreadBody') : t('mail.emptyBody')}
 						/>
 					{/if}
 				</div>
@@ -670,7 +656,7 @@
 				{/each}
 				{#if loadingMore}
 					<div class="flex items-center justify-center py-4">
-						<Spinner size="sm" label="Loading more messages" />
+						<Spinner size="sm" label={t('mail.loadingMore')} />
 					</div>
 				{/if}
 				<div bind:this={sentinel} class="h-1"></div>
@@ -684,7 +670,7 @@
 		{#if selected}
 			<div class="mail-detail-header flex flex-col gap-2 px-4 py-4 sm:px-6">
 				<div class="flex items-center gap-2">
-					<h1 class="text-fc-xl font-semibold text-fc-fg">{selected.subject || '(no subject)'}</h1>
+					<h1 class="text-fc-xl font-semibold text-fc-fg">{selected.subject || t('common.noSubject')}</h1>
 					{#if threadMessages.length > 1}
 						<Badge tone="neutral" class="tabular-nums">{threadMessages.length}</Badge>
 					{/if}
@@ -695,8 +681,8 @@
 					<div class="ml-auto flex items-center gap-1">
 						<IconButton
 							variant="ghost"
-							aria-label="Reply"
-							title="Reply"
+							aria-label={t('mail.reply')}
+							title={t('mail.reply')}
 							onclick={() => goto(`/mail/compose?reply=${replyTarget!.id}&accountId=${app.activeAccountId}`)}
 						>
 							<iconify-icon icon={mailIcons.reply} width="18" height="18" class="block size-4.5"
@@ -704,8 +690,8 @@
 						</IconButton>
 						<IconButton
 							variant="ghost"
-							aria-label="Reply all"
-							title="Reply all"
+							aria-label={t('mail.replyAll')}
+							title={t('mail.replyAll')}
 							onclick={() => goto(`/mail/compose?replyall=${replyTarget!.id}&accountId=${app.activeAccountId}`)}
 						>
 							<iconify-icon icon={mailIcons.replyAll} width="18" height="18" class="block size-4.5"
@@ -713,8 +699,8 @@
 						</IconButton>
 						<IconButton
 							variant="ghost"
-							aria-label="Forward"
-							title="Forward"
+							aria-label={t('mail.forward')}
+							title={t('mail.forward')}
 							onclick={() => goto(`/mail/compose?forward=${replyTarget!.id}&accountId=${app.activeAccountId}`)}
 						>
 							<iconify-icon icon={mailIcons.forward} width="18" height="18" class="block size-4.5"
@@ -730,12 +716,12 @@
 								}}
 							/>
 						{/if}
-						<span class="mx-1 h-5 w-px shrink-0 bg-fc-border"></span>
+						<span class="mx-1 h-5 w-px shrink-0 bg-fc-surface"></span>
 						{#if folder !== 'archive'}
 							<IconButton
 								variant="ghost"
-								aria-label="Archive"
-								title="Archive"
+								aria-label={t('mail.archive')}
+								title={t('mail.archive')}
 								onclick={() => handleSingleArchive(selected!.id)}
 							>
 								<iconify-icon icon={mailIcons.archive} width="18" height="18" class="block size-4.5"
@@ -744,14 +730,14 @@
 						{/if}
 						<IconButton
 							variant="danger"
-							aria-label="Delete"
-							title="Delete"
+							aria-label={t('mail.delete')}
+							title={t('mail.delete')}
 							onclick={() => handleSingleDelete(selected!.id)}
 						>
 							<iconify-icon icon={icons.remove} width="18" height="18" class="block size-4.5"
 							></iconify-icon>
 						</IconButton>
-						<span class="ml-2 shrink-0 text-fc-xs">{formatDate(selected.date)}</span>
+						<span class="ml-2 shrink-0 text-fc-xs">{formatListDate(selected.date)}</span>
 					</div>
 				</div>
 				{#key selected.id}
@@ -768,8 +754,8 @@
 				<EmptyState
 					bare
 					icon={icons.mail}
-					title="Nothing open"
-					description="Pick a message on the left to read it here."
+					title={t('mail.nothingOpen')}
+					description={t('mail.nothingOpenBody')}
 				/>
 			</div>
 		{/if}
@@ -790,7 +776,7 @@
 	<div class="flex h-full flex-col">
 		<div class="flex flex-shrink-0 items-center px-2 py-1.5">
 			<Button variant="ghost" size="sm" icon={icons.chevronLeft} onclick={() => (selectedId = null)}>
-				Back
+				{t('common.back')}
 			</Button>
 		</div>
 		<div class="min-h-0 flex-1">

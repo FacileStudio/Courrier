@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Avatar, Badge, Checkbox, Divider, icons } from '@facile/muse';
 	import type { EmailMessage } from '$lib/backend';
+	import { formatListDate } from '$lib/i18n/format';
+	import { t } from '$lib/i18n/index.svelte';
 
 	/* Glyphs an email client needs that muse's `icons` map has no key for yet. */
 	const mailIcons = {
@@ -47,21 +49,6 @@
 	let menuY = $state(0);
 
 	const sender = $derived(email.from_name || email.from_address);
-
-	function formatDate(dateStr: string) {
-		const date = new Date(dateStr);
-		const now = new Date();
-		const diffMs = now.getTime() - date.getTime();
-		const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-		if (diffDays < 1) {
-			return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-		}
-		if (diffDays < 7) {
-			return date.toLocaleDateString('fr-FR', { weekday: 'short' });
-		}
-		return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-	}
 
 	function handleClick() {
 		if (selectionActive) {
@@ -113,7 +100,7 @@
 					}}
 					role="checkbox"
 					aria-checked={checked}
-					aria-label="Select conversation"
+					aria-label={t('mail.selectConversation')}
 					tabindex={0}
 				>
 					<Checkbox {checked} class="pointer-events-none" />
@@ -130,7 +117,7 @@
 					}}
 					role="checkbox"
 					aria-checked={checked}
-					aria-label="Select conversation"
+					aria-label={t('mail.selectConversation')}
 					tabindex={0}
 				>
 					<Checkbox {checked} class="pointer-events-none" />
@@ -147,20 +134,20 @@
 					{/if}
 				</span>
 				<span class="shrink-0 text-fc-xs {selected ? 'text-fc-accent-fg/70' : 'text-fc-fg-muted'}">
-					{formatDate(email.date)}
+					{formatListDate(email.date)}
 				</span>
 			</span>
 			<span
 				class="mt-0.5 block truncate text-fc-sm {selected ? 'text-fc-accent-fg/70' : 'text-fc-fg-muted'}"
 			>
-				{email.subject || '(no subject)'}
+				{email.subject || t('common.noSubject')}
 			</span>
 		</span>
 
 		{#if !email.is_read}
 			<span
 				class="size-2 shrink-0 rounded-fc-pill {selected ? 'bg-fc-accent-fg' : 'bg-fc-accent'}"
-				aria-label="Unread"
+				aria-label={t('mail.unreadMark')}
 			></span>
 		{/if}
 	</button>
@@ -203,32 +190,32 @@
 		{/snippet}
 
 		{#if onreply}
-			{@render item('Reply', mailIcons.reply, onreply)}
+			{@render item(t('mail.reply'), mailIcons.reply, onreply)}
 		{/if}
 		{#if onforward}
-			{@render item('Forward', mailIcons.forward, onforward)}
+			{@render item(t('mail.forward'), mailIcons.forward, onforward)}
 		{/if}
 		{#if onreply || onforward}
 			<Divider class="my-1" />
 		{/if}
 		{#if ontoggleread}
 			{@render item(
-				email.is_read ? 'Mark as unread' : 'Mark as read',
+				email.is_read ? t('mail.markUnread') : t('mail.markRead'),
 				email.is_read ? icons.mail : mailIcons.mailOpen,
 				ontoggleread
 			)}
 		{/if}
 		{#if ontogglestar}
-			{@render item(email.is_starred ? 'Unstar' : 'Star', mailIcons.star, ontogglestar)}
+			{@render item(email.is_starred ? t('mail.unstar') : t('mail.star'), mailIcons.star, ontogglestar)}
 		{/if}
 		{#if onarchive || ondelete}
 			<Divider class="my-1" />
 		{/if}
 		{#if onarchive}
-			{@render item('Archive', mailIcons.archive, onarchive)}
+			{@render item(t('mail.archive'), mailIcons.archive, onarchive)}
 		{/if}
 		{#if ondelete}
-			{@render item('Delete', icons.remove, ondelete, true)}
+			{@render item(t('mail.delete'), icons.remove, ondelete, true)}
 		{/if}
 	</div>
 {/if}

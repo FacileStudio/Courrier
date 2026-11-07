@@ -1,3 +1,5 @@
+import type { AppKey } from '$lib/i18n/messages';
+
 const RELEASES = 'https://github.com/FacileStudio/Courrier/releases';
 const LATEST = `${RELEASES}/latest/download`;
 
@@ -9,12 +11,12 @@ export const DESKTOP_CHECKSUMS_URL = `${LATEST}/desktop-checksums.txt`;
 
 export type DesktopOS = 'macos' | 'windows' | 'linux';
 
-export type DesktopBuild = { os: DesktopOS; label: string; detail: string; url: string };
+export type DesktopBuild = { os: DesktopOS; label: string; detailKey: AppKey; url: string };
 
 export const DESKTOP_BUILDS: readonly DesktopBuild[] = [
-	{ os: 'macos', label: 'macOS', detail: 'Apple silicon and Intel', url: `${LATEST}/Courrier-macos-universal.dmg` },
-	{ os: 'windows', label: 'Windows', detail: 'Windows 10 or later, 64-bit', url: `${LATEST}/Courrier-windows-x64-setup.exe` },
-	{ os: 'linux', label: 'Linux', detail: 'AppImage, x86-64', url: `${LATEST}/Courrier-linux-x64.AppImage` }
+	{ os: 'macos', label: 'macOS', detailKey: 'downloads.detailMacos', url: `${LATEST}/Courrier-macos-universal.dmg` },
+	{ os: 'windows', label: 'Windows', detailKey: 'downloads.detailWindows', url: `${LATEST}/Courrier-windows-x64-setup.exe` },
+	{ os: 'linux', label: 'Linux', detailKey: 'downloads.detailLinux', url: `${LATEST}/Courrier-linux-x64.AppImage` }
 ];
 
 export const DEB_URL = `${LATEST}/Courrier-linux-x64.deb`;

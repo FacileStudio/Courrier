@@ -17,6 +17,7 @@
 	} from '@facile/muse';
 	import { backend, type Space } from '$lib/backend';
 	import { spaceStore } from '$lib/stores/space.svelte';
+	import { t } from '$lib/i18n/index.svelte';
 
 	const spaceId = $derived(page.params.id as string);
 
@@ -47,7 +48,7 @@
 
 	async function saveSettings() {
 		if (!name.trim()) {
-			nameError = 'Le nom est requis';
+			nameError = t('spaces.nameRequired');
 			return;
 		}
 
@@ -61,9 +62,9 @@
 			if (spaceStore.active?.id === spaceId) {
 				spaceStore.set({ id: space.id, name: space.name, role: space.role });
 			}
-			toast.success('Paramètres enregistrés');
+			toast.success(t('spaceSettings.saved'));
 		} catch (err) {
-			nameError = err instanceof Error ? err.message : "Impossible d'enregistrer";
+			nameError = err instanceof Error ? err.message : t('spaceSettings.saveFailed');
 		}
 		saving = false;
 	}
@@ -73,21 +74,21 @@
 		try {
 			await backend.deleteSpace(spaceId);
 		} catch (err) {
-			deleteError = err instanceof Error ? err.message : "Impossible de supprimer l'espace";
+			deleteError = err instanceof Error ? err.message : t('spaceSettings.deleteFailed');
 			throw err;
 		}
 		if (spaceStore.active?.id === spaceId) {
 			spaceStore.clear();
 		}
 		await goto('/spaces');
-		toast.success('Espace supprimé');
+		toast.success(t('spaceSettings.deleted'));
 	}
 
 	const isOwner = $derived(space?.role === 'owner');
 </script>
 
 <svelte:head>
-	<title>Paramètres — {space?.name ?? 'Espace'} — Courrier</title>
+	<title>{t('spaceSettings.title', { name: space?.name ?? t('space.fallbackName') })}</title>
 </svelte:head>
 
 <div class="w-full px-4 py-6 md:px-8">
@@ -100,57 +101,55 @@
 		{:else if !space}
 			<EmptyState
 				icon={icons.space}
-				title="Espace introuvable"
-				description="Il a peut-être été supprimé, ou votre accès a été retiré."
+				title={t('space.notFound')}
+				description={t('space.notFoundBody')}
 			>
-				<Button variant="outline" href="/spaces" icon={icons.chevronLeft}>Retour aux espaces</Button>
+				<Button variant="outline" href="/spaces" icon={icons.chevronLeft}>{t('space.backToSpaces')}</Button>
 			</EmptyState>
 		{:else}
 			<div class="flex flex-wrap items-start justify-between gap-4">
 				<div class="flex min-w-0 flex-col gap-1">
-					<h1 class="text-fc-2xl font-semibold text-fc-fg">Paramètres de l'espace</h1>
+					<h1 class="text-fc-2xl font-semibold text-fc-fg">{t('spaceSettings.heading')}</h1>
 					<p class="text-fc-sm text-fc-fg-muted">{space.name}</p>
 				</div>
-				<Button variant="ghost" href="/spaces/{spaceId}" icon={icons.chevronLeft}>Espace</Button>
+				<Button variant="ghost" href="/spaces/{spaceId}" icon={icons.chevronLeft}>{t('spaceSettings.space')}</Button>
 			</div>
 
 			{#if space.manage_url}
 				<SettingsSection
-					title="Géré dans Registre"
-					description="Le nom, les membres et leurs rôles se modifient dans Registre, pour toutes les apps Facile à la fois."
+					title={t('spaceSettings.managedTitle')}
+					description={t('spaceSettings.managedBody')}
 				>
 					<div>
-						<Button href={space.manage_url} icon={icons.space}>Gérer dans Registre</Button>
+						<Button href={space.manage_url} icon={icons.space}>{t('spaces.manageInRegistre')}</Button>
 					</div>
 				</SettingsSection>
 			{:else}
-				<SettingsSection title="Général" description="Ce que les membres voient de cet espace.">
-					<Field label="Nom" error={nameError}>
-						<Input bind:value={name} placeholder="ex. Équipe Marketing" />
+				<SettingsSection title={t('spaceSettings.general')} description={t('spaceSettings.generalBody')}>
+					<Field label={t('spaces.nameLabel')} error={nameError}>
+						<Input bind:value={name} placeholder={t('spaces.namePlaceholder')} />
 					</Field>
-					<Field label="Description" helper="Optionnel — à quoi sert cet espace ?">
+					<Field label={t('spaces.descriptionLabel')} helper={t('spaces.descriptionHelp')}>
 						<Textarea bind:value={description} rows={3} />
 					</Field>
 					<div>
 						<Button icon={icons.check} disabled={saving} onclick={saveSettings}>
-							{saving ? 'Enregistrement…' : 'Enregistrer'}
+							{saving ? t('spaceSettings.saving') : t('spaceSettings.save')}
 						</Button>
 					</div>
 				</SettingsSection>
 
 				{#if isOwner}
 					<SettingsSection
-						title="Zone de danger"
-						description="Supprimer cet espace est immédiat et définitif."
+						title={t('spaceSettings.danger')}
+						description={t('spaceSettings.dangerBody')}
 					>
 						<p class="text-fc-sm text-fc-fg-muted">
-							Tous les membres perdent leur accès, et les comptes mail rattachés à cet espace
-							disparaissent de la liste : ils ne sont ni supprimés ni rendus personnels, ils ne sont
-							simplement plus rattachés à rien. Les identifiants IMAP/SMTP restent en base.
+							{t('spaceSettings.dangerDetail')}
 						</p>
 						<div>
 							<Button variant="danger" icon={icons.remove} onclick={() => (confirmDelete = true)}>
-								Supprimer l'espace
+								{t('spaceSettings.delete')}
 							</Button>
 						</div>
 					</SettingsSection>
@@ -163,9 +162,9 @@
 <ConfirmModal
 	bind:open={confirmDelete}
 	tone="danger"
-	title="Supprimer « {space?.name ?? 'cet espace'} » ?"
-	description="Tous les membres perdent leur accès, et les comptes mail rattachés à cet espace quittent la liste — ils ne réapparaissent pas dans vos comptes personnels. Cette action est définitive."
-	confirmLabel="Supprimer l'espace"
+	title={t('spaceSettings.deleteTitle', { name: space?.name ?? t('spaceSettings.deleteThis') })}
+	description={t('spaceSettings.deleteBody')}
+	confirmLabel={t('spaceSettings.delete')}
 	onConfirm={deleteSpace}
 	onCancel={() => (deleteError = '')}
 >

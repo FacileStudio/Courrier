@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Badge, IconButton, icons } from '@facile/muse';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let {
 		count = 0,
@@ -33,8 +34,8 @@
 		<div class="flex min-w-0 items-center gap-0.5">
 			<IconButton
 				variant="ghost"
-				aria-label="Archive"
-				title="Archive"
+				aria-label={t('mail.archive')}
+				title={t('mail.archive')}
 				disabled={loading}
 				onclick={onarchive}
 			>
@@ -43,8 +44,8 @@
 			</IconButton>
 			<IconButton
 				variant="ghost"
-				aria-label="Mark as read"
-				title="Mark as read"
+				aria-label={t('mail.markRead')}
+				title={t('mail.markRead')}
 				disabled={loading}
 				onclick={onmarkread}
 			>
@@ -53,8 +54,8 @@
 			</IconButton>
 			<IconButton
 				variant="ghost"
-				aria-label="Mark as unread"
-				title="Mark as unread"
+				aria-label={t('mail.markUnread')}
+				title={t('mail.markUnread')}
 				disabled={loading}
 				onclick={onmarkunread}
 			>
@@ -63,8 +64,8 @@
 			</IconButton>
 			<IconButton
 				variant="danger"
-				aria-label="Delete"
-				title="Delete"
+				aria-label={t('mail.delete')}
+				title={t('mail.delete')}
 				disabled={loading}
 				onclick={ondelete}
 			>
@@ -72,7 +73,7 @@
 				></iconify-icon>
 			</IconButton>
 		</div>
-		<IconButton variant="ghost" aria-label="Clear selection" class="ml-auto" onclick={onclear}>
+		<IconButton variant="ghost" aria-label={t('mail.clearSelection')} class="ml-auto" onclick={onclear}>
 			<iconify-icon icon={icons.close} width="18" height="18" class="block size-4.5"></iconify-icon>
 		</IconButton>
 	</div>

@@ -2,25 +2,32 @@
 	import { SettingsRow, SettingsSection } from '@facile/muse';
 	import NotificationControl from '$lib/components/NotificationControl.svelte';
 	import { isDesktop, isNative } from '$lib/platform';
+	import { t } from '$lib/i18n/index.svelte';
 
-	const device = isNative() ? 'this phone' : isDesktop() ? 'this computer' : 'this browser';
+	const device = $derived(
+		isNative()
+			? t('notifySettings.devicePhone')
+			: isDesktop()
+				? t('notifySettings.deviceComputer')
+				: t('notifySettings.deviceBrowser')
+	);
 </script>
 
 <div class="flex flex-col gap-10">
 	<SettingsSection
-		title="Notifications"
-		description="Courrier checks your inboxes every few minutes and tells you when a person writes to you. Newsletters, lists and robots never notify."
+		title={t('notifySettings.title')}
+		description={t('notifySettings.body')}
 	>
 		<SettingsRow
-			label="New mail"
-			description="Stored per device. Turn it on for {device}; your other devices keep their own choice."
+			label={t('notifySettings.newMail')}
+			description={t('notifySettings.newMailBody', { device })}
 			stacked
 		>
 			<NotificationControl showTest />
 		</SettingsRow>
 		<SettingsRow
-			label="What a notification shows"
-			description="The sender's name and the address it reached. Never the subject or the message."
+			label={t('notifySettings.shows')}
+			description={t('notifySettings.showsBody')}
 		/>
 	</SettingsSection>
 </div>

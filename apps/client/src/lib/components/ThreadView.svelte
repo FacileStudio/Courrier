@@ -3,6 +3,8 @@
 	import MailBody from './MailBody.svelte';
 	import { backend, type EmailMessage, type EmailAttachment } from '$lib/backend';
 	import { Avatar, Button, Spinner, icons } from '@facile/muse';
+	import { formatBytes, formatThreadDate } from '$lib/i18n/format';
+	import { t } from '$lib/i18n/index.svelte';
 	import { isApp } from '$lib/platform';
 
 	let {
@@ -47,21 +49,6 @@
 	function snippet(msg: EmailMessage): string {
 		const text = (msg.body_text || msg.body_html?.replace(/<[^>]+>/g, ' ') || '').replace(/\s+/g, ' ').trim();
 		return text.slice(0, 120);
-	}
-
-	function formatDate(dateStr: string) {
-		const date = new Date(dateStr);
-		const now = new Date();
-		const diffDays = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
-		if (diffDays < 1) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-		if (diffDays < 7) return date.toLocaleDateString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
-		return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-	}
-
-	function formatFileSize(bytes: number): string {
-		if (bytes < 1024) return `${bytes} B`;
-		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 	}
 
 	async function ensureBody(msg: EmailMessage) {
@@ -182,10 +169,10 @@
 									width="14"
 									height="14"
 									class="block size-3.5"
-									aria-label="Has attachments"
+									aria-label={t('mail.hasAttachments')}
 								></iconify-icon>
 							{/if}
-							<span>{formatDate(msg.date)}</span>
+							<span>{formatThreadDate(msg.date)}</span>
 							<iconify-icon
 								icon={icons.chevronDown}
 								width="16"
@@ -200,7 +187,7 @@
 						</span>
 					{:else}
 						<span class="mt-0.5 block truncate text-fc-xs text-fc-fg-muted">
-							to {msg.to_addresses.map((a) => a.name || a.email).join(', ')}
+							{t('mail.to', { list: msg.to_addresses.map((a) => a.name || a.email).join(', ') })}
 						</span>
 					{/if}
 				</span>
@@ -217,7 +204,7 @@
 									height="14"
 									class="block size-3.5"
 								></iconify-icon>
-								{msg.attachments.length} attachment{msg.attachments.length > 1 ? 's' : ''}
+								{t('mail.attachments', { count: msg.attachments.length })}
 							</span>
 							{#each msg.attachments as attachment (attachment.id)}
 								<Button
@@ -227,7 +214,7 @@
 									onclick={() => downloadAttachment(msg, attachment)}
 								>
 									<span class="max-w-48 truncate">{attachment.filename}</span>
-									<span class="text-fc-fg-muted">({formatFileSize(attachment.size)})</span>
+									<span class="text-fc-fg-muted">({formatBytes(attachment.size)})</span>
 								</Button>
 							{/each}
 						</div>
@@ -240,10 +227,10 @@
 					{:else if loadingBodies.has(msg.id)}
 						<div class="flex items-center gap-3 text-fc-sm text-fc-fg-muted">
 							<Spinner size="sm" />
-							<span>Loading message…</span>
+							<span>{t('mail.loadingMessage')}</span>
 						</div>
 					{:else}
-						<p class="text-fc-sm text-fc-fg-muted">(empty message)</p>
+						<p class="text-fc-sm text-fc-fg-muted">{t('mail.emptyMessage')}</p>
 					{/if}
 				</div>
 			{/if}
@@ -252,8 +239,8 @@
 
 	{#if loadingThread && messages.length <= 1}
 		<div class="flex items-center gap-3 px-4 py-3 text-fc-xs text-fc-fg-muted sm:px-6">
-			<Spinner size="sm" label="Loading conversation" />
-			<span>Loading conversation…</span>
+			<Spinner size="sm" label={t('mail.loadingConversation')} />
+			<span>{t('mail.loadingConversationDots')}</span>
 		</div>
 	{/if}
 </div>

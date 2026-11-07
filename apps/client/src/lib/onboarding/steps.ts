@@ -1,12 +1,14 @@
+import type { AppKey } from '$lib/i18n/messages';
+
 export type StepId = 'welcome' | 'mailbox' | 'notifications' | 'done';
 
-export type Step = { id: StepId; label: string; skippable: boolean };
+export type Step = { id: StepId; labelKey: AppKey; skippable: boolean };
 
 export const STEPS: readonly Step[] = [
-	{ id: 'welcome', label: 'Welcome', skippable: false },
-	{ id: 'mailbox', label: 'Mailbox', skippable: true },
-	{ id: 'notifications', label: 'Notifications', skippable: true },
-	{ id: 'done', label: 'Ready', skippable: false }
+	{ id: 'welcome', labelKey: 'onboarding.stepWelcome', skippable: false },
+	{ id: 'mailbox', labelKey: 'onboarding.stepMailbox', skippable: true },
+	{ id: 'notifications', labelKey: 'onboarding.stepNotifications', skippable: true },
+	{ id: 'done', labelKey: 'onboarding.stepDone', skippable: false }
 ];
 
 export const DONE_KEY = 'courrier.onboarded';
@@ -24,17 +26,17 @@ export function isLastStep(index: number): boolean {
 	return clampStep(index) === LAST;
 }
 
-/** The label of the primary button on a step, given how many mailboxes are connected. */
-export function primaryLabel(index: number, accounts: number): string {
+/** The message key of the primary button on a step, given how many mailboxes are connected. */
+export function primaryLabel(index: number, accounts: number): AppKey {
 	switch (STEPS[clampStep(index)].id) {
 		case 'welcome':
-			return 'Set up my inbox';
+			return 'onboarding.primaryWelcome';
 		case 'mailbox':
-			return accounts === 0 ? 'Add a mail account' : 'Continue';
+			return accounts === 0 ? 'onboarding.primaryAdd' : 'onboarding.primaryContinue';
 		case 'notifications':
-			return 'Continue';
+			return 'onboarding.primaryContinue';
 		default:
-			return 'Open my inbox';
+			return 'onboarding.primaryDone';
 	}
 }
 

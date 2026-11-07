@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Select, toast } from '@facile/muse';
 	import { backend, type InboxTab } from '$lib/backend';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let {
 		accountId,
@@ -11,21 +12,25 @@
 	let value = $state<InboxTab | 'auto' | ''>('');
 	let saving = $state(false);
 
-	const labels: Record<InboxTab | 'auto', string> = {
-		primary: 'Primary',
-		newsletters: 'Newsletters',
-		notifications: 'Notifications',
-		auto: 'Let Courrier sort it'
-	};
+	const labels = $derived<Record<InboxTab | 'auto', string>>({
+		primary: t('tabs.primary'),
+		newsletters: t('tabs.newsletters'),
+		notifications: t('tabs.notifications'),
+		auto: t('sender.auto')
+	});
 
 	async function pin(next: InboxTab | 'auto') {
 		saving = true;
 		try {
 			await backend.setSenderRule(accountId, address, next);
-			toast.success(next === 'auto' ? `${address} is sorted automatically again` : `Mail from ${address} goes to ${labels[next]}`);
+			toast.success(
+				next === 'auto'
+					? t('sender.autoDone', { address })
+					: t('sender.pinned', { address, tab: labels[next] })
+			);
 			onchange?.();
 		} catch {
-			toast.danger('Could not move this sender');
+			toast.danger(t('sender.failed'));
 		}
 		saving = false;
 		value = '';
@@ -35,13 +40,14 @@
 <Select
 	bind:value
 	class="h-8 max-w-44 text-fc-xs"
-	aria-label="Always file mail from this sender in"
+	aria-label={t('sender.label')}
 	disabled={saving}
+	placeholder={t('sender.moveTo')}
+	options={[
+		{ value: 'primary', label: labels.primary },
+		{ value: 'newsletters', label: labels.newsletters },
+		{ value: 'notifications', label: labels.notifications },
+		{ value: 'auto', label: labels.auto }
+	]}
 	onchange={() => value && pin(value)}
->
-	<option value="">Move sender to…</option>
-	<option value="primary">{labels.primary}</option>
-	<option value="newsletters">{labels.newsletters}</option>
-	<option value="notifications">{labels.notifications}</option>
-	<option value="auto">{labels.auto}</option>
-</Select>
+/>

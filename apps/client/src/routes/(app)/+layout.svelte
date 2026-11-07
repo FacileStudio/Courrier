@@ -13,6 +13,7 @@
 	import { syncDevice } from '$lib/notifications';
 	import { needsOnboarding, onboardingSeen } from '$lib/onboarding/steps';
 	import { isNative } from '$lib/platform';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let { children } = $props();
 
@@ -144,12 +145,13 @@
 	const onSettings = $derived(path === '/settings' || path.startsWith('/settings/'));
 
 	const pages = $derived([
-		{ href: '/mail/compose', label: 'Compose', icon: icons.edit, active: path === '/mail/compose' },
+		{ href: '/mail/compose', label: t('shell.compose'), icon: icons.edit, active: path === '/mail/compose' },
 		...MAIL_FOLDERS.filter((folder) => folder.primary).map((folder) => {
 			const count = unread(folder.type);
+			const label = t(folder.labelKey);
 			return {
 				href: folder.href,
-				label: count > 0 ? `${folder.label} · ${count}` : folder.label,
+				label: count > 0 ? `${label} · ${count}` : label,
 				icon: folder.icon,
 				active: path === folder.href
 			};
@@ -165,11 +167,11 @@
 	const mobileItems = $derived([
 		{
 			href: '/mail',
-			label: 'Mail',
+			label: t('shell.mail'),
 			icon: icons.mail,
 			active: path === '/mail' || (path.startsWith('/mail/') && path !== '/mail/compose')
 		},
-		{ href: '/mail/compose', label: 'Compose', icon: icons.edit, active: path === '/mail/compose' }
+		{ href: '/mail/compose', label: t('shell.compose'), icon: icons.edit, active: path === '/mail/compose' }
 	]);
 </script>
 
@@ -188,8 +190,6 @@
 					activeSpaceId={spaceStore.active?.id ?? null}
 					onSpaceSelect={selectSpace}
 					manageSpacesHref="/spaces"
-					personalSpaceLabel="Personal"
-					manageSpacesLabel="Manage spaces"
 					class="min-h-0 flex-1 rounded-none bg-transparent"
 				/>
 				{#if accounts.length > 1}
@@ -215,7 +215,6 @@
 							spaces={spaces.map((s) => ({ id: s.id, name: s.name }))}
 							activeId={spaceStore.active?.id ?? null}
 							onSelect={selectSpace}
-							personalLabel="Personal"
 							manageHref="/spaces"
 						/>
 					</div>

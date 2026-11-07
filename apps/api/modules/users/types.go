@@ -7,6 +7,7 @@ type User struct {
 	Name         string `json:"name"`
 	AvatarURL    string `json:"avatar_url"`
 	AvatarSource string `json:"avatar_source"`
+	Locale       string `json:"locale"`
 	CreatedAt    string `json:"created_at"`
 }
 

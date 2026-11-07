@@ -8,6 +8,7 @@ import {
 import { authed, backend } from '$lib/backend';
 import { routeFor } from '$lib/push-route';
 import { createSseParser } from '$lib/sse';
+import { t } from '$lib/i18n/index.svelte';
 
 type StreamNotification = { title: string; body: string; path: string };
 
@@ -32,7 +33,7 @@ export async function enableDesktop(): Promise<'granted' | 'denied'> {
 function show(note: StreamNotification) {
 	const route = routeFor(note.path);
 	if (document.hasFocus()) {
-		toast.info(note.title, { action: { label: 'Open', onClick: () => void goto(route) } });
+		toast.info(note.title, { action: { label: t('common.open'), onClick: () => void goto(route) } });
 		return;
 	}
 	sendNotification({ title: note.title || 'Courrier', body: note.body });

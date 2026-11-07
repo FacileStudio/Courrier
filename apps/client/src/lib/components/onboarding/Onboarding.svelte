@@ -7,25 +7,17 @@
 	import Ambient from '$lib/components/native/Ambient.svelte';
 	import NotificationControl from '$lib/components/NotificationControl.svelte';
 	import { STEPS, clampStep, isLastStep, markOnboardingSeen, primaryLabel } from '$lib/onboarding/steps';
+	import { t } from '$lib/i18n/index.svelte';
 	import MailboxStep from './MailboxStep.svelte';
 	import StepProgress from './StepProgress.svelte';
 
 	let { name }: { name: string } = $props();
 
 	const COPY = $derived({
-		welcome: {
-			title: `Welcome, ${name}.`,
-			body: 'Three quick steps: your mailbox, your notifications, and you are reading mail.'
-		},
-		mailbox: {
-			title: 'Your mailbox',
-			body: 'Connect the address you want to read, or pick the one Courrier opens first.'
-		},
-		notifications: {
-			title: 'Know when mail arrives',
-			body: 'Courrier tells you when a person writes to you. Newsletters and robots stay silent.'
-		},
-		done: { title: 'You are all set.', body: 'Your inbox is ready. You can change any of this later in Settings.' }
+		welcome: { title: t('onboarding.welcomeTitle', { name }), body: t('onboarding.welcomeBody') },
+		mailbox: { title: t('onboarding.mailboxTitle'), body: t('onboarding.mailboxBody') },
+		notifications: { title: t('onboarding.notificationsTitle'), body: t('onboarding.notificationsBody') },
+		done: { title: t('onboarding.doneTitle'), body: t('onboarding.doneBody') }
 	});
 
 	let step = $state(0);
@@ -81,7 +73,7 @@
 			if (current.id === 'mailbox') await saveDefault();
 			step = clampStep(step + 1);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Could not save your choice';
+			error = err instanceof Error ? err.message : t('onboarding.saveFailed');
 		} finally {
 			saving = false;
 		}
@@ -98,7 +90,7 @@
 				<span class="text-fc-sm font-medium">Courrier</span>
 			</div>
 			{#if !isLastStep(step)}
-				<Button variant="ghost" size="sm" class="min-h-11 px-3" onclick={finish}>Skip setup</Button>
+				<Button variant="ghost" size="sm" class="min-h-11 px-3" onclick={finish}>{t('onboarding.skipSetup')}</Button>
 			{/if}
 		</div>
 		<StepProgress index={step} />
@@ -157,19 +149,19 @@
 				onclick={onContinue}
 			>
 				{#if saving}<Spinner size="sm" />{/if}
-				{primaryLabel(step, accounts.length)}
+				{t(primaryLabel(step, accounts.length))}
 			</Button>
 			<div class="flex min-h-11 items-center justify-between">
 				{#if step > 0 && !isLastStep(step)}
 					<Button variant="ghost" class="min-h-11 px-3" disabled={saving} onclick={() => (step = clampStep(step - 1))}>
-						Back
+						{t('common.back')}
 					</Button>
 				{:else}
 					<span></span>
 				{/if}
 				{#if current.skippable}
 					<Button variant="ghost" class="min-h-11 px-3" onclick={() => (step = clampStep(step + 1))}>
-						Skip for now
+						{t('onboarding.skipForNow')}
 					</Button>
 				{/if}
 			</div>

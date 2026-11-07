@@ -6,6 +6,7 @@
 	import Onboarding from '$lib/components/onboarding/Onboarding.svelte';
 	import { needsOnboarding, onboardingSeen } from '$lib/onboarding/steps';
 	import { isNative } from '$lib/platform';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let name = $state<string | null>(null);
 	let failed = $state(false);
@@ -30,14 +31,14 @@
 </script>
 
 <svelte:head>
-	<title>Welcome — Courrier</title>
+	<title>{t('welcome.title')}</title>
 </svelte:head>
 
 {#if name}
 	<Onboarding {name} />
 {:else if failed}
 	<div class="flex h-dvh items-center justify-center bg-fc-page px-4 text-center text-fc-sm text-fc-fg-muted">
-		Courrier is not answering. Reload the page to try again.
+		{t('welcome.unreachable')}
 	</div>
 {:else}
 	<div class="flex h-dvh items-center justify-center bg-fc-page">

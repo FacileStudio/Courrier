@@ -234,6 +234,7 @@ func mapUser(record schemas.User) *User {
 		Name:         record.Name,
 		AvatarURL:    record.Avatar(),
 		AvatarSource: record.AvatarOrigin(),
+		Locale:       record.Locale,
 		CreatedAt:    record.CreatedAt.UTC().Format(time.RFC3339),
 	}
 }

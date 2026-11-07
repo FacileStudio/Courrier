@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { icons, twMerge } from '@facile/muse';
 	import { MAIL_FOLDERS } from '$lib/mail-folders';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let { folders = [] }: { folders?: { type: string; unread_count?: number }[] } = $props();
 
@@ -54,7 +55,7 @@
 	>
 		<iconify-icon icon={current.icon} width="18" height="18" class="block size-[18px] shrink-0"
 		></iconify-icon>
-		<span>{current.label}</span>
+		<span>{t(current.labelKey)}</span>
 		<iconify-icon
 			icon={icons.chevronDown}
 			width="16"
@@ -83,7 +84,7 @@
 				>
 					<iconify-icon icon={folder.icon} width="16" height="16" class="block size-4 shrink-0"
 					></iconify-icon>
-					<span class="min-w-0 flex-1 truncate">{folder.label}</span>
+					<span class="min-w-0 flex-1 truncate">{t(folder.labelKey)}</span>
 					{#if count > 0}
 						<span class="shrink-0 text-fc-xs opacity-70">{count}</span>
 					{/if}

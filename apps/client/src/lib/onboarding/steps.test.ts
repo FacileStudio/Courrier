@@ -24,8 +24,8 @@ describe('steps', () => {
 		expect(clampStep(Number.NaN)).toBe(0);
 		expect(clampStep(99)).toBe(STEPS.length - 1);
 		expect(isLastStep(STEPS.length - 1)).toBe(true);
-		expect(primaryLabel(1, 0)).toBe('Add a mail account');
-		expect(primaryLabel(1, 2)).toBe('Continue');
+		expect(primaryLabel(1, 0)).toBe('onboarding.primaryAdd');
+		expect(primaryLabel(1, 2)).toBe('onboarding.primaryContinue');
 	});
 
 	it('remembers the flow in storage and survives a throwing store', () => {

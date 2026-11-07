@@ -14,7 +14,9 @@
 	} from '@facile/muse';
 	import { backend, type Space, type SpaceMember } from '$lib/backend';
 	import { spaceStore } from '$lib/stores/space.svelte';
-	import { roleLabel, roleTone } from '../roles';
+	import { formatDate } from '$lib/i18n/format';
+	import { t } from '$lib/i18n/index.svelte';
+	import { roleLabelKey, roleTone } from '../roles';
 
 	let space = $state<Space | null>(null);
 	let members = $state<SpaceMember[]>([]);
@@ -45,17 +47,22 @@
 	function switchToSpace() {
 		if (!space) return;
 		spaceStore.set({ id: space.id, name: space.name, role: space.role });
-		toast.success(`Espace actif : ${space.name}`);
+		toast.success(t('space.activeToast', { name: space.name }));
 	}
 
 	const isOwnerOrAdmin = $derived(
 		!space?.manage_url && (space?.role === 'owner' || space?.role === 'admin')
 	);
 	const isActive = $derived(spaceStore.active?.id === spaceId);
+
+	function roleName(role: string): string {
+		const key = roleLabelKey(role);
+		return key ? t(key) : role;
+	}
 </script>
 
 <svelte:head>
-	<title>{space?.name ?? 'Espace'} — Courrier</title>
+	<title>{space?.name ?? t('space.fallbackName')} — Courrier</title>
 </svelte:head>
 
 <div class="w-full px-4 py-6 md:px-8">
@@ -68,56 +75,56 @@
 		{:else if !space}
 			<EmptyState
 				icon={icons.space}
-				title="Espace introuvable"
-				description="Il a peut-être été supprimé, ou votre accès a été retiré."
+				title={t('space.notFound')}
+				description={t('space.notFoundBody')}
 			>
-				<Button variant="outline" href="/spaces" icon={icons.chevronLeft}>Retour aux espaces</Button>
+				<Button variant="outline" href="/spaces" icon={icons.chevronLeft}>{t('space.backToSpaces')}</Button>
 			</EmptyState>
 		{:else}
 			<div class="flex flex-wrap items-start justify-between gap-4">
 				<div class="flex min-w-0 flex-col gap-1">
 					<h1 class="text-fc-2xl font-semibold text-fc-fg">{space.name}</h1>
 					<p class="text-fc-sm text-fc-fg-muted">
-						{space.description || 'Pas de description.'}
+						{space.description || t('spaces.noDescription')}
 					</p>
 				</div>
 				<div class="flex flex-wrap items-center gap-2">
-					<Button variant="ghost" href="/spaces" icon={icons.chevronLeft}>Espaces</Button>
+					<Button variant="ghost" href="/spaces" icon={icons.chevronLeft}>{t('space.spaces')}</Button>
 					<Button icon={icons.check} disabled={isActive} onclick={switchToSpace}>
-						{isActive ? 'Espace actif' : 'Basculer vers cet espace'}
+						{isActive ? t('space.active') : t('space.switch')}
 					</Button>
 					{#if space.manage_url}
 						<Button variant="outline" href={space.manage_url} icon={icons.space}>
-							Gérer dans Registre
+							{t('spaces.manageInRegistre')}
 						</Button>
 					{:else if isOwnerOrAdmin}
 						<Button variant="outline" href="/spaces/{spaceId}/settings" icon={icons.settings}>
-							Paramètres
+							{t('space.settings')}
 						</Button>
 					{/if}
 				</div>
 			</div>
 
 			<section class="grid gap-4 sm:grid-cols-2">
-				<StatCard label="Membres" value={members.length} />
+				<StatCard label={t('space.members')} value={members.length} />
 				<StatCard
-					label="Créé le"
-					value={new Date(space.created_at).toLocaleDateString('fr-FR')}
-					delta="Votre rôle : {roleLabel(space.role)}"
+					label={t('space.createdOn')}
+					value={formatDate(space.created_at)}
+					delta={t('space.yourRole', { role: roleName(space.role) })}
 				/>
 			</section>
 
 			<section class="flex flex-col gap-4">
 				<div class="flex flex-wrap items-start justify-between gap-4">
 					<div class="flex min-w-0 flex-col gap-1">
-						<h2 class="text-fc-lg font-semibold text-fc-fg">Membres</h2>
+						<h2 class="text-fc-lg font-semibold text-fc-fg">{t('space.members')}</h2>
 						<p class="text-fc-sm text-fc-fg-muted">
-							Tout le monde ici voit les comptes mail rattachés à cet espace.
+							{t('space.membersIntro')}
 						</p>
 					</div>
 					{#if isOwnerOrAdmin}
 						<Button variant="outline" href="/spaces/{spaceId}/members" icon={icons.usersGroup}>
-							Gérer les membres
+							{t('space.manageMembers')}
 						</Button>
 					{/if}
 				</div>
@@ -125,10 +132,8 @@
 				{#if members.length === 0}
 					<EmptyState
 						icon={icons.usersGroup}
-						title="Personne ici pour l'instant"
-						description={space.manage_url
-							? 'Ajoutez un coéquipier dans Registre et il verra cet espace en quelques secondes.'
-							: 'Ajoutez un coéquipier et il verra cet espace immédiatement.'}
+						title={t('space.nobody')}
+						description={space.manage_url ? t('space.nobodyRegistre') : t('space.nobodyLocal')}
 					/>
 				{:else}
 					<Card class="flex flex-col">
@@ -145,7 +150,7 @@
 										{/if}
 									</div>
 								</div>
-								<Badge tone={roleTone(member.role)}>{roleLabel(member.role)}</Badge>
+								<Badge tone={roleTone(member.role)}>{roleName(member.role)}</Badge>
 							</div>
 						{/each}
 					</Card>
