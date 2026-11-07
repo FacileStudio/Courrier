@@ -50,7 +50,7 @@
 {#if status && (available || status.reason !== 'off')}
 	<div class="flex flex-col gap-2">
 		<div class="flex flex-wrap items-center gap-2">
-			<Button size="sm" variant="outline" disabled={!available || busy || messages.length === 0} title={available ? '' : reasonText(status)} onclick={summarize}>
+			<Button size="sm" variant="secondary" disabled={!available || busy || messages.length === 0} title={available ? '' : reasonText(status)} onclick={summarize}>
 				{#if busy}<Spinner size="sm" />{:else}<Blob name="Bulle" size={16} class="size-4" />{/if}
 				{t('assist.summarize')}
 			</Button>

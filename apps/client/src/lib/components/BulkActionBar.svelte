@@ -63,7 +63,7 @@
 				></iconify-icon>
 			</IconButton>
 			<IconButton
-				variant="danger"
+				variant="ghost-danger"
 				aria-label={t('mail.delete')}
 				title={t('mail.delete')}
 				disabled={loading}

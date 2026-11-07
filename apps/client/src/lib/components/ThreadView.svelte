@@ -208,7 +208,7 @@
 							</span>
 							{#each msg.attachments as attachment (attachment.id)}
 								<Button
-									variant="outline"
+									variant="secondary"
 									size="sm"
 									icon={icons.download}
 									onclick={() => downloadAttachment(msg, attachment)}

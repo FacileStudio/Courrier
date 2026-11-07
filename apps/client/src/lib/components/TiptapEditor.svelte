@@ -86,7 +86,7 @@
 	{#if editor}
 		<!--
 			muse's `IconButton` has no pressed/active variant, so an active mark switches from
-			`ghost` to `default` (which carries the outline) and says so through `aria-pressed`.
+			`ghost` to `secondary` and says so through `aria-pressed`.
 		-->
 		<div class="flex flex-wrap items-center gap-0.5 px-3 py-1.5">
 			{#each marks as mark, i (i)}
@@ -95,7 +95,7 @@
 				{:else}
 					{@const active = editor?.isActive(mark.name) ?? false}
 					<IconButton
-						variant={active ? 'default' : 'ghost'}
+						variant={active ? 'secondary' : 'ghost'}
 						aria-label={mark.label}
 						aria-pressed={active}
 						title={mark.label}
