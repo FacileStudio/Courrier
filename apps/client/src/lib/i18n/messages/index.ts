@@ -9,7 +9,6 @@ import { landing } from './landing';
 import { mail } from './mail';
 import { onboarding } from './onboarding';
 import { preferences } from './preferences';
-import { profile } from './profile';
 import { spaceSettings } from './spaceSettings';
 import { spaces } from './spaces';
 import { templates } from './templates';
@@ -21,7 +20,6 @@ const rows = {
 	...landing,
 	...onboarding,
 	...preferences,
-	...profile,
 	...accounts,
 	...templates,
 	...advanced,

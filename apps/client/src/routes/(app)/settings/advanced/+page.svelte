@@ -4,6 +4,7 @@
 		Alert,
 		Button,
 		ConfirmModal,
+		DangerZone,
 		SecretField,
 		SettingsRow,
 		SettingsSection,
@@ -111,35 +112,31 @@
 		{/if}
 	</SettingsSection>
 
-	<!--
-		Danger zone lives at the bottom of the last tab, never as a tab of its own: a destructive
-		action should cost a scroll instead of sitting one mis-click from every other section.
-	-->
-	<SettingsSection title={t('advanced.danger')} description={t('advanced.dangerBody')}>
-		<SettingsRow
-			label={t('advanced.disconnectAll')}
-			description={accounts.length === 0
-				? t('advanced.disconnectNone')
-				: t('advanced.disconnectBody', { count: accounts.length })}
+	<DangerZone title={t('advanced.danger')} description={t('advanced.dangerBody')}>
+		<div class="flex min-w-0 flex-1 flex-col gap-1">
+			<span class="text-fc-sm font-medium text-fc-fg">{t('advanced.disconnectAll')}</span>
+			<span class="text-fc-sm text-fc-fg-muted">
+				{accounts.length === 0
+					? t('advanced.disconnectNone')
+					: t('advanced.disconnectBody', { count: accounts.length })}
+			</span>
+		</div>
+		<Button
+			variant="danger"
+			icon={icons.remove}
+			disabled={wiping || accounts.length === 0}
+			onclick={() => (wipeOpen = true)}
 		>
-			<Button
-				variant="danger"
-				icon={icons.remove}
-				disabled={wiping || accounts.length === 0}
-				onclick={() => (wipeOpen = true)}
-			>
-				{wiping ? t('advanced.disconnecting') : t('advanced.disconnectAllButton')}
-			</Button>
-		</SettingsRow>
-
+			{wiping ? t('advanced.disconnecting') : t('advanced.disconnectAllButton')}
+		</Button>
 		{#if wipeError}
-			<Alert tone="danger" title={t('advanced.stoppedAfter', { count: wiped })}>
+			<Alert tone="danger" title={t('advanced.stoppedAfter', { count: wiped })} class="w-full">
 				{wipeError}
 			</Alert>
 		{:else if wiped > 0}
-			<Alert tone="success">{t('advanced.disconnected', { count: wiped })}</Alert>
+			<Alert tone="success" class="w-full">{t('advanced.disconnected', { count: wiped })}</Alert>
 		{/if}
-	</SettingsSection>
+	</DangerZone>
 </div>
 
 <ConfirmModal

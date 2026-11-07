@@ -9,11 +9,11 @@
 	import { activeAccountStore } from '$lib/stores/account.svelte';
 	import { searchStore } from '$lib/stores/search.svelte';
 	import AccountSwitcher from '$lib/components/AccountSwitcher.svelte';
-	import SidebarFooter from '$lib/components/SidebarFooter.svelte';
-	import { syncDevice } from '$lib/notifications';
+		import { syncDevice } from '$lib/notifications';
 	import { needsOnboarding, onboardingSeen } from '$lib/onboarding/steps';
-	import { isNative } from '$lib/platform';
-	import { t } from '$lib/i18n/index.svelte';
+	import { isApp, isNative } from '$lib/platform';
+	import { rememberLocale, t } from '$lib/i18n/index.svelte';
+	import { theme, type ThemePreference } from '$lib/theme.svelte';
 
 	let { children } = $props();
 
@@ -160,9 +160,28 @@
 
 	const navUser = $derived(
 		user
-			? { name: user.name?.trim() || user.email, email: user.email, avatar: user.avatar_url || undefined }
+			? {
+					name: user.name?.trim() || user.email,
+					email: user.email,
+					avatar: user.avatar_url || undefined,
+					secondary: spaceStore.active?.name
+				}
 			: undefined
 	);
+
+	async function signOut() {
+		await backend.logout().catch(() => undefined);
+		await goto('/login', { replaceState: true });
+	}
+
+	const userMenu = $derived({
+		items: isApp() ? [] : [{ label: t('shell.desktopApp'), icon: icons.download, href: '/downloads' }],
+		helpHref: 'https://facile.studio/docs/courrier',
+		onSignOut: signOut,
+		theme: theme.preference,
+		onThemeChange: (next: ThemePreference) => theme.set(next),
+		onLocaleChange: rememberLocale
+	});
 
 	const mobileItems = $derived([
 		{
@@ -190,6 +209,9 @@
 					activeSpaceId={spaceStore.active?.id ?? null}
 					onSpaceSelect={selectSpace}
 					manageSpacesHref="/spaces"
+					user={navUser}
+					userHref="/settings"
+					{userMenu}
 					class="min-h-0 flex-1 rounded-none bg-transparent"
 				/>
 				{#if accounts.length > 1}
@@ -197,7 +219,6 @@
 						<AccountSwitcher rail {collapsed} />
 					</div>
 				{/if}
-				<SidebarFooter user={navUser} {collapsed} />
 			</div>
 		</div>
 
@@ -237,6 +258,6 @@
 			</main>
 		</div>
 
-		<MobileNav items={mobileItems} user={navUser} profileHref="/settings" profileActive={onSettings} />
+		<MobileNav items={mobileItems} user={navUser} profileHref="/settings" profileActive={onSettings} {userMenu} />
 	</div>
 {/if}

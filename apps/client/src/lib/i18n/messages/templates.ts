@@ -94,18 +94,6 @@ export const templates = {
 		'Autentica un script, la CLI o un cliente de correo como tú. Courrier guarda uno por persona, así que emitir un token nuevo retira el anterior al instante.',
 		'Authentifiziert ein Skript, die CLI oder einen Mailclient als dich. Courrier speichert eines pro Person, ein neues Token macht das alte sofort ungültig.'
 	],
-	'api.replace': ['Replace token', 'Remplacer le jeton', 'Reemplazar token', 'Token ersetzen'],
-	'api.new': ['New token', 'Nouveau jeton', 'Nuevo token', 'Neues Token'],
-	'api.none': [
-		'No token yet. Nothing outside the browser can talk to this instance as you until there is one.',
-		'Aucun jeton pour l’instant. Rien en dehors du navigateur ne peut parler à cette instance en votre nom tant qu’il n’y en a pas.',
-		'Aún no hay token. Nada fuera del navegador puede hablar con esta instancia como tú hasta que exista uno.',
-		'Noch kein Token. Bis eines existiert, kann nichts außerhalb des Browsers als du mit dieser Instanz sprechen.'
-	],
-	'api.colName': ['Name', 'Nom', 'Nombre', 'Name'],
-	'api.colToken': ['Token', 'Jeton', 'Token', 'Token'],
-	'api.colCreated': ['Created', 'Créé', 'Creado', 'Erstellt'],
-	'api.colActions': ['Actions', 'Actions', 'Acciones', 'Aktionen'],
 	'api.storedHashed': ['stored hashed', 'stocké haché', 'guardado con hash', 'als Hash gespeichert'],
 	'api.readFailed': [
 		'Could not read your token',
@@ -113,63 +101,4 @@ export const templates = {
 		'No se pudo leer tu token',
 		'Dein Token konnte nicht gelesen werden'
 	],
-	'api.createFailed': [
-		'Could not create the token',
-		'Impossible de créer le jeton',
-		'No se pudo crear el token',
-		'Das Token konnte nicht erstellt werden'
-	],
-	'api.revokeFailed': [
-		'Could not revoke the token',
-		'Impossible de révoquer le jeton',
-		'No se pudo revocar el token',
-		'Das Token konnte nicht widerrufen werden'
-	],
-	'api.drawerReplace': ['Replace API token', 'Remplacer le jeton d’API', 'Reemplazar token de API', 'API-Token ersetzen'],
-	'api.drawerNew': ['New API token', 'Nouveau jeton d’API', 'Nuevo token de API', 'Neues API-Token'],
-	'api.copyNow': ['Copy it now', 'Copiez-le maintenant', 'Cópialo ahora', 'Jetzt kopieren'],
-	'api.copyNowBody': [
-		'Courrier stores only a hash of this token, so this is the one and only time it is shown. Lose it and the fix is issuing another one.',
-		'Courrier ne garde qu’une empreinte de ce jeton : c’est la seule fois où il est affiché. Si vous le perdez, il faudra en émettre un autre.',
-		'Courrier guarda solo un hash de este token, así que esta es la única vez que se muestra. Si lo pierdes, la solución es emitir otro.',
-		'Courrier speichert nur einen Hash dieses Tokens, deshalb wird es nur dieses eine Mal angezeigt. Geht es verloren, musst du ein neues ausstellen.'
-	],
-	'api.tokenLabel': ['Token', 'Jeton', 'Token', 'Token'],
-	'api.tokenHelp': [
-		'Put it in your password manager or your CI secret store.',
-		'Rangez-le dans votre gestionnaire de mots de passe ou dans le coffre de secrets de votre CI.',
-		'Guárdalo en tu gestor de contraseñas o en el almacén de secretos de tu CI.',
-		'Lege es in deinem Passwortmanager oder im Secret-Speicher deiner CI ab.'
-	],
-	'api.done': ['Done', 'Terminé', 'Hecho', 'Fertig'],
-	'api.replacesTitle': [
-		'This replaces your current token',
-		'Ceci remplace votre jeton actuel',
-		'Esto reemplaza tu token actual',
-		'Dies ersetzt dein aktuelles Token'
-	],
-	'api.replacesBody': [
-		'The token named "{name}" stops working the moment the new one is issued, and anything still using it starts failing.',
-		'Le jeton nommé « {name} » cesse de fonctionner dès que le nouveau est émis, et tout ce qui l’utilise encore se met à échouer.',
-		'El token llamado «{name}» deja de funcionar en cuanto se emite el nuevo, y todo lo que lo siga usando empieza a fallar.',
-		'Das Token „{name}“ funktioniert nicht mehr, sobald das neue ausgestellt wird, und alles, was es noch nutzt, schlägt fehl.'
-	],
-	'api.nameLabel': ['Name', 'Nom', 'Nombre', 'Name'],
-	'api.nameHelp': [
-		'Where the token will live: a machine, a cron job, a script.',
-		'Où vivra le jeton : une machine, une tâche cron, un script.',
-		'Dónde vivirá el token: una máquina, una tarea cron, un script.',
-		'Wo das Token genutzt wird: eine Maschine, ein Cronjob, ein Skript.'
-	],
-	'api.namePlaceholder': ['laptop-cli', 'laptop-cli', 'laptop-cli', 'laptop-cli'],
-	'api.create': ['Create token', 'Créer le jeton', 'Crear token', 'Token erstellen'],
-	'api.creating': ['Creating…', 'Création…', 'Creando…', 'Wird erstellt…'],
-	'api.revokeTitle': ['Revoke this token?', 'Révoquer ce jeton ?', '¿Revocar este token?', 'Dieses Token widerrufen?'],
-	'api.revokeBody': [
-		'Every script, cron job and CLI still holding it starts getting 401s immediately, and it cannot be un-revoked. The only way back is issuing a new token and updating whatever used the old one.',
-		'Chaque script, tâche cron et CLI qui le détient reçoit aussitôt des 401, et la révocation est irréversible. Il faut émettre un nouveau jeton et mettre à jour tout ce qui utilisait l’ancien.',
-		'Todo script, tarea cron y CLI que lo conserve empieza a recibir 401 de inmediato, y la revocación no se puede deshacer. La única vía es emitir un token nuevo y actualizar lo que usaba el anterior.',
-		'Jedes Skript, jeder Cronjob und jede CLI, die es noch hält, erhält sofort 401-Fehler, und der Widerruf lässt sich nicht rückgängig machen. Der einzige Weg zurück ist ein neues Token und die Aktualisierung von allem, was das alte nutzte.'
-	],
-	'api.revokeConfirm': ['Revoke token', 'Révoquer le jeton', 'Revocar token', 'Token widerrufen']
 } satisfies Record<string, Row>;
