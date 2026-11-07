@@ -79,7 +79,7 @@
 
 	{#if showTest && supported(push) && access === 'granted'}
 		<div>
-			<Button variant="outline" class="min-h-11" disabled={testing} onclick={sendTest}>
+			<Button variant="secondary" class="min-h-11" disabled={testing} onclick={sendTest}>
 				{#if testing}<Spinner size="sm" />{/if}
 				{t('notify.sendTest')}
 			</Button>

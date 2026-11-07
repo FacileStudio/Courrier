@@ -190,7 +190,7 @@
 		<div class="flex flex-wrap gap-2">
 			<Button size="sm" onclick={replace}>{result.request.action === 'reply' ? t('assist.insert') : t('assist.replace')}</Button>
 			{#if result.request.action !== 'reply'}
-				<Button size="sm" variant="outline" onclick={insertBelow}>{t('assist.insertBelow')}</Button>
+				<Button size="sm" variant="secondary" onclick={insertBelow}>{t('assist.insertBelow')}</Button>
 			{/if}
 			<Button size="sm" variant="ghost" disabled={busy} onclick={() => result && run(result.request, result.range)}>{t('assist.tryAgain')}</Button>
 			<Button size="sm" variant="ghost" onclick={() => (result = null)}>{t('assist.discard')}</Button>

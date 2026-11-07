@@ -77,7 +77,7 @@
 				</Button>
 			{:else}
 				<Button
-					variant="outline"
+					variant="secondary"
 					icon={icons.refresh}
 					disabled={updater.state === 'checking' || updater.state === 'downloading'}
 					onclick={() => void updater.checkNow(false)}

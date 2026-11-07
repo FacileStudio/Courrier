@@ -729,7 +729,7 @@
 							</IconButton>
 						{/if}
 						<IconButton
-							variant="danger"
+							variant="ghost-danger"
 							aria-label={t('mail.delete')}
 							title={t('mail.delete')}
 							onclick={() => handleSingleDelete(selected!.id)}

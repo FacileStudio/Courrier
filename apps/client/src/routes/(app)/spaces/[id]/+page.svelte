@@ -78,7 +78,7 @@
 				title={t('space.notFound')}
 				description={t('space.notFoundBody')}
 			>
-				<Button variant="outline" href="/spaces" icon={icons.chevronLeft}>{t('space.backToSpaces')}</Button>
+				<Button variant="secondary" href="/spaces" icon={icons.chevronLeft}>{t('space.backToSpaces')}</Button>
 			</EmptyState>
 		{:else}
 			<div class="flex flex-wrap items-start justify-between gap-4">
@@ -94,11 +94,11 @@
 						{isActive ? t('space.active') : t('space.switch')}
 					</Button>
 					{#if space.manage_url}
-						<Button variant="outline" href={space.manage_url} icon={icons.space}>
+						<Button variant="secondary" href={space.manage_url} icon={icons.space}>
 							{t('spaces.manageInRegistre')}
 						</Button>
 					{:else if isOwnerOrAdmin}
-						<Button variant="outline" href="/spaces/{spaceId}/settings" icon={icons.settings}>
+						<Button variant="secondary" href="/spaces/{spaceId}/settings" icon={icons.settings}>
 							{t('space.settings')}
 						</Button>
 					{/if}
@@ -123,7 +123,7 @@
 						</p>
 					</div>
 					{#if isOwnerOrAdmin}
-						<Button variant="outline" href="/spaces/{spaceId}/members" icon={icons.usersGroup}>
+						<Button variant="secondary" href="/spaces/{spaceId}/members" icon={icons.usersGroup}>
 							{t('space.manageMembers')}
 						</Button>
 					{/if}

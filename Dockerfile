@@ -8,8 +8,9 @@ RUN bun run build
 FROM golang:1.26-alpine AS api-build
 WORKDIR /app
 COPY apps/api/ .
-ARG APP_VERSION=dev
-RUN go build -mod=vendor -trimpath -ldflags="-s -w -X main.version=${APP_VERSION}" -o /courrier .
+COPY apps/client/package.json /version/package.json
+COPY scripts/version.sh /version/version.sh
+RUN go build -mod=vendor -trimpath -ldflags="-s -w -X main.version=$(sh /version/version.sh /version/package.json)" -o /courrier .
 
 FROM gcr.io/distroless/static-debian12
 COPY --from=api-build /courrier /courrier

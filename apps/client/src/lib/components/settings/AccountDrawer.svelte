@@ -247,7 +247,7 @@
 			<div class="flex flex-wrap items-center gap-2">
 				<Button
 					type="button"
-					variant="outline"
+					variant="secondary"
 					icon={icons.plug}
 					disabled={saving || testState === 'testing' || !imapHost.trim() || !typedBoth}
 					onclick={test}

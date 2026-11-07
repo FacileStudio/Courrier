@@ -72,7 +72,7 @@
 						</div>
 						<Button
 							href={build.url}
-							variant={os === build.os ? 'primary' : 'outline'}
+							variant={os === build.os ? 'primary' : 'secondary'}
 							icon={icons.download}
 							class="min-h-11"
 						>
@@ -142,7 +142,7 @@
 				<p class="text-fc-sm text-fc-fg-muted">
 					{t('downloads.browserBody')}
 				</p>
-				<div class="mt-2"><Button href="/login" variant="outline" class="min-h-11">{t('downloads.openWeb')}</Button></div>
+				<div class="mt-2"><Button href="/login" variant="secondary" class="min-h-11">{t('downloads.openWeb')}</Button></div>
 			</div>
 		</Card>
 	</main>

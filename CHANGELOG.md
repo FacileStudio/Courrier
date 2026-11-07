@@ -2,6 +2,13 @@
 
 All notable changes to Courrier are listed here. The format follows Keep a Changelog, and versions follow semver.
 
+## [Unreleased]
+
+### Changed
+
+- build(client): bump muse to v0.16.1, replace the deprecated `outline` button variant with `secondary`, and the `danger` and `default` icon buttons with `ghost-danger` and `secondary`.
+- build(api): `GET /version` is baked at build time from `apps/client/package.json` by `scripts/version.sh`. The `APP_VERSION` build arg is gone from the Dockerfile, compose file and docs, so a stale Dokploy env can no longer show the wrong version. The response is unchanged.
+
 ## [0.13.3] - 2026-11-07
 
 ### Changed

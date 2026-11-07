@@ -155,7 +155,7 @@
 				title={t('space.notFound')}
 				description={t('space.notFoundBody')}
 			>
-				<Button variant="outline" href="/spaces" icon={icons.chevronLeft}>{t('space.backToSpaces')}</Button>
+				<Button variant="secondary" href="/spaces" icon={icons.chevronLeft}>{t('space.backToSpaces')}</Button>
 			</EmptyState>
 		{:else}
 			<div class="flex flex-wrap items-start justify-between gap-4">

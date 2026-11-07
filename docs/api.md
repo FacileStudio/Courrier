@@ -322,4 +322,4 @@ When Registre erases a person, Courrier deletes that person's account, personal 
 with their cached folders, messages, contacts and rules, personal templates and memberships.
 Mail accounts and templates attached to a space stay. The receiver also polls Registre, so the
 push is optional; set `deletion_uri` on the Courrier client to receive it. `GET /version`
-answers `{"version"}`, set from the `APP_VERSION` build argument.
+answers `{"version"}`, baked in at build time from `apps/client/package.json`.
