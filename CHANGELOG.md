@@ -4,6 +4,10 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Fixed
+
+- `porte` v0.12.0 to v0.12.1. porte's identity eraser no longer fails on a database without the `porte_magic_links` table, which Courrier does not create.
+
 ## [0.12.0] - 2026-11-07
 
 ### Added

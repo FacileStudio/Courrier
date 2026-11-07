@@ -8,6 +8,7 @@ import (
 
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/porte/directory"
+	portepg "github.com/FacileStudio/porte/pg"
 
 	"gorm.io/gorm"
 )
@@ -149,5 +150,19 @@ func TestDeletionStateSurvivesARestart(t *testing.T) {
 	}
 	if saved, err := state.Load(context.Background()); err != nil || string(saved) != "two" {
 		t.Fatalf("Load = %q, %v; want two", saved, err)
+	}
+}
+
+func TestPorteEraseIdentityWorksWithoutAMagicLinksTable(t *testing.T) {
+	f := seedErasure(t)
+	sqlDB, err := testORM.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := portepg.New(sqlDB).EraseIdentity(context.Background(), testIssuer, "sub-gone"); err != nil {
+		t.Fatalf("erase identity: %v", err)
+	}
+	if got := count(t, testORM, `SELECT count(*) FROM porte_identities WHERE user_id = ?`, f.gone); got != 0 {
+		t.Errorf("identity rows left = %d, want 0", got)
 	}
 }
