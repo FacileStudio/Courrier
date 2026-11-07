@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-07
+
 ### Changed
 
 - `@facile/muse` v0.13.0 to v0.14.1. The sidebar user card and the mobile avatar open muse's user menu: Facile account, Downloads (browser only), Settings, language, theme, help and Sign out. The hand-made `SidebarFooter` popover and its drawn rule are gone, and so is the cog.
