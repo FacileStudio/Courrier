@@ -54,6 +54,25 @@ func (s *Service) requireSpaceMember(ctx context.Context, spaceID string, userID
 	return nil
 }
 
+// Usage reports how many accounts the scope holds and the ceiling its plan
+// sets, for the caller's personal scope or a space they belong to.
+func (s *Service) Usage(ctx context.Context, userID int64, spaceID *string) (plans.Usage, error) {
+	spaceID, err := spaceid.Optional(spaceID)
+	if err != nil {
+		return plans.Usage{}, err
+	}
+	if spaceID != nil {
+		if err := s.requireSpaceMember(ctx, *spaceID, userID); err != nil {
+			return plans.Usage{}, err
+		}
+	}
+	usage, err := s.plans.MailboxUsage(s.orm.WithContext(ctx), userID, spaceID)
+	if err != nil {
+		return plans.Usage{}, errors.Internal("failed to read the plan usage", err)
+	}
+	return usage, nil
+}
+
 func unsetDefault(db *gorm.DB, userID int64, spaceID *string) {
 	if spaceID != nil && *spaceID != "" {
 		db.Model(&schemas.Account{}).Where("space_id = ?", *spaceID).Update("is_default", false)

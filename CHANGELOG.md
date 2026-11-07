@@ -4,6 +4,15 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- A Subscription section in the settings: the mail account allowance of the active space (or of your personal plan), how many accounts are used, and links to manage or upgrade the plan on Facile. It reads the new `GET /accounts/usage`, which answers `{used, limit}` (`limit` is -1 when unlimited).
+- The user menu gains a Subscription row that opens the plans on Facile (`https://sso.facile.studio/spaces`).
+
+### Changed
+
+- build(client): bump muse to v0.14.2. The API tokens section drops the expiry field and the last-used column: Courrier tokens do not expire and do not record their use.
+
 ## [0.13.0] - 2026-11-07
 
 ### Changed

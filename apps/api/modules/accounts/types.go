@@ -61,3 +61,10 @@ type AccountListResponse struct {
 type DeleteAccountResponse struct {
 	Deleted bool `json:"deleted"`
 }
+
+// UsageResponse is the body of GET /accounts/usage. Limit is -1 when the scope
+// is unlimited or no plan applies yet.
+type UsageResponse struct {
+	Used  int64 `json:"used"`
+	Limit int64 `json:"limit"`
+}

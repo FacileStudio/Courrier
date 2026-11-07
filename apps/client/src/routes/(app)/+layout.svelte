@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import { MobileNav, SideBar, SpaceSwitcher, Topbar, icons } from '@facile/muse';
 	import { backend, ApiError, type UserProfile, type MailAccount, type Folder, type Space } from '$lib/backend';
+	import { SPACES_URL } from '$lib/plan-limit';
 	import { MAIL_FOLDERS } from '$lib/mail-folders';
 	import { spaceStore } from '$lib/stores/space.svelte';
 	import { activeAccountStore } from '$lib/stores/account.svelte';
@@ -176,6 +177,7 @@
 
 	const userMenu = $derived({
 		items: isApp() ? [] : [{ label: t('shell.desktopApp'), icon: icons.download, href: '/downloads' }],
+		subscription: { plan: '', href: SPACES_URL },
 		helpHref: 'https://facile.studio/docs/courrier',
 		onSignOut: signOut,
 		theme: theme.preference,

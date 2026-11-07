@@ -65,6 +65,25 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			httpjson.WriteJSON(w, http.StatusOK, map[string]any{"accounts": resp})
 		})
 
+		r.Get("/usage", func(w http.ResponseWriter, req *http.Request) {
+			identity := authcontext.MustIdentity(req.Context())
+			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
+			if err != nil {
+				httpjson.WriteError(w, errors.Invalid("invalid user id"))
+				return
+			}
+			var spaceID *string
+			if sid := req.URL.Query().Get("space_id"); sid != "" {
+				spaceID = &sid
+			}
+			usage, err := service.Usage(req.Context(), uid, spaceID)
+			if err != nil {
+				httpjson.WriteError(w, err)
+				return
+			}
+			httpjson.WriteJSON(w, http.StatusOK, UsageResponse{Used: usage.Used, Limit: usage.Limit})
+		})
+
 		r.Get("/{id}", func(w http.ResponseWriter, req *http.Request) {
 			identity := authcontext.MustIdentity(req.Context())
 			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
