@@ -2,7 +2,7 @@
 
 All notable changes to Courrier are listed here. The format follows Keep a Changelog, and versions follow semver.
 
-## [Unreleased]
+## [0.13.3] - 2026-11-07
 
 ### Changed
 
