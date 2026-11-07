@@ -28,6 +28,20 @@ var Documentation = documentation.Module{
 			},
 		},
 		{
+			Method:       "GET",
+			Path:         "/accounts/usage",
+			Summary:      "Read the mail account usage",
+			Description:  "Returns how many accounts the caller's personal scope, or the space given by space_id, holds and the ceiling its plan sets (courrier.mailboxes). A limit of -1 means unlimited.",
+			Auth:         "bearer token required",
+			QueryParams:  []documentation.Field{{Name: "space_id", Type: "string", Description: "Space identifier."}},
+			ResponseBody: UsageResponse{},
+			Errors: []documentation.Error{
+				{Status: 401, Code: "unauthenticated", Description: "No valid session cookie, bearer token or API token."},
+				{Status: 403, Code: "forbidden", Description: "The caller is not a member of the space."},
+				{Status: 500, Code: "internal", Description: "Unexpected server error."},
+			},
+		},
+		{
 			Method:       "POST",
 			Path:         "/accounts",
 			Summary:      "Create a mail account",

@@ -300,6 +300,10 @@ export const backend = {
 		const params = spaceId ? `?space_id=${encodeURIComponent(spaceId)}` : '';
 		return apiFetch<{ accounts: MailAccount[] }>(`/api/accounts${params}`);
 	},
+	accountUsage(spaceId?: string) {
+		const params = spaceId ? `?space_id=${encodeURIComponent(spaceId)}` : '';
+		return apiFetch<{ used: number; limit: number }>(`/api/accounts/usage${params}`);
+	},
 	getAccount(id: number) {
 		return apiFetch<MailAccount>(`/api/accounts/${id}`);
 	},

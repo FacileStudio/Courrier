@@ -15,6 +15,7 @@
 			{ id: 'accounts', label: t('settings.accounts'), icon: icons.mail },
 			{ id: 'templates', label: t('settings.templates'), icon: icons.edit },
 			{ id: 'tokens', label: t('settings.tokens'), icon: icons.key },
+			{ id: 'subscription', label: t('settings.subscription'), icon: icons.card },
 			{ id: 'advanced', label: t('settings.advanced'), icon: icons.shield },
 			...(isDesktop() ? [{ id: 'updates', label: t('settings.updates'), icon: icons.refresh }] : [])
 		]).map((section) => ({ ...section, href: `/settings/${section.id}` }))

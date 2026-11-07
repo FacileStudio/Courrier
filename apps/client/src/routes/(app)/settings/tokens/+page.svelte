@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Alert, SecretField, SettingsSection, TokensSection } from '@facile/muse';
+	import { Alert, SecretField, SettingsSection, TokensSection, type TokenDraft } from '@facile/muse';
 	import { backend, type ApiTokenStatus } from '$lib/backend';
-	import { formatDate } from '$lib/i18n/format';
 	import { t } from '$lib/i18n/index.svelte';
 
 	let status = $state<ApiTokenStatus>({ has_token: false });
@@ -16,8 +15,7 @@
 					{
 						id: 'cli',
 						name: status.name || 'CLI',
-						prefix: t('api.storedHashed'),
-						lastUsed: when(status.created_at)
+						prefix: t('api.storedHashed')
 					}
 				]
 			: []
@@ -34,7 +32,7 @@
 		}
 	}
 
-	async function create(draft: { name: string }) {
+	async function create(draft: Omit<TokenDraft, 'days'>) {
 		const created = await backend.createApiToken(draft.name);
 		await load();
 		return created.token;
@@ -43,12 +41,6 @@
 	async function revoke() {
 		await backend.deleteApiToken();
 		await load();
-	}
-
-	function when(raw?: string) {
-		if (!raw) return undefined;
-		const date = new Date(raw);
-		return Number.isNaN(date.getTime()) ? undefined : formatDate(date);
 	}
 </script>
 
@@ -63,7 +55,8 @@
 
 	<TokensSection
 		{tokens}
-		expiryDays={[]}
+		expiry={false}
+		lastUsed={false}
 		title={t('api.tokenTitle')}
 		description={t('api.tokenBody')}
 		onCreate={create}

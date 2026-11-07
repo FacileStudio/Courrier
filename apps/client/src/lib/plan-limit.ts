@@ -1,5 +1,8 @@
 import { t } from '$lib/i18n/index.svelte';
 
+/** Registre's plans page: where people subscribe and manage a plan. */
+export const SPACES_URL = 'https://sso.facile.studio/spaces';
+
 /** A 402 refusal: the scope's plan has no room for what was being created. */
 export type PlanLimit = {
 	message: string;
