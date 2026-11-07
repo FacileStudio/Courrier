@@ -10,7 +10,7 @@ Self-hosted email client for creative studios. Single Go binary serves both the 
 | Client   | SvelteKit 5 (Svelte 5 runes), Tailwind CSS 4, shadcn-svelte |
 | Build    | `go build` (vendored deps), Bun                             |
 | Deploy   | Docker Compose (single container: distroless Go binary)      |
-| Auth     | Session tokens + optional OIDC SSO, `SSO_ONLY` mode         |
+| Auth     | Sessions and API tokens over OIDC sign-in through Registre |
 | Email    | IMAP (go-imap/v2), SMTP (go-smtp), MIME (go-message)        |
 
 ## Project Structure
@@ -79,7 +79,6 @@ Core variables (see `.env.example` for full list):
 - `CLIENT_DIR` -- Path to SvelteKit build output (default `./client`); the Go binary serves these files as the frontend
 - `CORS_ALLOWED_ORIGINS` -- Comma-separated allowed CORS origins (optional; only needed if deploying the client separately from the API). Legacy names `DOMAINS`, `ALLOWED_ORIGINS`, `DOMAIN`, `CORS_ORIGINS`, `TRUSTED_ORIGINS`, `CLIENT_ORIGIN` are still read as fallbacks
 - `OIDC_*` -- OpenID Connect config (optional)
-- `SSO_ONLY` -- Hide password auth when `true`
 
 Client dev only (in `apps/client/.env`):
 
@@ -89,7 +88,7 @@ Client dev only (in `apps/client/.env`):
 
 - `GET /health`, `GET /ready` -- Health and readiness probes (outside `/api`)
 - `GET /api/files/*` -- Static file serving (avatars)
-- Auth: `/api/auth/register`, `/api/auth/login`, `/api/auth/config`, `/api/auth/oidc/*`
+- Auth: `/api/auth/config`, `/api/auth/oidc/*` (no register or login route: Registre owns sign-in)
 - Accounts: `/api/accounts` (CRUD for IMAP/SMTP mail accounts)
 - Mail: `/api/accounts/{id}/mail/sync`, `/api/accounts/{id}/mail/folders`, `/api/accounts/{id}/mail/folders/{type}/emails`, `/api/accounts/{id}/mail/emails/{id}`, `/api/accounts/{id}/mail/send`, `/api/accounts/{id}/mail/drafts[/{id}]`, `/api/accounts/{id}/mail/emails/move`, `/api/accounts/{id}/mail/folders[/{id}]` (create, rename, delete)
 - Push: `/api/push`, `/api/push/test`, `/api/push/devices`, `/api/push/stream` (desktop SSE)

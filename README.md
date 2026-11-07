@@ -17,7 +17,7 @@ Live at [courrier.facile.studio](https://courrier.facile.studio).
 - Reusable email templates, per user or per space
 - Bulk delete, archive, and read-state changes over up to 200 messages at a time
 - Spaces that group users and scope accounts and templates. With Facile SSO on, Registre owns the spaces and their members, and Courrier keeps them in step
-- Email/password auth with optional OIDC SSO and an `SSO_ONLY` mode
+- Sign-in through your Facile account (Registre); API tokens for the CLI, scripts and mail clients
 
 ## Stack
 
@@ -78,7 +78,6 @@ The client runs on <http://localhost:5173> and calls the API at `VITE_API_BASE_U
 | `PORT` | HTTP listen port. `tronc` defaults to `8080`; every deployment here pins `4000` |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated browser origins, only needed for a split deploy |
 | `STORAGE_DIR` | Root for uploaded avatars, served back under `/api/files/` |
-| `SSO_ONLY` | Hides password login and registration when `true` |
 
 Full reference: [docs/configuration.md](docs/configuration.md).
 

@@ -60,13 +60,11 @@ the old `/files/` prefix on every boot.
 ## Middleware
 
 Applied globally: the `tronc/httpx` stack (request logger, panic recovery, CORS with
-`AllowCredentials: true`), then `middleware.SecurityHeaders`. Gzip is applied to the SPA
+`AllowCredentials: true`), then tronc's security headers (on by default, with the client's inline script hashes and the Ardoise and iconify origins added). Gzip is applied to the SPA
 handler alone. Rate limits are per-route and tight on the expensive paths:
 
 | Route | Limit |
 |---|---|
-| `POST /api/auth/register` | 3 per minute |
-| `POST /api/auth/login` | 10 per minute |
 | `POST /api/accounts/{id}/mail/sync` | 5 per minute |
 | `POST /api/accounts/{id}/mail/folders/{id}/sync` | 10 per minute |
 | `POST /api/accounts/{id}/mail/send` | 10 per minute |
@@ -107,7 +105,7 @@ Additive. `env.Load` builds an `OIDCConfig` only when `OIDC_ISSUER` is set, and 
 requires `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, and `OIDC_REDIRECT_URL`. When configured,
 `GET /api/auth/oidc`, `GET /api/auth/oidc/callback`, and `POST /api/auth/sync-profile`
 appear. `OIDC_SUCCESS_URL` defaults to the first entry of `CORS_ALLOWED_ORIGINS`.
-`SSO_ONLY=true` removes register and login from the router, so they 404 rather than 403.
+There is no register or login route: sign-in goes through Registre only, and `OIDC_ISSUER` is required when `APP_ENV=production`.
 
 ### Encryption at rest
 

@@ -4,6 +4,26 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- Sign-in goes through Registre only. The login page is muse's `AuthScreen`, and the landing page uses `LandingHeader`, `LandingFooter` and `SignInWithFacile` in place of the hand-made top bar, footer and buttons. The desktop and Android sign-in button is `SignInWithFacile` too.
+- The whole interface is available in French, English, Spanish and German, in the language of the Registre profile (`users.locale`, read from the OIDC `locale` claim at every sign-in), then the language picked on a public page, then the browser's. Dates, times, sizes and counts use `Intl` in that language. The spaces pages, which were French only, are translated. Spanish and German need native review.
+- GDPR deletion. When Registre erases a person, Courrier deletes their account, personal mail accounts with the folders, messages, attachments records, contacts, thread links and sender rules cached from them, personal templates, memberships and avatar file. Mail accounts and templates attached to a space stay. `POST /api/registre/deletions` takes Registre's signed notice, and the receiver also polls Registre. A new table, `directory_deletion_state`, keeps its cursor.
+- `GET /version` answers the version set by the `APP_VERSION` build argument.
+- `.github/workflows/ci.yml` runs gofmt, vet, build and tests against Postgres, the client check, tests and build, and filet. It replaces `filet.yml`.
+
+### Changed
+
+- `porte` v0.8.0 to v0.12.0, `porte/directory` v0.2.0 to v0.3.0, `tronc` v0.16.0 to v0.17.1, `@facile/muse` v0.11.0 to v0.13.0. Upgrade notes applied: the two binding columns on `porte_login_codes`, `users.locale`, porte's account linking rules in the user store (link by verified email only, refuse an account that already holds another subject of the same issuer), tronc's security headers, `go 1.26` in `mise.toml`, and muse v0.13's borderless forms and custom `Select`.
+- Security headers come from tronc. The local `SecurityHeaders` middleware is gone. The Content-Security-Policy stays report-only; framing is denied and enforced. The client's inline script hashes are added, and `connect-src` allows `https://api-ardoise.facile.studio` (plans) and `https://api.iconify.design` (icons).
+- `OIDC_ISSUER` is required when `APP_ENV=production`.
+- `PATCH /api/users/me` takes `name` only. The email comes from Registre, and a signed-in person can no longer park an account on someone else's address.
+- Form controls, menus and dividers lose their borders and rings, and the deprecated `fc-border` token is gone.
+
+### Removed
+
+- `POST /api/auth/register`, `POST /api/auth/login`, the password change on `PATCH /api/users/me`, the register and password screens, and `SSO_ONLY`. API tokens (Settings > API), the CLI's device and loopback login, the Android app's code exchange, delegated bearer JWTs and the mail accounts' own IMAP and SMTP passwords are unchanged.
+
 ## [0.11.0] - 2026-11-06
 
 ### Added
