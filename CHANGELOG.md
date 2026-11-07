@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-07
+
 ### Added
 
 - Sign-in goes through Registre only. The login page is muse's `AuthScreen`, and the landing page uses `LandingHeader`, `LandingFooter` and `SignInWithFacile` in place of the hand-made top bar, footer and buttons. The desktop and Android sign-in button is `SignInWithFacile` too.
