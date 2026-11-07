@@ -177,7 +177,7 @@
 
 	const userMenu = $derived({
 		items: isApp() ? [] : [{ label: t('shell.desktopApp'), icon: icons.download, href: '/downloads' }],
-		subscription: { plan: '', href: SPACES_URL },
+		subscription: { href: SPACES_URL },
 		helpHref: 'https://facile.studio/docs/courrier',
 		onSignOut: signOut,
 		theme: theme.preference,
