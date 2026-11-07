@@ -17,46 +17,11 @@ import (
 // RegisterRoutes mounts what porte does not own.
 //
 // /auth/config, /auth/logout, /auth/sync-profile and the whole OIDC flow come
-// from porte's session manager and its OIDC kit, mounted in main.go. What is
-// left here is the local password path, which keeps Courrier's own
-// {user_id, token} response shape, and the resource token this app signs for
-// its own attachment routes.
-//
-// Under SSO_ONLY the credential routes are not registered rather than
-// rejected, so there is no endpoint left to probe for an account. That is the
-// behaviour this app already had.
+// from porte's session manager and its OIDC kit, mounted in main.go. Courrier
+// has no register or login route: sign-in goes through Registre only. What is
+// left here is the resource token this app signs for its own attachment routes.
 func RegisterRoutes(router chi.Router, service *Service, appEnv env.Config) {
 	router.Route("/auth", func(router chi.Router) {
-		if !appEnv.SSOOnly {
-			router.With(middleware.RateLimit(3, time.Minute)).Post("/register", func(w http.ResponseWriter, request *http.Request) {
-				var req RegisterRequest
-				if err := httpjson.DecodeJSON(w, request, &req); err != nil {
-					httpjson.WriteError(w, err)
-					return
-				}
-				resp, err := service.controller.register(w, request, &req)
-				if err != nil {
-					httpjson.WriteError(w, err)
-					return
-				}
-				httpjson.WriteJSON(w, http.StatusCreated, resp)
-			})
-
-			router.With(middleware.RateLimit(10, time.Minute)).Post("/login", func(w http.ResponseWriter, request *http.Request) {
-				var req LoginRequest
-				if err := httpjson.DecodeJSON(w, request, &req); err != nil {
-					httpjson.WriteError(w, err)
-					return
-				}
-				resp, err := service.controller.login(w, request, &req)
-				if err != nil {
-					httpjson.WriteError(w, err)
-					return
-				}
-				httpjson.WriteJSON(w, http.StatusOK, resp)
-			})
-		}
-
 		if len(appEnv.ResourceTokenSecret) > 0 {
 			router.With(middleware.RequireAuth(service)).Get("/resource-token", func(w http.ResponseWriter, r *http.Request) {
 				identity := authcontext.MustIdentity(r.Context())

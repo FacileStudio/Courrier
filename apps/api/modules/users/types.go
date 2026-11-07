@@ -21,16 +21,10 @@ type ListResponse struct {
 }
 
 // UpdateRequest is the body of PATCH /users/me; every field is optional.
-//
-// CurrentPassword is what turns Password from "set a first password" into
-// "replace the one there is". An account that already has a password is
-// refused without it, so a stolen session cannot quietly become a stolen
-// account.
+// The email and the password are not here: sign-in goes through Registre, which
+// owns both.
 type UpdateRequest struct {
-	Name            *string `json:"name"`
-	Email           *string `json:"email"`
-	Password        *string `json:"password"`
-	CurrentPassword *string `json:"current_password"`
+	Name *string `json:"name"`
 }
 
 // ApiTokenResponse carries a freshly minted API token plus its metadata.

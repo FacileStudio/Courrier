@@ -47,7 +47,7 @@ func testAuth() (*session.Manager, *oidc.Kit, *auth.Service) {
 	if err != nil {
 		panic(err)
 	}
-	return sessions, kit, auth.NewService(nil, sessions, nil, logger)
+	return sessions, kit, auth.NewService(nil, sessions, logger)
 }
 
 // testRouter wires the modules exactly as run() does. The services are nil
@@ -115,8 +115,6 @@ func TestPublicAPIURLsAreUnchanged(t *testing.T) {
 
 	want := []string{
 		"GET /api/auth/config",
-		"POST /api/auth/login",
-		"POST /api/auth/register",
 		"POST /api/auth/logout",
 		"GET /api/auth/resource-token",
 		"GET /api/accounts/",
@@ -136,6 +134,19 @@ func TestPublicAPIURLsAreUnchanged(t *testing.T) {
 	for _, route := range want {
 		if !registered[route] {
 			t.Errorf("%s is not registered", route)
+		}
+	}
+}
+
+func TestNoLocalSignInRoutesAreMounted(t *testing.T) {
+	router := testRouter()
+
+	for _, route := range []string{"POST /api/auth/login", "POST /api/auth/register"} {
+		method, path, _ := strings.Cut(route, " ")
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(method, path, strings.NewReader("{}")))
+		if recorder.Code == http.StatusOK || recorder.Code == http.StatusCreated {
+			t.Errorf("%s answered %d, want it unmounted", route, recorder.Code)
 		}
 	}
 }
@@ -213,5 +224,16 @@ POST /api/accounts/{accountId}/mail/emails/bulk-action`), "\n") {
 		if !registered[route] {
 			t.Errorf("%s is not registered", route)
 		}
+	}
+}
+
+func TestVersionIsServed(t *testing.T) {
+	router := chi.NewRouter()
+	router.Get("/version", versionHandler)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/version", nil))
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"version":"dev"`) {
+		t.Fatalf("GET /version = %d %s", recorder.Code, recorder.Body.String())
 	}
 }

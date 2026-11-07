@@ -5,7 +5,6 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -34,17 +33,14 @@ type Service struct {
 // A named API token is a porte session with a label on it and no expiry, so
 // there is no second table and no second branch in the authentication path —
 // which is what there used to be, and what made api_tokens a credential store
-// porte's middleware would not have known to read. The password is porte's for
-// the same reason.
+// porte's middleware would not have known to read.
 type Auth interface {
 	Issue(ctx context.Context, userID int64, label string) (string, porte.Session, error)
 	Sessions() *session.Manager
-	SetPassword(ctx context.Context, userID int64, password string) error
-	ChangePassword(ctx context.Context, w http.ResponseWriter, r *http.Request, userID int64, current, next string) (string, int64, error)
 }
 
 // NewService builds a users Service over the database and avatar storage
-// directory, delegating tokens and passwords to the narrowed auth interface.
+// directory, delegating tokens to the narrowed auth interface.
 func NewService(orm *gorm.DB, storageDir string, tokens Auth) *Service {
 	service := &Service{orm: orm, storageDir: storageDir, tokens: tokens}
 	service.controller = newController(service)
@@ -82,18 +78,12 @@ func (service *Service) listUsers(context context.Context) ([]User, error) {
 	return users, nil
 }
 
-// updateUser applies the caller's name and email changes to their own
-// account.
+// updateUser applies the caller's name change to their own account.
 //
-// The password is not here: replacing one needs the current password
-// confirmed and the caller's session rotated, which porte does through the
-// response writer, so it happens in the handler layer instead.
-//
-// Nor is there an identity to chase any more. porte keyed a local identity on
-// the lowercased address until v0.3.0, so an app that let people edit their
-// profile had to move the subject with raw SQL against a table porte owns.
-// The key is the account id now, and an id does not move.
-func (service *Service) updateUser(context context.Context, userID string, name *string, email *string) (*User, error) {
+// The address is not here: it comes from Registre at every sign-in. Letting a
+// signed-in person set it would let them park an account on someone else's
+// address and have that person's first verified login link into it.
+func (service *Service) updateUser(context context.Context, userID string, name *string) (*User, error) {
 	id, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
 		return nil, errors.Internal("failed to parse user id", err)
@@ -104,18 +94,11 @@ func (service *Service) updateUser(context context.Context, userID string, name 
 		updates["name"] = *name
 	}
 
-	if email != nil {
-		updates["email"] = *email
-	}
-
 	result := service.orm.WithContext(context).
 		Model(&schemas.User{}).
 		Where("id = ?", id).
 		Updates(updates)
 	if result.Error != nil {
-		if stderrors.Is(result.Error, gorm.ErrDuplicatedKey) {
-			return nil, errors.Conflict("email already registered")
-		}
 		return nil, errors.Internal("failed to update user", result.Error)
 	}
 	var record schemas.User

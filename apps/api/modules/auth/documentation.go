@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"net/http"
-
 	documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
 	"github.com/FacileStudio/porte"
 )
@@ -15,38 +13,9 @@ var Documentation = documentation.Module{
 			Method:       "GET",
 			Path:         "/auth/config",
 			Summary:      "Describe the auth methods on offer",
-			Description:  "Returns sso_only and oidc_enabled, so the client knows whether to show the password form.",
+			Description:  "Returns oidc_enabled and sso_only (always true while OIDC is on), so the client knows sign-in goes through Facile.",
 			Auth:         "public",
 			ResponseBody: porte.ConfigResponse{},
-		},
-		{
-			Method:       "POST",
-			Path:         "/auth/register",
-			Summary:      "Register a new user",
-			Description:  "Creates a user account and returns an auth token.",
-			Auth:         "public",
-			RequestBody:  RegisterRequest{},
-			ResponseBody: AuthResponse{},
-			Status:       http.StatusCreated,
-			Errors: []documentation.Error{
-				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body or invalid registration input."},
-				{Status: 409, Code: "already_exists", Description: "A user with the same email already exists."},
-				{Status: 500, Code: "internal", Description: "Unexpected server error."},
-			},
-		},
-		{
-			Method:       "POST",
-			Path:         "/auth/login",
-			Summary:      "Authenticate a user",
-			Description:  "Authenticates credentials and returns an auth token.",
-			Auth:         "public",
-			RequestBody:  LoginRequest{},
-			ResponseBody: AuthResponse{},
-			Errors: []documentation.Error{
-				{Status: 400, Code: "invalid_argument", Description: "Invalid JSON body or invalid login input."},
-				{Status: 401, Code: "unauthenticated", Description: "Email or password is invalid."},
-				{Status: 500, Code: "internal", Description: "Unexpected server error."},
-			},
 		},
 		{
 			Method:       "POST",

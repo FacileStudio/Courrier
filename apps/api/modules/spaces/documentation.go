@@ -177,5 +177,13 @@ var Documentation = documentation.Module{
 			Auth:        "public",
 			Status:      http.StatusAccepted,
 		},
+		{
+			Method:      "POST",
+			Path:        "/registre/deletions",
+			Summary:     "Receive a Registre deletion notice",
+			Description: "Registre posts a signed user.deleted security event here when it erases a person. Mounted only with SSO on. The body is a secevent+jwt verified against Registre's keys; anything else is refused with 400. Courrier erases the person's own mail accounts, cached messages, templates and account, and keeps what belongs to a space. The receiver also polls Registre, so the push is optional.",
+			Auth:        "signed security event token",
+			Status:      http.StatusAccepted,
+		},
 	},
 }

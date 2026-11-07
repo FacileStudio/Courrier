@@ -1,23 +1,5 @@
 package auth
 
-// RegisterRequest is the body of POST /auth/register.
-type RegisterRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-// LoginRequest is the body of POST /auth/login.
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-// AuthResponse is the {user_id, token} shape auth has always returned.
-type AuthResponse struct {
-	UserID string `json:"user_id"`
-	Token  string `json:"token"`
-}
-
 // ResourceTokenResponse is the body of GET /auth/resource-token.
 type ResourceTokenResponse struct {
 	Token string `json:"token"`
