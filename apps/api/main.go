@@ -28,7 +28,6 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
 	"github.com/FacileStudio/porte/oidc"
-	portepg "github.com/FacileStudio/porte/pg"
 	"github.com/FacileStudio/porte/session"
 
 	"github.com/go-chi/chi/v5"
@@ -81,7 +80,11 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 	if err != nil {
 		return services{}, err
 	}
-	store := portepg.New(sqlDB)
+	store, err := newPorteStore(sqlDB)
+	if err != nil {
+		return services{}, err
+	}
+	resealInBackground(ctx, store, appLogger)
 	users := auth.NewUserStore(db)
 	cfg := appEnv.Porte()
 
