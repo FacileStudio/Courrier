@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { backend } from '$lib/backend';
 	import { Badge, getFieldContext, icons } from '@facile/muse';
+	import { t } from '$lib/i18n/index.svelte';
 
 	type Contact = { name: string; email: string; count: number };
 
@@ -150,19 +151,19 @@
 
 <!--
 	muse has no chips/token input, so the shell is hand-built from the same tokens `Input`
-	uses (min-h-11, rounded-fc-md, border-fc-border, bg-fc-bg, the focus ring) and the chips
+	uses (min-h-11, rounded-fc-md, bg-fc-field, the focus ring) and the chips
 	themselves are muse `Badge`s.
 -->
 <div class="relative" bind:this={containerEl}>
 	<div
-		class="flex min-h-11 w-full flex-wrap items-center gap-1.5 rounded-fc-md border border-fc-border bg-fc-bg px-2 py-1.5 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-fc-ring"
+		class="flex min-h-11 w-full flex-wrap items-center gap-1.5 rounded-fc-md bg-fc-field px-2 py-1.5 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-fc-ring"
 	>
 		{#each chips as chip, i (`${chip}-${i}`)}
 			<Badge tone="neutral" class="max-w-full pr-1">
 				<span class="truncate">{chip}</span>
 				<button
 					type="button"
-					aria-label="Remove {chip}"
+					aria-label={t('address.remove', { chip })}
 					class="flex size-4 shrink-0 items-center justify-center rounded-fc-pill text-fc-fg-muted transition-colors hover:bg-fc-component hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fc-ring"
 					onclick={() => removeChip(i)}
 				>

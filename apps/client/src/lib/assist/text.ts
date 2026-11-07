@@ -1,4 +1,6 @@
 import type { AssistStatus } from '$lib/backend';
+import { t } from '$lib/i18n/index.svelte';
+import type { AppKey } from '$lib/i18n/messages';
 
 function escapeHtml(text: string): string {
 	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -27,16 +29,16 @@ export function plainOf(html: string, max = 8000): string {
 	return text.length > max ? text.slice(text.length - max) : text;
 }
 
-const REASONS: Record<NonNullable<AssistStatus['reason']>, string> = {
-	off: 'The Bulle helper is not set up on this server.',
-	not_linked: 'Sign in with your Facile account to use Bulle here.',
-	no_key: 'Add a model key in Bulle to use the helper.',
-	unsupported: "Bulle's model is not supported here yet.",
-	unreachable: 'Bulle is not answering right now.'
+const REASONS: Record<NonNullable<AssistStatus['reason']>, AppKey> = {
+	off: 'assist.off',
+	not_linked: 'assist.notLinked',
+	no_key: 'assist.noKey',
+	unsupported: 'assist.unsupported',
+	unreachable: 'assist.unreachable'
 };
 
 /** Why the helper is unavailable, in words the user can act on. */
 export function reasonText(status: AssistStatus | null): string {
-	if (!status) return 'Checking Bulle…';
-	return status.reason ? REASONS[status.reason] : '';
+	if (!status) return t('assist.checking');
+	return status.reason ? t(REASONS[status.reason]) : '';
 }

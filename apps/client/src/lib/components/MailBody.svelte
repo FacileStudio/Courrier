@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	let { html }: { html: string } = $props();
 
 	let frame = $state<HTMLIFrameElement>();
@@ -44,7 +46,7 @@
 <div class="overflow-hidden rounded-fc-md">
 	<iframe
 		bind:this={frame}
-		title="Message body"
+		title={t('mail.messageBody')}
 		{srcdoc}
 		sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
 		scrolling="no"

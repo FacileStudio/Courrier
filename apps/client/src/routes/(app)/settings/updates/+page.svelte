@@ -1,45 +1,46 @@
 <script lang="ts">
 	import { Badge, Button, SettingsRow, SettingsSection, icons } from '@facile/muse';
 	import { updater } from '$lib/updater.svelte';
+	import { t } from '$lib/i18n/index.svelte';
 </script>
 
 <div class="flex flex-col gap-10">
 	<SettingsSection
-		title="Desktop updates"
-		description="Keep Courrier desktop up to date with new features and fixes."
+		title={t('updates.title')}
+		description={t('updates.body')}
 	>
 		<SettingsRow
-			label="Current version"
-			description="The release build installed on this computer."
+			label={t('updates.version')}
+			description={t('updates.versionBody')}
 		>
 			<span class="font-mono text-fc-sm text-fc-fg">v{updater.currentVersion}</span>
 		</SettingsRow>
 
 		<SettingsRow
-			label="Update status"
-			description="The latest state from the Courrier release channel."
+			label={t('updates.status')}
+			description={t('updates.statusBody')}
 		>
 			{#if updater.state === 'checking'}
-				<Badge tone="info">Checking for updates…</Badge>
+				<Badge tone="info">{t('updates.checking')}</Badge>
 			{:else if updater.state === 'available'}
-				<Badge tone="accent">Version v{updater.availableVersion} is available</Badge>
+				<Badge tone="accent">{t('updates.available', { version: updater.availableVersion ?? '' })}</Badge>
 			{:else if updater.state === 'downloading'}
-				<Badge tone="info">Downloading {updater.downloadProgress}%</Badge>
+				<Badge tone="info">{t('updates.downloading', { progress: updater.downloadProgress })}</Badge>
 			{:else if updater.state === 'ready'}
-				<Badge tone="success">Ready to install</Badge>
+				<Badge tone="success">{t('updates.ready')}</Badge>
 			{:else if updater.state === 'error'}
-				<Badge tone="danger">{updater.errorMessage || 'Update failed'}</Badge>
+				<Badge tone="danger">{updater.errorMessage || t('updates.failed')}</Badge>
 			{:else if updater.state === 'upToDate'}
-				<Badge tone="success">Courrier is up to date</Badge>
+				<Badge tone="success">{t('updates.upToDate')}</Badge>
 			{:else}
-				<Badge tone="neutral">Ready to check</Badge>
+				<Badge tone="neutral">{t('updates.idle')}</Badge>
 			{/if}
 		</SettingsRow>
 
 		{#if updater.state === 'downloading'}
 			<SettingsRow
-				label="Download progress"
-				description="Fetching update package from GitHub releases."
+				label={t('updates.progress')}
+				description={t('updates.progressBody')}
 				stacked
 			>
 				<div class="flex w-full flex-col gap-2">
@@ -55,8 +56,8 @@
 		{/if}
 
 		<SettingsRow
-			label="Actions"
-			description="Manually check or install available updates."
+			label={t('updates.actions')}
+			description={t('updates.actionsBody')}
 		>
 			{#if updater.state === 'available'}
 				<Button
@@ -64,7 +65,7 @@
 					icon={icons.download}
 					onclick={() => void updater.installNow()}
 				>
-					Download & Install
+					{t('updates.install')}
 				</Button>
 			{:else if updater.state === 'ready'}
 				<Button
@@ -72,7 +73,7 @@
 					icon={icons.refresh}
 					onclick={() => void updater.restartNow()}
 				>
-					Restart & Install
+					{t('updates.restart')}
 				</Button>
 			{:else}
 				<Button
@@ -81,14 +82,14 @@
 					disabled={updater.state === 'checking' || updater.state === 'downloading'}
 					onclick={() => void updater.checkNow(false)}
 				>
-					{updater.state === 'checking' ? 'Checking…' : 'Check for updates'}
+					{updater.state === 'checking' ? t('updates.checkingShort') : t('updates.check')}
 				</Button>
 			{/if}
 		</SettingsRow>
 
 		<SettingsRow
-			label="Release history"
-			description="View changelog and previous release notes on GitHub."
+			label={t('updates.history')}
+			description={t('updates.historyBody')}
 		>
 			<Button
 				variant="ghost"
@@ -98,7 +99,7 @@
 				target="_blank"
 				rel="noopener noreferrer"
 			>
-				View releases
+				{t('updates.viewReleases')}
 			</Button>
 		</SettingsRow>
 	</SettingsSection>

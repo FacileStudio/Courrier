@@ -2,25 +2,15 @@
 	import { Button, icons } from '@facile/muse';
 	import AppMark from './AppMark.svelte';
 	import Ambient from './Ambient.svelte';
+	import { t } from '$lib/i18n/index.svelte';
 
 	type Slide = { title: string; body: string; icon?: string };
 
-	const SLIDES: Slide[] = [
-		{
-			title: 'Your mail, in your pocket.',
-			body: 'Every IMAP mailbox you connected to Courrier, threaded, searchable and ready to answer.'
-		},
-		{
-			title: 'Only the mail that matters.',
-			body: 'Newsletters and robots stay quiet. A notification means a person wrote to you.',
-			icon: icons.notification
-		},
-		{
-			title: 'Your server, your rules.',
-			body: 'Courrier is self-hosted. Your messages stay on your server, never on ours.',
-			icon: icons.shield
-		}
-	];
+	const SLIDES: Slide[] = $derived([
+		{ title: t('intro.slide1Title'), body: t('intro.slide1Body') },
+		{ title: t('intro.slide2Title'), body: t('intro.slide2Body'), icon: icons.notification },
+		{ title: t('intro.slide3Title'), body: t('intro.slide3Body'), icon: icons.shield }
+	]);
 
 	let { onfinish }: { onfinish: () => void } = $props();
 
@@ -54,7 +44,7 @@
 			<span class="font-fc-title text-fc-md font-semibold tracking-tight">Courrier</span>
 		</div>
 		{#if !last}
-			<Button variant="ghost" size="sm" class="min-h-11 px-3" onclick={onfinish}>Skip</Button>
+			<Button variant="ghost" size="sm" class="min-h-11 px-3" onclick={onfinish}>{t('common.skip')}</Button>
 		{/if}
 	</header>
 
@@ -62,13 +52,13 @@
 		bind:this={track}
 		{onscroll}
 		class="relative z-10 flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-		aria-roledescription="carousel"
+		aria-roledescription={t('intro.carousel')}
 	>
 		{#each SLIDES as slide, i (slide.title)}
 			<section
 				class="flex w-full shrink-0 snap-center flex-col items-center justify-center gap-8 px-8 text-center"
-				aria-roledescription="slide"
-				aria-label="{i + 1} of {SLIDES.length}"
+				aria-roledescription={t('intro.slide')}
+				aria-label={t('intro.slideOf', { index: i + 1, total: SLIDES.length })}
 				aria-hidden={i !== index}
 			>
 				<div
@@ -91,13 +81,13 @@
 	</div>
 
 	<footer class="relative z-10 flex flex-col items-center gap-6 px-6 pt-4 pb-6">
-		<div class="flex items-center gap-1" role="tablist" aria-label="Slides">
+		<div class="flex items-center gap-1" role="tablist" aria-label={t('intro.slides')}>
 			{#each SLIDES as slide, i (slide.title)}
 				<button
 					type="button"
 					role="tab"
 					aria-selected={i === index}
-					aria-label="Go to slide {i + 1}"
+					aria-label={t('intro.goTo', { index: i + 1 })}
 					class="flex size-11 items-center justify-center"
 					onclick={() => show(i)}
 				>
@@ -110,7 +100,7 @@
 			{/each}
 		</div>
 		<Button size="lg" class="h-12 w-full max-w-sm rounded-fc-md" iconRight={icons.arrow} onclick={next}>
-			{last ? 'Get started' : 'Next'}
+			{last ? t('intro.getStarted') : t('common.next')}
 		</Button>
 	</footer>
 </div>

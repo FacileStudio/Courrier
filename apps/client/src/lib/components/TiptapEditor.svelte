@@ -7,11 +7,12 @@
 	import Underline from '@tiptap/extension-underline';
 	import { IconButton, icons } from '@facile/muse';
 	import BulleAssist from './BulleAssist.svelte';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let {
 		content = '',
 		onchange,
-		placeholder = 'Write your message...',
+		placeholder = '',
 		assist = false,
 		assistContext = ''
 	}: {
@@ -30,7 +31,7 @@
 			element,
 			extensions: [
 				StarterKit,
-				Placeholder.configure({ placeholder }),
+				Placeholder.configure({ placeholder: placeholder || t('editor.placeholder') }),
 				Link.configure({ openOnClick: false }),
 				Underline
 			],
@@ -51,7 +52,7 @@
 	function setLink() {
 		if (!editor) return;
 		const previousUrl = editor.getAttributes('link').href;
-		const url = window.prompt('URL', previousUrl);
+		const url = window.prompt(t('editor.linkPrompt'), previousUrl);
 		if (url === null) return;
 		if (url === '') {
 			editor.chain().focus().extendMarkRange('link').unsetLink().run();
@@ -65,20 +66,20 @@
 	 * the quote mark because Solar ships no `-linear` equivalent of any of the three — the
 	 * same reason CHARTE §8 already sends plus/close/chevrons to MDI.
 	 */
-	const marks = [
-		{ name: 'bold', label: 'Bold', icon: 'solar:text-bold-linear', run: () => editor?.chain().focus().toggleBold().run() },
-		{ name: 'italic', label: 'Italic', icon: 'solar:text-italic-linear', run: () => editor?.chain().focus().toggleItalic().run() },
-		{ name: 'underline', label: 'Underline', icon: 'solar:text-underline-linear', run: () => editor?.chain().focus().toggleUnderline().run() },
-		{ name: 'strike', label: 'Strikethrough', icon: 'solar:text-cross-linear', run: () => editor?.chain().focus().toggleStrike().run() },
+	const marks = $derived([
+		{ name: 'bold', label: t('editor.bold'), icon: 'solar:text-bold-linear', run: () => editor?.chain().focus().toggleBold().run() },
+		{ name: 'italic', label: t('editor.italic'), icon: 'solar:text-italic-linear', run: () => editor?.chain().focus().toggleItalic().run() },
+		{ name: 'underline', label: t('editor.underline'), icon: 'solar:text-underline-linear', run: () => editor?.chain().focus().toggleUnderline().run() },
+		{ name: 'strike', label: t('editor.strike'), icon: 'solar:text-cross-linear', run: () => editor?.chain().focus().toggleStrike().run() },
 		{ separator: true },
-		{ name: 'link', label: 'Link', icon: 'solar:link-linear', run: setLink },
+		{ name: 'link', label: t('editor.link'), icon: 'solar:link-linear', run: setLink },
 		{ separator: true },
-		{ name: 'bulletList', label: 'Bullet list', icon: 'solar:list-linear', run: () => editor?.chain().focus().toggleBulletList().run() },
-		{ name: 'orderedList', label: 'Numbered list', icon: 'mdi:format-list-numbered', run: () => editor?.chain().focus().toggleOrderedList().run() },
+		{ name: 'bulletList', label: t('editor.bulletList'), icon: 'solar:list-linear', run: () => editor?.chain().focus().toggleBulletList().run() },
+		{ name: 'orderedList', label: t('editor.orderedList'), icon: 'mdi:format-list-numbered', run: () => editor?.chain().focus().toggleOrderedList().run() },
 		{ separator: true },
-		{ name: 'blockquote', label: 'Quote', icon: 'mdi:format-quote-close', run: () => editor?.chain().focus().toggleBlockquote().run() },
-		{ name: 'code', label: 'Code', icon: icons.code, run: () => editor?.chain().focus().toggleCode().run() }
-	] as const;
+		{ name: 'blockquote', label: t('editor.quote'), icon: 'mdi:format-quote-close', run: () => editor?.chain().focus().toggleBlockquote().run() },
+		{ name: 'code', label: t('editor.code'), icon: icons.code, run: () => editor?.chain().focus().toggleCode().run() }
+	] as const);
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
@@ -90,7 +91,7 @@
 		<div class="flex flex-wrap items-center gap-0.5 px-3 py-1.5">
 			{#each marks as mark, i (i)}
 				{#if 'separator' in mark}
-					<span class="mx-1 h-5 w-px shrink-0 bg-fc-border"></span>
+					<span class="mx-1 h-5 w-px shrink-0 bg-fc-surface"></span>
 				{:else}
 					{@const active = editor?.isActive(mark.name) ?? false}
 					<IconButton
@@ -155,7 +156,7 @@
 	}
 
 	:global(.tiptap-editor .tiptap blockquote) {
-		border-left: 2px solid var(--color-fc-border);
+		box-shadow: inset 2px 0 var(--color-fc-surface);
 		padding-left: 1em;
 		margin: 0.5em 0;
 		color: var(--color-fc-fg-muted);

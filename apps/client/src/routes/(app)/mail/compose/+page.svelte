@@ -21,6 +21,8 @@
 	import { plainOf } from '$lib/assist/text';
 	import TiptapEditor from '$lib/components/TiptapEditor.svelte';
 	import AddressInput from '$lib/components/AddressInput.svelte';
+	import { formatBytes, formatDate, formatTime } from '$lib/i18n/format';
+	import { t } from '$lib/i18n/index.svelte';
 
 	/* Glyphs an email client needs that muse's `icons` map has no key for yet. */
 	const mailIcons = {
@@ -84,12 +86,6 @@
 		return `<p><br></p><p>--</p>${sigLines}`;
 	}
 
-	function formatFileSize(bytes: number): string {
-		if (bytes < 1024) return `${bytes} B`;
-		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-	}
-
 	function handleFileSelect(e: Event) {
 		const input = e.target as HTMLInputElement;
 		if (!input.files) return;
@@ -143,7 +139,7 @@
 			});
 			draftId = result.id;
 			draftAccountId = fromId;
-			lastSaved = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+			lastSaved = formatTime(new Date());
 		} catch {
 			// silent fail
 		}
@@ -199,14 +195,14 @@
 				draftId = parseInt(loadDraftId);
 				draftAccountId = fromId;
 			} catch {
-				toast.danger('Failed to load draft');
+				toast.danger(t('compose.draftFailed'));
 			}
 		} else if (emailId && accountId) {
 			try {
 				const original = await backend.getEmail(parseInt(accountId), parseInt(emailId));
 				const acct = app.accounts.find((a) => a.id === parseInt(accountId));
 				const currentEmail = acct?.email ?? '';
-				const senderDate = escapeHtml(new Date(original.date).toLocaleString('fr-FR'));
+				const senderDate = escapeHtml(formatDate(original.date, { dateStyle: 'medium', timeStyle: 'short' }));
 				const senderName = escapeHtml(original.from_name || original.from_address);
 
 				if (replyId || replyAllId) {
@@ -236,7 +232,7 @@
 					references = [...existingRefs, original.message_id];
 
 					const originalBody = original.body_html || `<p>${escapeHtml(original.body_text)}</p>`;
-					const quotedBlock = `<blockquote style="border-left: 2px solid #ccc; padding-left: 12px; margin-left: 0; color: #666;"><p>On ${senderDate}, ${senderName} wrote:</p>${originalBody}</blockquote>`;
+					const quotedBlock = `<blockquote style="border-left: 2px solid #ccc; padding-left: 12px; margin-left: 0; color: #666;"><p>${t('compose.wrote', { date: senderDate, name: senderName })}</p>${originalBody}</blockquote>`;
 					initialContent = `<p><br></p>${signatureHtml}<p><br></p>${quotedBlock}`;
 				}
 
@@ -246,11 +242,11 @@
 
 					const toList = escapeHtml(original.to_addresses.map((a) => a.email).join(', '));
 					const originalBody = original.body_html || `<p>${escapeHtml(original.body_text)}</p>`;
-					const forwardBlock = `<p>---------- Forwarded message ----------</p><p>From: ${senderName} &lt;${escapeHtml(original.from_address)}&gt;</p><p>Date: ${senderDate}</p><p>Subject: ${escapeHtml(original.subject)}</p><p>To: ${toList}</p><br>${originalBody}`;
+					const forwardBlock = `<p>${t('compose.forwardedHeader')}</p><p>${t('compose.fwdFrom')}: ${senderName} &lt;${escapeHtml(original.from_address)}&gt;</p><p>${t('compose.fwdDate')}: ${senderDate}</p><p>${t('compose.fwdSubject')}: ${escapeHtml(original.subject)}</p><p>${t('compose.fwdTo')}: ${toList}</p><br>${originalBody}`;
 					initialContent = `<p><br></p>${signatureHtml}<p><br></p>${forwardBlock}`;
 				}
 			} catch {
-				toast.danger('Failed to load original email');
+				toast.danger(t('compose.originalFailed'));
 			}
 		}
 
@@ -310,17 +306,17 @@
 				}
 			}
 
-			toast.success('Email sent');
+			toast.success(t('compose.sent'));
 			goto('/mail');
 		} catch (err) {
-			toast.danger(err instanceof Error ? err.message : 'Failed to send');
+			toast.danger(err instanceof Error ? err.message : t('compose.sendFailed'));
 		}
 		sending = false;
 	}
 </script>
 
 <svelte:head>
-	<title>Compose — Courrier</title>
+	<title>{t('compose.title')}</title>
 </svelte:head>
 
 <input type="file" multiple class="hidden" bind:this={fileInput} onchange={handleFileSelect} />
@@ -328,17 +324,17 @@
 <div class="flex h-full flex-col">
 	<div class="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
 		<div class="flex min-w-0 items-center gap-3">
-			<h2 class="truncate text-fc-lg font-semibold text-fc-fg">New message</h2>
+			<h2 class="truncate text-fc-lg font-semibold text-fc-fg">{t('compose.heading')}</h2>
 			{#if lastSaved}
-				<span class="shrink-0 text-fc-xs text-fc-fg-muted">Draft saved {lastSaved}</span>
+				<span class="shrink-0 text-fc-xs text-fc-fg-muted">{t('compose.draftSaved', { time: lastSaved })}</span>
 			{/if}
 		</div>
 		<div class="flex shrink-0 items-center gap-1">
 			{#if templates.length > 0}
 				<IconButton
 					variant="ghost"
-					aria-label="Use template"
-					title="Use template"
+					aria-label={t('compose.useTemplate')}
+					title={t('compose.useTemplate')}
 					onclick={() => (templatesOpen = true)}
 				>
 					<iconify-icon icon={mailIcons.template} width="18" height="18" class="block size-4.5"
@@ -347,8 +343,8 @@
 			{/if}
 			<IconButton
 				variant="ghost"
-				aria-label={plainTextMode ? 'Switch to rich text' : 'Switch to plain text'}
-				title={plainTextMode ? 'Switch to rich text' : 'Switch to plain text'}
+				aria-label={plainTextMode ? t('compose.toRich') : t('compose.toPlain')}
+				title={plainTextMode ? t('compose.toRich') : t('compose.toPlain')}
 				onclick={togglePlainText}
 			>
 				<iconify-icon
@@ -360,22 +356,22 @@
 			</IconButton>
 			<IconButton
 				variant="ghost"
-				aria-label="Attach files"
-				title="Attach files"
+				aria-label={t('compose.attach')}
+				title={t('compose.attach')}
 				onclick={() => fileInput.click()}
 			>
 				<iconify-icon icon={mailIcons.paperclip} width="18" height="18" class="block size-4.5"
 				></iconify-icon>
 			</IconButton>
-			<span class="mx-1 h-5 w-px shrink-0 bg-fc-border"></span>
-			<Button variant="ghost" size="sm" icon={icons.close} onclick={() => goto('/mail')}>Cancel</Button>
+			<span class="mx-1 h-5 w-px shrink-0 bg-fc-surface"></span>
+			<Button variant="ghost" size="sm" icon={icons.close} onclick={() => goto('/mail')}>{t('common.cancel')}</Button>
 			<Button
 				size="sm"
 				icon={mailIcons.send}
 				disabled={sending || !to.trim() || !fromId}
 				onclick={send}
 			>
-				{sending ? 'Sending…' : 'Send'}
+				{sending ? t('compose.sending') : t('compose.send')}
 			</Button>
 		</div>
 	</div>
@@ -385,30 +381,30 @@
 			<EmptyState
 				bare
 				icon={icons.mail}
-				title="No mail account configured"
-				description="Add an IMAP/SMTP account before sending anything."
+				title={t('compose.noAccount')}
+				description={t('compose.noAccountBody')}
 			>
-				<Button href="/settings" iconRight={icons.arrow}>Open settings</Button>
+				<Button href="/settings" iconRight={icons.arrow}>{t('compose.openSettings')}</Button>
 			</EmptyState>
 		</div>
 	{:else}
 		<div class="flex flex-col gap-4 px-4 py-4 sm:px-6">
 			{#if app.accounts.length > 1}
-				<Field label="From">
+				<Field label={t('compose.from')}>
 					<Select
 						value={String(fromId ?? '')}
+						options={app.accounts.map((account) => ({
+							value: String(account.id),
+							label: `${account.name} <${account.email}>`
+						}))}
 						onchange={(e) => {
 							pickedFromId = Number(e.currentTarget.value);
 							scheduleDraftSave();
 						}}
-					>
-						{#each app.accounts as account (account.id)}
-							<option value={String(account.id)}>{account.name} &lt;{account.email}&gt;</option>
-						{/each}
-					</Select>
+					/>
 				</Field>
 			{/if}
-			<Field label="To">
+			<Field label={t('compose.to')}>
 				<AddressInput
 					value={to}
 					onchange={(v) => {
@@ -416,10 +412,10 @@
 						scheduleDraftSave();
 					}}
 					accountId={fromId ?? 0}
-					placeholder="recipient@example.com"
+					placeholder={t('compose.toPlaceholder')}
 				/>
 			</Field>
-			<Field label="Cc">
+			<Field label={t('compose.cc')}>
 				<AddressInput
 					value={cc}
 					onchange={(v) => {
@@ -427,11 +423,11 @@
 						scheduleDraftSave();
 					}}
 					accountId={fromId ?? 0}
-					placeholder="cc@example.com"
+					placeholder={t('compose.ccPlaceholder')}
 				/>
 			</Field>
-			<Field label="Subject">
-				<Input bind:value={subject} oninput={scheduleDraftSave} placeholder="Subject" />
+			<Field label={t('compose.subject')}>
+				<Input bind:value={subject} oninput={scheduleDraftSave} placeholder={t('compose.subject')} />
 			</Field>
 		</div>
 
@@ -440,10 +436,10 @@
 				{#each attachedFiles as file, i (`${file.name}-${i}`)}
 					<Badge tone="neutral" class="max-w-full pr-1">
 						<span class="max-w-48 truncate">{file.name}</span>
-						<span>({formatFileSize(file.size)})</span>
+						<span>({formatBytes(file.size)})</span>
 						<button
 							type="button"
-							aria-label="Remove {file.name}"
+							aria-label={t('compose.removeFile', { name: file.name })}
 							class="flex size-4 shrink-0 items-center justify-center rounded-fc-pill text-fc-fg-muted transition-colors hover:bg-fc-component hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fc-ring"
 							onclick={() => removeFile(i)}
 						>
@@ -461,8 +457,8 @@
 					<Textarea
 						bind:value={bodyPlainText}
 						oninput={scheduleDraftSave}
-						placeholder="Write your message…"
-						aria-label="Message body"
+						placeholder={t('editor.placeholder')}
+						aria-label={t('compose.bodyLabel')}
 						class="h-full resize-none text-fc-sm"
 					/>
 				</div>
@@ -481,7 +477,7 @@
 	{/if}
 </div>
 
-<Modal bind:open={templatesOpen} title="Templates" showClose>
+<Modal bind:open={templatesOpen} title={t('compose.templates')} showClose>
 	<div class="flex flex-col gap-1">
 		{#each templates as tmpl (tmpl.id)}
 			<button

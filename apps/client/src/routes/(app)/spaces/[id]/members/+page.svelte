@@ -15,7 +15,8 @@
 		toast
 	} from '@facile/muse';
 	import { backend, type SpaceMember, type Space, type User } from '$lib/backend';
-	import { roleLabel, roleTone } from '../../roles';
+	import { t } from '$lib/i18n/index.svelte';
+	import { roleLabelKey, roleTone } from '../../roles';
 
 	const spaceId = $derived(page.params.id as string);
 
@@ -65,13 +66,13 @@
 
 	async function addMember() {
 		if (!selectedUserId) {
-			addError = 'Sélectionnez un utilisateur';
+			addError = t('members.pickUserError');
 			return;
 		}
 
 		const uid = parseInt(selectedUserId, 10);
 		if (isNaN(uid)) {
-			addError = 'Sélectionnez un utilisateur';
+			addError = t('members.pickUserError');
 			return;
 		}
 
@@ -82,9 +83,9 @@
 			selectedUserId = '';
 			addRole = 'member';
 			await refreshMembers();
-			toast.success('Membre ajouté');
+			toast.success(t('members.added'));
 		} catch (err) {
-			addError = err instanceof Error ? err.message : "Impossible d'ajouter le membre";
+			addError = err instanceof Error ? err.message : t('members.addFailed');
 		}
 		adding = false;
 	}
@@ -93,9 +94,9 @@
 		try {
 			await backend.updateSpaceMember(spaceId, memberId, { role });
 			await refreshMembers();
-			toast.success('Rôle mis à jour');
+			toast.success(t('members.roleUpdated'));
 		} catch (err) {
-			toast.danger(err instanceof Error ? err.message : 'Impossible de mettre à jour le rôle');
+			toast.danger(err instanceof Error ? err.message : t('members.roleFailed'));
 			await refreshMembers();
 		}
 	}
@@ -111,9 +112,9 @@
 		try {
 			await backend.removeSpaceMember(spaceId, member.id);
 			members = members.filter((m) => m.id !== member.id);
-			toast.success('Membre retiré');
+			toast.success(t('members.removed'));
 		} catch (err) {
-			toast.danger(err instanceof Error ? err.message : 'Impossible de retirer le membre');
+			toast.danger(err instanceof Error ? err.message : t('members.removeFailed'));
 		}
 		pendingRemoval = null;
 	}
@@ -122,10 +123,23 @@
 		!space?.manage_url && (space?.role === 'owner' || space?.role === 'admin')
 	);
 	const isOwner = $derived(space?.role === 'owner');
+
+	function roleName(role: string): string {
+		const key = roleLabelKey(role);
+		return key ? t(key) : role;
+	}
+
+	const userOptions = $derived(
+		availableUsers.map((user) => ({ value: String(user.id), label: user.name ? `${user.name} (${user.email})` : user.email }))
+	);
+	const addRoleOptions = $derived([
+		{ value: 'member', label: t('spaces.roleMember') },
+		{ value: 'admin', label: t('spaces.roleAdmin') }
+	]);
 </script>
 
 <svelte:head>
-	<title>Membres — {space?.name ?? 'Espace'} — Courrier</title>
+	<title>{t('members.title', { name: space?.name ?? t('space.fallbackName') })}</title>
 </svelte:head>
 
 <div class="w-full px-4 py-6 md:px-8">
@@ -138,21 +152,21 @@
 		{:else if !space}
 			<EmptyState
 				icon={icons.space}
-				title="Espace introuvable"
-				description="Il a peut-être été supprimé, ou votre accès a été retiré."
+				title={t('space.notFound')}
+				description={t('space.notFoundBody')}
 			>
-				<Button variant="outline" href="/spaces" icon={icons.chevronLeft}>Retour aux espaces</Button>
+				<Button variant="outline" href="/spaces" icon={icons.chevronLeft}>{t('space.backToSpaces')}</Button>
 			</EmptyState>
 		{:else}
 			<div class="flex flex-wrap items-start justify-between gap-4">
 				<div class="flex min-w-0 flex-col gap-1">
-					<h1 class="text-fc-2xl font-semibold text-fc-fg">Membres</h1>
+					<h1 class="text-fc-2xl font-semibold text-fc-fg">{t('members.heading')}</h1>
 					<p class="text-fc-sm text-fc-fg-muted">{space.name}</p>
 				</div>
 				<div class="flex flex-wrap items-center gap-2">
-					<Button variant="ghost" href="/spaces/{spaceId}" icon={icons.chevronLeft}>Espace</Button>
+					<Button variant="ghost" href="/spaces/{spaceId}" icon={icons.chevronLeft}>{t('spaceSettings.space')}</Button>
 					{#if space.manage_url}
-						<Button href={space.manage_url} icon={icons.space}>Gérer dans Registre</Button>
+						<Button href={space.manage_url} icon={icons.space}>{t('spaces.manageInRegistre')}</Button>
 					{/if}
 				</div>
 			</div>
@@ -160,30 +174,27 @@
 			{#if isOwnerOrAdmin}
 				<section class="flex flex-col gap-4">
 					<div class="flex flex-col gap-1">
-						<h2 class="text-fc-lg font-semibold text-fc-fg">Ajouter un membre</h2>
+						<h2 class="text-fc-lg font-semibold text-fc-fg">{t('members.addTitle')}</h2>
 						<p class="text-fc-sm text-fc-fg-muted">
-							Un membre voit les comptes mail rattachés à cet espace.
+							{t('members.addBody')}
 						</p>
 					</div>
 					<div class="flex flex-col gap-3 sm:flex-row sm:items-end">
 						<div class="min-w-0 flex-1">
-							<Field label="Utilisateur" error={addError}>
-								<Select bind:value={selectedUserId} class="w-full">
-									<option value="">Sélectionner un utilisateur…</option>
-									{#each availableUsers as user (user.id)}
-										<option value={user.id}>{user.name ? `${user.name} (${user.email})` : user.email}</option>
-									{/each}
-								</Select>
+							<Field label={t('members.user')} error={addError}>
+								<Select
+									bind:value={selectedUserId}
+									class="w-full"
+									placeholder={t('members.pickUser')}
+									options={userOptions}
+								/>
 							</Field>
 						</div>
-						<Field label="Rôle">
-							<Select bind:value={addRole} class="min-w-36">
-								<option value="member">Membre</option>
-								<option value="admin">Admin</option>
-							</Select>
+						<Field label={t('members.role')}>
+							<Select bind:value={addRole} class="min-w-36" options={addRoleOptions} />
 						</Field>
 						<Button icon={icons.plus} size="lg" disabled={adding || !selectedUserId} onclick={addMember}>
-							{adding ? 'Ajout…' : 'Ajouter'}
+							{adding ? t('members.adding') : t('members.add')}
 						</Button>
 					</div>
 				</section>
@@ -191,22 +202,22 @@
 
 			<section class="flex flex-col gap-4">
 				<h2 class="text-fc-lg font-semibold text-fc-fg">
-					{members.length} membre{members.length !== 1 ? 's' : ''}
+					{t('members.count', { count: members.length })}
 				</h2>
 
 				{#if members.length === 0}
 					<EmptyState
 						icon={icons.usersGroup}
-						title="Personne ici pour l'instant"
-						description="Ajoutez un coéquipier au-dessus et il verra cet espace immédiatement."
+						title={t('space.nobody')}
+						description={t('members.nobodyBody')}
 					/>
 				{:else}
 					<Table>
 						<thead>
 							<tr>
-								<th scope="col">Membre</th>
-								<th scope="col">Rôle</th>
-								<th scope="col"><span class="sr-only">Actions</span></th>
+								<th scope="col">{t('members.colMember')}</th>
+								<th scope="col">{t('members.colRole')}</th>
+								<th scope="col"><span class="sr-only">{t('members.colActions')}</span></th>
 							</tr>
 						</thead>
 						<tbody>
@@ -225,20 +236,18 @@
 									</td>
 									<td>
 										{#if member.role === 'owner' || !isOwnerOrAdmin}
-											<Badge tone={roleTone(member.role)}>{roleLabel(member.role)}</Badge>
+											<Badge tone={roleTone(member.role)}>{roleName(member.role)}</Badge>
 										{:else}
 											<Select
 												value={member.role}
 												class="min-w-32"
-												aria-label="Rôle de {member.name || member.email}"
+												aria-label={t('members.roleOf', { name: member.name || member.email })}
+												options={[
+													...addRoleOptions,
+													...(isOwner ? [{ value: 'owner', label: t('spaces.roleOwner') }] : [])
+												]}
 												onchange={(e) => updateRole(member.id, (e.currentTarget as HTMLSelectElement).value)}
-											>
-												<option value="member">Membre</option>
-												<option value="admin">Admin</option>
-												{#if isOwner}
-													<option value="owner">Propriétaire</option>
-												{/if}
-											</Select>
+											/>
 										{/if}
 									</td>
 									<td>
@@ -249,7 +258,7 @@
 												icon={icons.remove}
 												onclick={() => askRemove(member)}
 											>
-												Retirer
+												{t('members.remove')}
 											</Button>
 										{/if}
 									</td>
@@ -266,9 +275,9 @@
 <ConfirmModal
 	bind:open={confirmOpen}
 	tone="danger"
-	title="Retirer {pendingRemoval?.name || pendingRemoval?.email || 'ce membre'} ?"
-	description="Cette personne perd l'accès à l'espace et aux comptes mail qui y sont rattachés. Son propre compte Courrier et ses boîtes personnelles ne sont pas touchés."
-	confirmLabel="Retirer le membre"
+	title={t('members.removeTitle', { name: pendingRemoval?.name || pendingRemoval?.email || t('members.removeThis') })}
+	description={t('members.removeBody')}
+	confirmLabel={t('members.removeConfirm')}
 	onConfirm={removeMember}
 	onCancel={() => (pendingRemoval = null)}
 />

@@ -3,6 +3,7 @@
 	import { Avatar, icons, springPress, twMerge } from '@facile/muse';
 	import { backend } from '$lib/backend';
 	import { isApp } from '$lib/platform';
+	import { t } from '$lib/i18n/index.svelte';
 
 	type Entry = { href: string; label: string; icon: string };
 
@@ -14,10 +15,10 @@
 		collapsed?: boolean;
 	} = $props();
 
-	const entries: Entry[] = [
-		{ href: '/settings', label: 'Settings', icon: icons.settings },
-		...(isApp() ? [] : [{ href: '/downloads', label: 'Desktop app', icon: icons.download }])
-	];
+	const entries: Entry[] = $derived([
+		{ href: '/settings', label: t('shell.settings'), icon: icons.settings },
+		...(isApp() ? [] : [{ href: '/downloads', label: t('shell.desktopApp'), icon: icons.download }])
+	]);
 
 	let open = $state(false);
 	let root = $state<HTMLElement | null>(null);
@@ -54,7 +55,7 @@
 		{#if open}
 			<div
 				role="menu"
-				aria-label="Account"
+				aria-label={t('shell.account')}
 				class="absolute bottom-full left-0 z-30 mb-2 flex flex-col gap-0.5 rounded-fc-lg bg-fc-page p-1.5 shadow-lg {collapsed
 					? 'w-60'
 					: 'right-0'}"
@@ -77,7 +78,7 @@
 						<span class="truncate">{entry.label}</span>
 					</a>
 				{/each}
-				<div class="my-1 h-px bg-fc-border"></div>
+				<div class="my-1 h-px bg-fc-surface"></div>
 				<button
 					type="button"
 					role="menuitem"
@@ -85,7 +86,7 @@
 					class="flex min-h-10 items-center gap-2.5 rounded-fc-md px-2.5 text-left text-fc-sm text-fc-danger transition-colors hover:bg-fc-surface focus-visible:bg-fc-surface focus-visible:outline-none"
 				>
 					<iconify-icon icon={icons.logout} width="16" height="16" class="block shrink-0"></iconify-icon>
-					Sign out
+					{t('shell.signOut')}
 				</button>
 			</div>
 		{/if}
@@ -94,7 +95,7 @@
 			type="button"
 			aria-haspopup="menu"
 			aria-expanded={open}
-			aria-label="{user.name}, account menu"
+			aria-label={t('shell.accountMenu', { name: user.name })}
 			onclick={() => (open = !open)}
 			use:springPress
 			class={twMerge(

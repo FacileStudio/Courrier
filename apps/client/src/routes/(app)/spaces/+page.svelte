@@ -16,7 +16,8 @@
 	} from '@facile/muse';
 	import { backend, type Space } from '$lib/backend';
 	import { spaceStore } from '$lib/stores/space.svelte';
-	import { roleLabel, roleTone } from './roles';
+	import { roleLabelKey, roleTone } from './roles';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let spaces = $state<Space[]>([]);
 	let manageUrl = $state('');
@@ -53,7 +54,7 @@
 
 	async function createSpace() {
 		if (!draftName.trim()) {
-			createError = 'Le nom est requis';
+			createError = t('spaces.nameRequired');
 			return;
 		}
 
@@ -66,35 +67,34 @@
 			});
 			spaceStore.set({ id: space.id, name: space.name, role: space.role });
 			createOpen = false;
-			toast.success(`Espace « ${space.name} » créé`);
+			toast.success(t('spaces.created', { name: space.name }));
 			await goto(`/spaces/${space.id}`);
 		} catch (err) {
-			createError = err instanceof Error ? err.message : "Impossible de créer l'espace";
+			createError = err instanceof Error ? err.message : t('spaces.createFailed');
 		}
 		creating = false;
 	}
 </script>
 
 <svelte:head>
-	<title>Espaces — Courrier</title>
+	<title>{t('spaces.title')}</title>
 </svelte:head>
 
 <div class="w-full px-4 py-6 md:px-8">
 	<div class="mx-auto flex max-w-4xl flex-col gap-10">
 		<div class="flex flex-wrap items-start justify-between gap-4">
 			<div class="flex min-w-0 flex-col gap-1">
-				<h1 class="text-fc-2xl font-semibold text-fc-fg">Espaces</h1>
+				<h1 class="text-fc-2xl font-semibold text-fc-fg">{t('spaces.heading')}</h1>
 				<p class="text-fc-sm text-fc-fg-muted">
-					Collaborez avec votre équipe dans des espaces partagés : chaque espace a ses membres et
-					ses comptes mail.
+					{t('spaces.intro')}
 				</p>
 			</div>
 			<div class="flex items-center gap-2">
-				<Button variant="ghost" href="/settings" icon={icons.chevronLeft}>Réglages</Button>
+				<Button variant="ghost" href="/settings" icon={icons.chevronLeft}>{t('spaces.settings')}</Button>
 				{#if manageUrl}
-					<Button href={manageUrl} icon={icons.space}>Gérer dans Registre</Button>
+					<Button href={manageUrl} icon={icons.space}>{t('spaces.manageInRegistre')}</Button>
 				{:else}
-					<Button icon={icons.plus} onclick={openCreate}>Nouvel espace</Button>
+					<Button icon={icons.plus} onclick={openCreate}>{t('spaces.new')}</Button>
 				{/if}
 			</div>
 		</div>
@@ -108,15 +108,13 @@
 		{:else if spaces.length === 0}
 			<EmptyState
 				icon={icons.space}
-				title="Aucun espace"
-				description={manageUrl
-					? 'Les espaces se créent dans Registre et apparaissent ici en quelques secondes.'
-					: 'Créez un espace pour partager des comptes mail et des dossiers avec votre équipe.'}
+				title={t('spaces.none')}
+				description={manageUrl ? t('spaces.noneRegistre') : t('spaces.noneLocal')}
 			>
 				{#if manageUrl}
-					<Button href={manageUrl} icon={icons.space}>Gérer dans Registre</Button>
+					<Button href={manageUrl} icon={icons.space}>{t('spaces.manageInRegistre')}</Button>
 				{:else}
-					<Button icon={icons.plus} onclick={openCreate}>Créer votre premier espace</Button>
+					<Button icon={icons.plus} onclick={openCreate}>{t('spaces.createFirst')}</Button>
 				{/if}
 			</EmptyState>
 		{:else}
@@ -137,10 +135,10 @@
 								</span>
 								<p class="truncate text-fc-md font-medium text-fc-fg">{space.name}</p>
 							</div>
-							<Badge tone={roleTone(space.role)}>{roleLabel(space.role)}</Badge>
+							<Badge tone={roleTone(space.role)}>{roleLabelKey(space.role) ? t(roleLabelKey(space.role)!) : space.role}</Badge>
 						</div>
 						<p class="line-clamp-2 text-fc-sm text-fc-fg-muted">
-							{space.description || 'Pas de description.'}
+							{space.description || t('spaces.noDescription')}
 						</p>
 					</Card>
 				{/each}
@@ -149,13 +147,13 @@
 	</div>
 </div>
 
-<Modal bind:open={createOpen} title="Nouvel espace" showClose dismissible={!creating}>
+<Modal bind:open={createOpen} title={t('spaces.createTitle')} showClose dismissible={!creating}>
 	<div class="flex flex-col gap-4">
-		<Field label="Nom" error={createError}>
-			<Input bind:value={draftName} placeholder="ex. Équipe Marketing" />
+		<Field label={t('spaces.nameLabel')} error={createError}>
+			<Input bind:value={draftName} placeholder={t('spaces.namePlaceholder')} />
 		</Field>
-		<Field label="Description" helper="Optionnel — à quoi sert cet espace ?">
-			<Textarea bind:value={draftDescription} rows={3} placeholder="Boîtes partagées de l'équipe." />
+		<Field label={t('spaces.descriptionLabel')} helper={t('spaces.descriptionHelp')}>
+			<Textarea bind:value={draftDescription} rows={3} placeholder={t('spaces.descriptionPlaceholder')} />
 		</Field>
 	</div>
 	{#snippet footer()}
@@ -166,10 +164,10 @@
 				disabled={creating}
 				onclick={() => (createOpen = false)}
 			>
-				Annuler
+				{t('spaces.cancel')}
 			</Button>
 			<Button icon={icons.plus} class="w-full sm:w-auto" disabled={creating} onclick={createSpace}>
-				{creating ? 'Création…' : "Créer l'espace"}
+				{creating ? t('spaces.creating') : t('spaces.createSubmit')}
 			</Button>
 		</div>
 	{/snippet}

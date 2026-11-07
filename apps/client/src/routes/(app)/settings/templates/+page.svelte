@@ -14,6 +14,8 @@
 		icons
 	} from '@facile/muse';
 	import { backend, type EmailTemplate } from '$lib/backend';
+	import { formatDate } from '$lib/i18n/format';
+	import { t } from '$lib/i18n/index.svelte';
 	import { spaceStore } from '$lib/stores/space.svelte';
 
 	let templates = $state<EmailTemplate[]>([]);
@@ -43,7 +45,7 @@
 			loadError = '';
 		} catch (err) {
 			templates = [];
-			loadError = err instanceof Error ? err.message : 'Could not load your templates';
+			loadError = err instanceof Error ? err.message : t('templates.loadFailed');
 		}
 	}
 
@@ -75,7 +77,7 @@
 			editorOpen = false;
 			await load();
 		} catch (err) {
-			saveError = err instanceof Error ? err.message : 'Could not save the template';
+			saveError = err instanceof Error ? err.message : t('templates.saveFailed');
 		}
 		saving = false;
 	}
@@ -89,24 +91,24 @@
 			removeTarget = null;
 			await load();
 		} catch (err) {
-			removeError = err instanceof Error ? err.message : 'Could not delete the template';
+			removeError = err instanceof Error ? err.message : t('templates.deleteFailed');
 		}
 	}
 
 	function when(raw: string) {
 		const date = new Date(raw);
-		return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString();
+		return Number.isNaN(date.getTime()) ? '—' : formatDate(date);
 	}
 </script>
 
 <div class="flex flex-col gap-10">
 	<SettingsSection
-		title="Email templates"
-		description="Canned messages you can drop into a compose window instead of retyping them."
+		title={t('templates.title')}
+		description={t('templates.body')}
 		bare
 	>
 		{#snippet actions()}
-			<Button icon={icons.plus} onclick={() => open(null)}>New template</Button>
+			<Button icon={icons.plus} onclick={() => open(null)}>{t('templates.new')}</Button>
 		{/snippet}
 
 		{#if loadError}
@@ -116,19 +118,19 @@
 		{#if templates.length === 0}
 			<EmptyState
 				icon={icons.edit}
-				title="No templates yet"
-				description="Anything you type more than twice — an onboarding reply, a quote follow-up — belongs here."
+				title={t('templates.empty')}
+				description={t('templates.emptyBody')}
 			>
-				<Button icon={icons.plus} onclick={() => open(null)}>Write your first one</Button>
+				<Button icon={icons.plus} onclick={() => open(null)}>{t('templates.writeFirst')}</Button>
 			</EmptyState>
 		{:else}
 			<Table>
 				<thead>
 					<tr>
-						<th>Name</th>
-						<th>Subject</th>
-						<th>Updated</th>
-						<th class="text-right">Actions</th>
+						<th>{t('templates.colName')}</th>
+						<th>{t('templates.colSubject')}</th>
+						<th>{t('templates.colUpdated')}</th>
+						<th class="text-right">{t('templates.colActions')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -145,7 +147,7 @@
 										icon={icons.edit}
 										onclick={() => open(template)}
 									>
-										Edit
+										{t('common.edit')}
 									</Button>
 									<Button
 										variant="ghost-danger"
@@ -157,7 +159,7 @@
 											removeOpen = true;
 										}}
 									>
-										Delete
+										{t('common.delete')}
 									</Button>
 								</div>
 							</td>
@@ -173,18 +175,18 @@
 	</SettingsSection>
 </div>
 
-<Drawer bind:open={editorOpen} title={editing ? `Edit ${editing.name}` : 'New template'}>
+<Drawer bind:open={editorOpen} title={editing ? t('templates.editTitle', { name: editing.name }) : t('templates.new')}>
 	<form class="flex flex-col gap-4" onsubmit={save}>
-		<Field label="Name" helper="How you will find it in the compose window.">
-			<Input bind:value={name} placeholder="Quote follow-up" required disabled={saving} />
+		<Field label={t('templates.name')} helper={t('templates.nameHelp')}>
+			<Input bind:value={name} placeholder={t('templates.namePlaceholder')} required disabled={saving} />
 		</Field>
 
-		<Field label="Subject line" helper="Optional — leave it empty to keep whatever you typed.">
-			<Input bind:value={subject} placeholder="Following up on our quote" disabled={saving} />
+		<Field label={t('templates.subject')} helper={t('templates.subjectHelp')}>
+			<Input bind:value={subject} placeholder={t('templates.subjectPlaceholder')} disabled={saving} />
 		</Field>
 
-		<Field label="Body">
-			<Textarea bind:value={body} rows={10} placeholder="Hi there," disabled={saving} />
+		<Field label={t('templates.bodyLabel')}>
+			<Textarea bind:value={body} rows={10} placeholder={t('templates.bodyPlaceholder')} disabled={saving} />
 		</Field>
 
 		{#if saveError}
@@ -193,11 +195,11 @@
 
 		<div class="flex justify-end gap-2 pt-1">
 			<Button type="button" variant="ghost" disabled={saving} onclick={() => (editorOpen = false)}>
-				Cancel
+				{t('common.cancel')}
 			</Button>
 			<Button type="submit" disabled={saving || name.trim().length === 0}>
 				{#if saving}<Spinner size="sm" />{/if}
-				{saving ? 'Saving…' : editing ? 'Save template' : 'Create template'}
+				{saving ? t('common.saving') : editing ? t('templates.save') : t('templates.create')}
 			</Button>
 		</div>
 	</form>
@@ -206,9 +208,9 @@
 <ConfirmModal
 	bind:open={removeOpen}
 	tone="danger"
-	title="Delete this template?"
-	description={`"${removeTarget?.name ?? ''}" disappears from every compose window in this space, for everyone who shares it. Messages already sent from it are untouched, and there is no undo.`}
-	confirmLabel="Delete template"
-	cancelLabel="Keep it"
+	title={t('templates.deleteTitle')}
+	description={t('templates.deleteBody', { name: removeTarget?.name ?? '' })}
+	confirmLabel={t('templates.deleteConfirm')}
+	cancelLabel={t('accounts.keepIt')}
 	onConfirm={remove}
 />

@@ -18,6 +18,7 @@
 	import { ApiError, backend, type MailAccount } from '$lib/backend';
 	import type { PlanLimit } from '$lib/plan-limit';
 	import PlanLimitAlert from './PlanLimitAlert.svelte';
+	import { t } from '$lib/i18n/index.svelte';
 	import { spaceStore } from '$lib/stores/space.svelte';
 
 	let {
@@ -116,7 +117,7 @@
 			testState = 'passed';
 		} catch (err) {
 			testState = 'failed';
-			testError = err instanceof Error ? err.message : 'Connection test failed';
+			testError = err instanceof Error ? err.message : t('drawer.testError');
 		}
 	}
 
@@ -161,86 +162,82 @@
 			onSaved?.();
 		} catch (err) {
 			planLimit = err instanceof ApiError ? err.planLimit : undefined;
-			error = err instanceof Error ? err.message : 'Could not save the account';
+			error = err instanceof Error ? err.message : t('drawer.saveFailed');
 		}
 		saving = false;
 	}
 </script>
 
-<Drawer bind:open title={editing ? `Edit ${account?.name}` : 'Add a mail account'}>
+<Drawer bind:open title={editing ? t('drawer.editTitle', { name: account?.name ?? '' }) : t('drawer.addTitle')}>
 	<form class="flex flex-col gap-4" onsubmit={save}>
-		<Field label="Display name" helper="What this inbox is called inside Courrier.">
-			<Input bind:value={name} placeholder="Work" required disabled={saving} />
+		<Field label={t('drawer.displayName')} helper={t('drawer.displayNameHelp')}>
+			<Input bind:value={name} placeholder={t('drawer.namePlaceholder')} required disabled={saving} />
 		</Field>
 
-		<Field label="Email address" helper="The address messages are sent from.">
+		<Field label={t('drawer.email')} helper={t('drawer.emailHelp')}>
 			<Input bind:value={email} type="email" placeholder="you@example.com" required disabled={saving} />
 		</Field>
 
 		<Divider class="my-1" />
 
-		<p class="text-fc-sm font-medium text-fc-fg">IMAP, reading mail</p>
+		<p class="text-fc-sm font-medium text-fc-fg">{t('drawer.imap')}</p>
 
 		<div class="grid gap-4 sm:grid-cols-[1fr_7rem]">
-			<Field label="Host">
+			<Field label={t('drawer.host')}>
 				<Input bind:value={imapHost} placeholder="imap.example.com" required disabled={saving} />
 			</Field>
-			<Field label="Port">
+			<Field label={t('drawer.port')}>
 				<Input bind:value={imapPort} inputmode="numeric" disabled={saving} />
 			</Field>
 		</div>
 
-		<Field label="Username" helper="Left empty, the email address is used.">
+		<Field label={t('drawer.username')} helper={t('drawer.usernameHelp')}>
 			<Input bind:value={imapUser} placeholder={email || 'you@example.com'} disabled={saving} />
 		</Field>
 
 		<SecretField
 			bind:value={imapPassword}
 			editable
-			label="IMAP password"
-			helper={isRedacted(imapPassword)
-				? 'Already stored, encrypted at rest. Type over it to replace it; leave it to keep it.'
-				: 'Encrypted at rest with this instance’s ENCRYPTION_KEY.'}
+			label={t('drawer.imapPassword')}
+			helper={isRedacted(imapPassword) ? t('drawer.storedHelp') : t('drawer.imapPasswordHelp')}
 			disabled={saving}
 		/>
 
 		<Divider class="my-1" />
 
-		<p class="text-fc-sm font-medium text-fc-fg">SMTP, sending mail</p>
+		<p class="text-fc-sm font-medium text-fc-fg">{t('drawer.smtp')}</p>
 
 		<div class="grid gap-4 sm:grid-cols-[1fr_7rem]">
-			<Field label="Host">
+			<Field label={t('drawer.host')}>
 				<Input bind:value={smtpHost} placeholder="smtp.example.com" required disabled={saving} />
 			</Field>
-			<Field label="Port">
+			<Field label={t('drawer.port')}>
 				<Input bind:value={smtpPort} inputmode="numeric" disabled={saving} />
 			</Field>
 		</div>
 
-		<Field label="Username" helper="Left empty, the email address is used.">
+		<Field label={t('drawer.username')} helper={t('drawer.usernameHelp')}>
 			<Input bind:value={smtpUser} placeholder={email || 'you@example.com'} disabled={saving} />
 		</Field>
 
 		<SecretField
 			bind:value={smtpPassword}
 			editable
-			label="SMTP password"
-			helper={isRedacted(smtpPassword)
-				? 'Already stored, encrypted at rest. Type over it to replace it; leave it to keep it.'
-				: 'Often the same as the IMAP password, but not always.'}
+			label={t('drawer.smtpPassword')}
+			helper={isRedacted(smtpPassword) ? t('drawer.storedHelp') : t('drawer.smtpPasswordHelp')}
 			disabled={saving}
 		/>
 
 		<Divider class="my-1" />
 
-		<Field label="Signature" helper="Appended to messages you send from this account.">
-			<Textarea bind:value={signature} rows={4} placeholder="Your name" disabled={saving} />
+		<Field label={t('drawer.signature')} helper={t('drawer.signatureHelp')}>
+			<Textarea bind:value={signature} rows={4} placeholder={t('drawer.signaturePlaceholder')} disabled={saving} />
 		</Field>
 
 		<div class="flex flex-col gap-1">
-			<Switch bind:checked={isDefault} label="Use as the default account" disabled={saving} />
+			<Switch bind:checked={isDefault} label={t('drawer.useDefault')} disabled={saving} />
 			<p class="pl-14 text-fc-xs text-fc-fg-muted">
-				The account Courrier opens on and composes from unless you pick another.
+				{t('drawer.useDefaultHelp')}
 			</p>
 		</div>
 
@@ -255,27 +252,26 @@
 					disabled={saving || testState === 'testing' || !imapHost.trim() || !typedBoth}
 					onclick={test}
 				>
-					{testState === 'testing' ? 'Testing…' : 'Test connection'}
+					{testState === 'testing' ? t('drawer.testing') : t('drawer.test')}
 				</Button>
 
 				{#if testState === 'testing'}
-					<StatusDot tone="warning" label="Connecting to both servers…" pulse />
+					<StatusDot tone="warning" label={t('drawer.testConnecting')} pulse />
 				{:else if testState === 'passed'}
-					<StatusDot tone="success" label="IMAP and SMTP both answered" />
+					<StatusDot tone="success" label={t('drawer.testPassed')} />
 				{:else if testState === 'failed'}
-					<StatusDot tone="danger" label="Test failed" />
+					<StatusDot tone="danger" label={t('drawer.testFailedShort')} />
 				{/if}
 			</div>
 
 			{#if !typedBoth}
 				<p class="text-fc-xs text-fc-fg-muted">
-					Testing sends both passwords to the servers, so it needs them typed in. For an account
-					already saved, use Check on its row instead: that one uses the stored credentials.
+					{t('drawer.testNeedsPasswords')}
 				</p>
 			{/if}
 
 			{#if testState === 'failed' && testError}
-				<Alert tone="danger" title="Connection test failed">{testError}</Alert>
+				<Alert tone="danger" title={t('drawer.testFailedTitle')}>{testError}</Alert>
 			{/if}
 		</div>
 
@@ -287,11 +283,11 @@
 
 		<div class="flex justify-end gap-2 pt-1">
 			<Button type="button" variant="ghost" disabled={saving} onclick={() => (open = false)}>
-				Cancel
+				{t('common.cancel')}
 			</Button>
 			<Button type="submit" disabled={saving || !complete}>
 				{#if saving}<Spinner size="sm" />{/if}
-				{saving ? 'Saving…' : editing ? 'Save account' : 'Add account'}
+				{saving ? t('common.saving') : editing ? t('drawer.saveAccount') : t('drawer.addAccount')}
 			</Button>
 		</div>
 
@@ -308,7 +304,7 @@
 					onRemove(target);
 				}}
 			>
-				Remove account
+				{t('drawer.removeAccount')}
 			</Button>
 		{/if}
 	</form>

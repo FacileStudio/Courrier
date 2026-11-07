@@ -1,5 +1,6 @@
 import { apiBase, clearToken, getToken, isApp } from '$lib/platform';
 import { planLimitFrom, type PlanLimit } from '$lib/plan-limit';
+import { setSessionLocale, t } from '$lib/i18n/index.svelte';
 
 const backendBaseUrl = apiBase();
 
@@ -37,17 +38,13 @@ export type PushConfig = { enabled: boolean; native: boolean; web_push_key?: str
 
 export type PushDevice = { kind: 'fcm' | 'web'; token: string; p256dh?: string; auth?: string };
 
-export type AuthResponse = {
-	user_id: string;
-	token: string;
-};
-
 export type UserProfile = {
 	id: string;
 	email: string;
 	name: string;
 	avatar_url: string;
 	avatar_source: string;
+	locale?: string;
 	created_at: string;
 };
 
@@ -262,7 +259,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}) {
 		}
 		const seconds = Number(response.headers.get('Retry-After'));
 		throw new ApiError(
-			payload?.error?.message || `Request failed with status ${response.status}`,
+			payload?.error?.message || t('error.requestFailed', { status: response.status }),
 			response.status,
 			Number.isFinite(seconds) && seconds > 0 ? seconds : undefined,
 			planLimitFrom(response.status, payload)
@@ -285,18 +282,6 @@ function normalizeUser(user: UserProfile): UserProfile {
 export const backend = {
 	baseUrl: backendBaseUrl,
 
-	register(email: string, password: string) {
-		return apiFetch<AuthResponse>('/api/auth/register', {
-			method: 'POST',
-			body: JSON.stringify({ email, password })
-		});
-	},
-	login(email: string, password: string) {
-		return apiFetch<AuthResponse>('/api/auth/login', {
-			method: 'POST',
-			body: JSON.stringify({ email, password })
-		});
-	},
 	async logout() {
 		try {
 			return await apiFetch<{ ok: boolean }>('/api/auth/logout', { method: 'POST' });
@@ -305,9 +290,10 @@ export const backend = {
 		}
 	},
 	me() {
-		return apiFetch<MeResponse>('/api/users/me').then((r) => ({
-			user: normalizeUser(r.user)
-		}));
+		return apiFetch<MeResponse>('/api/users/me').then((r) => {
+			setSessionLocale(r.user.locale ?? null);
+			return { user: normalizeUser(r.user) };
+		});
 	},
 
 	listAccounts(spaceId?: string) {
@@ -431,7 +417,7 @@ export const backend = {
 			} catch {
 				payload = undefined;
 			}
-			throw new Error(payload?.error?.message || `Request failed with status ${response.status}`);
+			throw new Error(payload?.error?.message || t('error.requestFailed', { status: response.status }));
 		}
 		return (await response.json()) as { sent: boolean };
 	},
@@ -454,7 +440,7 @@ export const backend = {
 			`/api/accounts/${accountId}/mail/emails/${emailId}/attachments/${attachmentId}/download`
 		);
 		if (!response.ok) {
-			throw new Error(`Download failed with status ${response.status}`);
+			throw new Error(t('error.downloadFailed', { status: response.status }));
 		}
 		const blob = await response.blob();
 		const url = URL.createObjectURL(blob);
@@ -570,7 +556,7 @@ export const backend = {
 		return apiFetch<{ settings: InstanceSettings }>('/api/settings/').then((r) => r.settings);
 	},
 
-	updateMe(data: { name?: string; email?: string }) {
+	updateMe(data: { name?: string }) {
 		return apiFetch<MeResponse>('/api/users/me', {
 			method: 'PATCH',
 			body: JSON.stringify(data)
@@ -600,9 +586,9 @@ export const backend = {
 				if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
 			});
 			xhr.addEventListener('error', () =>
-				reject(new Error('Upload failed — the request never arrived'))
+				reject(new Error(t('error.uploadNetwork')))
 			);
-			xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')));
+			xhr.addEventListener('abort', () => reject(new Error(t('error.uploadCancelled'))));
 			xhr.addEventListener('load', () => {
 				let payload: unknown;
 				try {
@@ -613,14 +599,14 @@ export const backend = {
 				if (xhr.status >= 200 && xhr.status < 300) {
 					const user = (payload as MeResponse | undefined)?.user;
 					if (!user) {
-						reject(new Error('Upload succeeded but the server sent no profile back'));
+						reject(new Error(t('error.uploadNoProfile')));
 						return;
 					}
 					resolve(normalizeUser(user));
 					return;
 				}
 				const message = (payload as ApiErrorPayload | undefined)?.error?.message;
-				reject(new Error(message || `Upload failed with status ${xhr.status}`));
+				reject(new Error(message || t('error.uploadFailed', { status: xhr.status })));
 			});
 			xhr.send(body);
 		});

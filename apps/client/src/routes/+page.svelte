@@ -1,17 +1,26 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { DownloadCta, PricingPlans, Spinner } from '@facile/muse';
+	import {
+		DownloadCta,
+		LandingFooter,
+		LandingHeader,
+		PricingPlans,
+		SignInWithFacile,
+		Spinner,
+		icons
+	} from '@facile/muse';
 	import { backend } from '$lib/backend';
 	import NativeIntro from '$lib/components/native/NativeIntro.svelte';
+	import { rememberLocale, t } from '$lib/i18n/index.svelte';
 	import { isDesktop, isNative } from '$lib/platform';
 
 	const INTRO_SEEN_KEY = 'courrier.intro-seen';
 	const native = isNative();
 	const desktop = isDesktop();
+	const signInHref = `${backend.baseUrl}/api/auth/oidc`;
 
 	let ready = $state(false);
-	let ssoOnly = $state(false);
 
 	function introSeen(): boolean {
 		try {
@@ -52,20 +61,35 @@
 			return;
 		}
 
-		try {
-			ssoOnly = (await backend.authConfig()).sso_only ?? false;
-		} catch {}
-
 		ready = true;
 	});
+
+	const links = $derived([
+		{ href: '#features', label: t('landing.navFeatures') },
+		{ href: '#pricing', label: t('landing.navPricing') },
+		{ href: '/downloads', label: t('landing.navApps') }
+	]);
+	const columns = $derived([
+		{
+			title: 'Courrier',
+			links: [
+				{ href: '#features', label: t('landing.navFeatures') },
+				{ href: '#pricing', label: t('landing.navPricing') },
+				{ href: '/downloads', label: t('landing.navApps') }
+			]
+		},
+		{ title: 'Facile', links: [{ href: 'https://facile.studio', label: 'facile.studio', external: true }] }
+	]);
+	const features = $derived([
+		{ icon: 'solar:inbox-in-linear', title: t('landing.imapTitle'), body: t('landing.imapBody') },
+		{ icon: 'solar:users-group-rounded-linear', title: t('landing.spacesTitle'), body: t('landing.spacesBody') },
+		{ icon: 'solar:lock-linear', title: t('landing.selfHostedTitle'), body: t('landing.selfHostedBody') }
+	]);
 </script>
 
 <svelte:head>
-	<title>Courrier — Self-hosted email for creative studios</title>
-	<meta
-		name="description"
-		content="A self-hosted email client for creative studios. Connect your IMAP accounts, read and send from a clean interface."
-	/>
+	<title>{t('landing.title')}</title>
+	<meta name="description" content={t('landing.description')} />
 </svelte:head>
 
 {#if !ready}
@@ -75,168 +99,69 @@
 {:else if native}
 	<NativeIntro onfinish={finishIntro} />
 {:else}
-	<div class="min-h-screen bg-background text-foreground">
-		<header class="">
-			<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-				<div class="flex h-14 items-center gap-3">
-					<iconify-icon
-						icon="solar:letter-bold-duotone"
-						width="28"
-						height="28"
-						class="size-7 text-foreground"
-					></iconify-icon>
-					<span class="text-2xl font-bold font-heading tracking-tight">Courrier</span>
-				</div>
-				<div class="flex items-center gap-2">
-					<a
-						href="/downloads"
-						class="hidden h-9 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground sm:inline-flex"
-					>
-						Get the apps
-					</a>
-					<a
-						href="/login"
-						class="inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-					>
-						Log in
-					</a>
-					<a
-						href={ssoOnly ? '/login' : '/login?tab=register'}
-						class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-					>
-						Sign in with Facile
-					</a>
-				</div>
-			</div>
-		</header>
+	<div class="min-h-dvh bg-fc-page text-fc-fg">
+		<LandingHeader appName="Courrier" icon="solar:letter-bold-duotone" {links} skipHref="#main">
+			{#snippet actions()}
+				<SignInWithFacile href={signInHref} data-sveltekit-reload />
+			{/snippet}
+		</LandingHeader>
 
-		<main>
+		<main id="main">
 			<section class="mx-auto max-w-5xl px-6 py-24 text-center">
-				<h1 class="text-4xl font-bold font-heading tracking-tight leading-tight">
-					Your mail.<br />Your server.
+				<h1 class="font-fc-title text-fc-3xl font-semibold sm:text-5xl tracking-tight leading-tight">
+					{t('landing.heroTitle')}
 				</h1>
-				<p class="mx-auto mt-6 max-w-xl text-lg text-muted-foreground leading-relaxed">
-					Courrier is a self-hosted email client. Connect your IMAP accounts, read and send from a
-					clean interface — no cloud, no tracking, no compromise.
+				<p class="mx-auto mt-6 max-w-xl text-fc-lg text-fc-fg-muted leading-relaxed">
+					{t('landing.heroBody')}
 				</p>
-				<div class="mt-10 flex justify-center gap-3">
-					<a
-						href={ssoOnly ? '/login' : '/login?tab=register'}
-						class="inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-					>
-						Sign in with Facile
-						<iconify-icon
-							icon="solar:arrow-right-linear"
-							width="16"
-							height="16"
-							class="ml-2 size-4"
-						></iconify-icon>
-					</a>
-					<a
-						href="/login"
-						class="inline-flex h-11 items-center justify-center rounded-md bg-background px-6 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-					>
-						Log in
-					</a>
+				<div class="mt-10 flex justify-center">
+					<SignInWithFacile href={signInHref} size="lg" data-sveltekit-reload />
 				</div>
 				<div class="mt-4 flex justify-center">
 					<DownloadCta
 						href="/downloads"
 						platforms={['macos', 'windows', 'linux', 'android']}
-						label="Get the desktop and Android apps"
+						label={t('landing.downloadCta')}
 					/>
 				</div>
 			</section>
 
-			<section class="mx-auto max-w-5xl px-6 py-20">
+			<section id="features" class="mx-auto max-w-5xl px-6 py-20">
 				<div class="grid gap-6 md:grid-cols-3">
-					<div class="rounded-lg p-6">
-						<div
-							class="mb-3 flex size-10 items-center justify-center rounded-md "
-						>
-							<iconify-icon
-								icon="solar:inbox-in-linear"
-								width="20"
-								height="20"
-								class="size-5"
-							></iconify-icon>
+					{#each features as feature (feature.icon)}
+						<div class="rounded-fc-lg p-6">
+							<div class="mb-3 flex size-10 items-center justify-center rounded-fc-md">
+								<iconify-icon icon={feature.icon} width="20" height="20" class="size-5"></iconify-icon>
+							</div>
+							<h3 class="text-fc-md font-semibold">{feature.title}</h3>
+							<p class="mt-1.5 text-fc-sm text-fc-fg-muted">{feature.body}</p>
 						</div>
-						<h3 class="text-base font-semibold">Any IMAP account</h3>
-						<p class="mt-1.5 text-sm text-muted-foreground">
-							Point Courrier at your IMAP and SMTP servers. Credentials are encrypted at rest.
-						</p>
-					</div>
-
-					<div class="rounded-lg p-6">
-						<div
-							class="mb-3 flex size-10 items-center justify-center rounded-md "
-						>
-							<iconify-icon
-								icon="solar:users-group-rounded-linear"
-								width="20"
-								height="20"
-								class="size-5"
-							></iconify-icon>
-						</div>
-						<h3 class="text-base font-semibold">Shared spaces</h3>
-						<p class="mt-1.5 text-sm text-muted-foreground">
-							Group accounts into spaces and invite the people who need to read the same inbox.
-						</p>
-					</div>
-
-					<div class="rounded-lg p-6">
-						<div
-							class="mb-3 flex size-10 items-center justify-center rounded-md "
-						>
-							<iconify-icon
-								icon="solar:lock-linear"
-								width="20"
-								height="20"
-								class="size-5"
-							></iconify-icon>
-						</div>
-						<h3 class="text-base font-semibold">Self-hosted</h3>
-						<p class="mt-1.5 text-sm text-muted-foreground">
-							One binary and a Postgres database. Your mail stays on your server.
-						</p>
-					</div>
+					{/each}
 				</div>
 			</section>
 
 			<PricingPlans
 				id="pricing"
 				highlight={['courrier.mailboxes']}
-				title="Pricing"
-				class="mx-auto max-w-5xl px-6 py-20 [&>div:first-child]:items-center [&>div:first-child]:sm:flex-col [&>div:first-child]:sm:items-center [&>div:first-child_fieldset]:items-center [&>div:first-child_fieldset>div]:self-center [&_h2]:text-3xl [&_h2]:font-bold [&_h2]:font-heading [&_h2]:tracking-tight [&_h2]:text-center [&_h2]:text-foreground"
+				title={t('landing.pricing')}
+				class="mx-auto max-w-5xl px-6 py-20"
 			/>
 
 			<section class="mx-auto max-w-5xl px-6 py-20 text-center">
-				<h2 class="text-3xl font-bold font-heading tracking-tight">
-					{ssoOnly ? 'Ready to sign in?' : 'Ready to start?'}
-				</h2>
-				<p class="mt-4 text-muted-foreground">
-					{ssoOnly
-						? 'Use your Facile SSO to access Courrier.'
-						: 'Free to use. Self-hosted. No credit card required.'}
-				</p>
-				<a
-					href={ssoOnly ? '/login' : '/login?tab=register'}
-					class="mt-8 inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-				>
-					Sign in with Facile
-				</a>
+				<h2 class="font-fc-title text-fc-3xl font-semibold tracking-tight">{t('landing.ctaTitle')}</h2>
+				<p class="mt-4 text-fc-fg-muted">{t('landing.ctaBody')}</p>
+				<div class="mt-8 flex justify-center">
+					<SignInWithFacile href={signInHref} size="lg" data-sveltekit-reload />
+				</div>
 			</section>
 		</main>
 
-		<footer class="text-center">
-			<div class="mx-auto max-w-5xl px-6 py-6 text-sm text-muted-foreground">
-				© {new Date().getFullYear()} Courrier by <a
-					href="https://facile.studio"
-					class="font-semibold underline hover:cursor-pointer">Facile.</a
-				>
-				<span aria-hidden="true">·</span>
-				<a href="/downloads" class="underline hover:text-foreground">Get the apps</a>
-			</div>
-		</footer>
+		<LandingFooter
+			appName="Courrier"
+			icon="solar:letter-bold-duotone"
+			tagline={t('landing.tagline')}
+			{columns}
+			legal={{ onLocaleChange: rememberLocale }}
+		/>
 	</div>
 {/if}

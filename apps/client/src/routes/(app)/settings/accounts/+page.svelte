@@ -15,6 +15,7 @@
 	import { ApiError, backend, type CheckResult, type MailAccount } from '$lib/backend';
 	import { spaceStore } from '$lib/stores/space.svelte';
 	import AccountDrawer from '$lib/components/settings/AccountDrawer.svelte';
+	import { t } from '$lib/i18n/index.svelte';
 
 	type Probe =
 		| { state: 'checking' }
@@ -50,7 +51,7 @@
 			loadError = '';
 		} catch (err) {
 			accounts = [];
-			loadError = err instanceof Error ? err.message : 'Could not load your mail accounts';
+			loadError = err instanceof Error ? err.message : t('accounts.loadFailed');
 		}
 	}
 
@@ -58,31 +59,31 @@
 		const probe = probes[account.id];
 
 		if (probe?.state === 'checking') {
-			return [{ tone: 'warning', label: 'Checking…', pulse: true }];
+			return [{ tone: 'warning', label: t('accounts.checkRunning'), pulse: true }];
 		}
 		if (probe?.state === 'throttled') {
-			return [{ tone: 'warning', label: `Not checked: ${retryIn(probe)}`, pulse: false }];
+			return [{ tone: 'warning', label: t('accounts.notChecked', { reason: retryIn(probe) }), pulse: false }];
 		}
 		if (probe?.state === 'unreachable') {
-			return [{ tone: 'danger', label: 'Courrier could not run the check', pulse: false }];
+			return [{ tone: 'danger', label: t('accounts.checkFailedToRun'), pulse: false }];
 		}
 
 		return (['imap', 'smtp'] as const).map((protocol) => {
 			const name = protocol.toUpperCase();
 			const host = protocol === 'imap' ? account.imap_host : account.smtp_host;
-			if (!host) return { tone: 'neutral' as Tone, label: `No ${name} server set`, pulse: false };
+			if (!host) return { tone: 'neutral' as Tone, label: t('accounts.noServer', { protocol: name }), pulse: false };
 
 			const leg = probe?.state === 'checked' ? probe.result[protocol] : undefined;
-			if (!leg) return { tone: 'neutral' as Tone, label: `${name} not checked yet`, pulse: false };
-			if (leg.ok) return { tone: 'success' as Tone, label: `${name} connected`, pulse: false };
-			return { tone: 'danger' as Tone, label: `${name} ${failureKind(leg.error)}`, pulse: false };
+			if (!leg) return { tone: 'neutral' as Tone, label: t('accounts.legNotChecked', { protocol: name }), pulse: false };
+			if (leg.ok) return { tone: 'success' as Tone, label: t('accounts.legConnected', { protocol: name }), pulse: false };
+			return { tone: 'danger' as Tone, label: failureLabel(name, leg.error), pulse: false };
 		});
 	}
 
-	function failureKind(error?: string) {
+	function failureLabel(protocol: string, error?: string) {
 		return /auth|password|credential|login|invalid/i.test(error ?? '')
-			? 'rejected the credentials'
-			: 'unreachable';
+			? t('accounts.legRejected', { protocol })
+			: t('accounts.legUnreachable', { protocol });
 	}
 
 	let now = $state(Date.now());
@@ -100,7 +101,7 @@
 
 	function retryIn(probe: Extract<Probe, { state: 'throttled' }>) {
 		const seconds = Math.max(0, Math.ceil((probe.retryAt - now) / 1000));
-		return seconds > 0 ? `retry in ${seconds}s` : 'you can retry now';
+		return seconds > 0 ? t('accounts.retryIn', { seconds }) : t('accounts.retryNow');
 	}
 
 	async function check(account: MailAccount) {
@@ -117,7 +118,7 @@
 			}
 			probes[account.id] = {
 				state: 'unreachable',
-				error: err instanceof Error ? err.message : 'The check could not be run'
+				error: err instanceof Error ? err.message : t('accounts.checkRunFailed')
 			};
 		}
 	}
@@ -129,7 +130,7 @@
 			await load();
 			await app.refreshAccounts();
 		} catch (err) {
-			loadError = err instanceof Error ? err.message : 'Could not change the default account';
+			loadError = err instanceof Error ? err.message : t('accounts.defaultFailed');
 		}
 		promoting = null;
 	}
@@ -155,7 +156,7 @@
 			await load();
 			await app.refreshAccounts();
 		} catch (err) {
-			removeError = err instanceof Error ? err.message : 'Could not remove the account';
+			removeError = err instanceof Error ? err.message : t('accounts.removeFailed');
 		}
 	}
 
@@ -180,14 +181,14 @@
 
 <div class="flex flex-col gap-10">
 	<SettingsSection
-		title="Mail accounts"
+		title={t('accounts.title')}
 		description={spaceStore.active
-			? `The IMAP and SMTP servers Courrier reads and sends through in ${spaceStore.active.name}.`
-			: 'The IMAP and SMTP servers Courrier reads and sends through.'}
+			? t('accounts.bodySpace', { space: spaceStore.active.name })
+			: t('accounts.body')}
 		bare
 	>
 		{#snippet actions()}
-			<Button icon={icons.plus} onclick={openNew}>Add account</Button>
+			<Button icon={icons.plus} onclick={openNew}>{t('accounts.add')}</Button>
 		{/snippet}
 
 		{#if loadError}
@@ -197,10 +198,10 @@
 		{#if accounts.length === 0}
 			<EmptyState
 				icon={icons.mail}
-				title="No mail accounts yet"
-				description="Courrier has nothing to read until you point it at an IMAP server. Credentials are encrypted at rest."
+				title={t('accounts.empty')}
+				description={t('accounts.emptyBody')}
 			>
-				<Button icon={icons.plus} onclick={openNew}>Add your first account</Button>
+				<Button icon={icons.plus} onclick={openNew}>{t('accounts.addFirst')}</Button>
 			</EmptyState>
 		{:else}
 			<div class="flex flex-col gap-3">
@@ -217,7 +218,7 @@
 							<div class="flex min-w-0 flex-col">
 								<span class="flex min-w-0 items-center gap-2 font-medium text-fc-fg">
 									<span class="truncate">{account.name}</span>
-									{#if account.is_default}<Badge tone="accent">Default</Badge>{/if}
+									{#if account.is_default}<Badge tone="accent">{t('accounts.default')}</Badge>{/if}
 								</span>
 								<span class="truncate text-fc-xs text-fc-fg-muted">{account.email}</span>
 							</div>
@@ -236,7 +237,7 @@
 						{#each accountFailures as failure (failure.key)}
 							<Alert
 								tone="danger"
-								title={failure.protocol ? `${failure.protocol} failed` : 'Could not be checked'}
+								title={failure.protocol ? t('accounts.protocolFailed', { protocol: failure.protocol }) : t('accounts.couldNotCheck')}
 							>
 								{failure.error}
 							</Alert>
@@ -247,22 +248,22 @@
 								variant="ghost"
 								size="sm"
 								icon={icons.plug}
-								title="Signs in to IMAP and SMTP with the stored passwords, then hangs up. No mail is read."
+								title={t('accounts.checkHint')}
 								disabled={checkDisabled}
 								onclick={() => check(account)}
 							>
-								Check connection
+								{t('accounts.checkConnection')}
 							</Button>
 							{#if !account.is_default}
 								<Button
 									variant="ghost"
 									size="sm"
 									icon={icons.check}
-									title="The default account is what the CLI and new devices open first."
+									title={t('accounts.makeDefaultHint')}
 									disabled={promoting === account.id}
 									onclick={() => makeDefault(account)}
 								>
-									Set as default
+									{t('accounts.makeDefault')}
 								</Button>
 							{/if}
 							<Button
@@ -271,7 +272,7 @@
 								icon={icons.edit}
 								onclick={() => openEdit(account)}
 							>
-								Edit
+								{t('common.edit')}
 							</Button>
 						</div>
 					</Card>
@@ -279,7 +280,7 @@
 			</div>
 
 			<p class="text-fc-xs text-fc-fg-muted">
-				The default account is what the CLI and new devices open first. The mail view has its own switcher.
+				{t('accounts.defaultNote')}
 			</p>
 		{/if}
 
@@ -307,9 +308,12 @@
 <ConfirmModal
 	bind:open={removeOpen}
 	tone="danger"
-	title="Remove this mail account?"
-	description={`Courrier deletes ${removeTarget?.name ?? 'this account'}, its stored credentials, and every folder, message and draft it has cached locally. Your mail itself stays on ${removeTarget?.imap_host || 'the server'}, but re-adding the account means syncing it all again from scratch.`}
-	confirmLabel="Remove account"
-	cancelLabel="Keep it"
+	title={t('accounts.removeTitle')}
+	description={t('accounts.removeBody', {
+		name: removeTarget?.name ?? t('accounts.thisAccount'),
+		host: removeTarget?.imap_host || t('accounts.theServer')
+	})}
+	confirmLabel={t('accounts.removeConfirm')}
+	cancelLabel={t('accounts.keepIt')}
 	onConfirm={remove}
 />

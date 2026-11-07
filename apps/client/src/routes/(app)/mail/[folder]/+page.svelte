@@ -2,18 +2,13 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import MailView from '$lib/components/MailView.svelte';
-
-	const folderLabels: Record<string, string> = {
-		sent: 'Sent',
-		drafts: 'Drafts',
-		archive: 'Archive',
-		junk: 'Junk',
-		trash: 'Trash'
-	};
+	import { MAIL_FOLDERS } from '$lib/mail-folders';
+	import { t } from '$lib/i18n/index.svelte';
 
 	const folderSlug = $derived(page.params.folder ?? '');
-	const folderLabel = $derived(folderLabels[folderSlug] ?? folderSlug);
-	const validFolder = $derived(folderSlug !== '' && folderSlug in folderLabels);
+	const entry = $derived(MAIL_FOLDERS.find((folder) => folder.type === folderSlug && folder.type !== 'inbox'));
+	const folderLabel = $derived(entry ? t(entry.labelKey) : folderSlug);
+	const validFolder = $derived(entry !== undefined);
 
 	$effect(() => {
 		if (!validFolder) {
@@ -23,7 +18,7 @@
 </script>
 
 <svelte:head>
-	<title>{folderLabel} — Courrier</title>
+	<title>{t('mail.folderTitle', { folder: folderLabel })}</title>
 </svelte:head>
 
 {#if validFolder}

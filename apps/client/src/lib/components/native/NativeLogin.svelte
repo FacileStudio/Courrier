@@ -1,6 +1,7 @@
 <script lang="ts">
 	import AppMark from './AppMark.svelte';
 	import Ambient from './Ambient.svelte';
+	import { t } from '$lib/i18n/index.svelte';
 	import SignInButton from './SignInButton.svelte';
 
 	let { error = $bindable('') }: { error?: string } = $props();
@@ -24,10 +25,10 @@
 		</div>
 		<div class="flex max-w-xs flex-col gap-3">
 			<h1 class="font-fc-title text-fc-3xl leading-tight font-semibold tracking-tight">
-				Sign in to Courrier
+				{t('login.nativeTitle')}
 			</h1>
 			<p class="text-fc-md leading-relaxed text-fc-fg-muted">
-				Use your Facile account. Your mailboxes and spaces follow you from the web.
+				{t('login.nativeBody')}
 			</p>
 		</div>
 	</main>

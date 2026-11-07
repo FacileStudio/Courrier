@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { browser } from '$app/environment';
 	import { Toaster, provideLocale } from '@facile/muse';
+	import { bindLocale, localeSource } from '$lib/i18n/index.svelte';
 	import TitleBar from '$lib/components/native/TitleBar.svelte';
 	import { registerDeepLinks } from '$lib/native';
 	import { isApp, isDesktop } from '$lib/platform';
@@ -10,7 +11,8 @@
 
 	let { children } = $props();
 
-	provideLocale(() => 'en');
+	const i18n = provideLocale(localeSource);
+	bindLocale(() => i18n.locale);
 
 	if (browser) {
 		theme.restore();

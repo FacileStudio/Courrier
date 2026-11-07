@@ -2,6 +2,7 @@
 	import { getContext } from 'svelte';
 	import { Avatar, icons, twMerge } from '@facile/muse';
 	import type { MailAccount } from '$lib/backend';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let {
 		align = 'start',
@@ -88,7 +89,7 @@
 			)}
 			aria-haspopup="menu"
 			aria-expanded={open}
-			aria-label="Switch account, current {current.email}"
+			aria-label={t('shell.switchAccount', { email: current.email })}
 			onclick={() => (open = !open)}
 		>
 			<Avatar name={current.name} size="sm" class="size-6" />
@@ -136,7 +137,7 @@
 					class="mt-1 flex min-h-11 items-center rounded-fc-sm px-2.5 py-2 text-fc-sm text-fc-fg-muted transition-colors hover:bg-fc-surface hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-fc-ring"
 					onclick={() => (open = false)}
 				>
-					Manage accounts
+					{t('shell.manageAccounts')}
 				</a>
 			</div>
 		{/if}

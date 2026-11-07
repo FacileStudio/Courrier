@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, onMount } from 'svelte';
+	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
 	import {
 		Alert,
@@ -13,6 +13,8 @@
 		icons
 	} from '@facile/muse';
 	import { backend, type UserProfile } from '$lib/backend';
+	import { formatDate, slots } from '$lib/i18n/format';
+	import { t } from '$lib/i18n/index.svelte';
 	import { spaceStore } from '$lib/stores/space.svelte';
 
 	type Upload = {
@@ -30,9 +32,7 @@
 	}>('app');
 
 	let name = $state(app.user?.name ?? '');
-	let email = $state(app.user?.email ?? '');
 	let touched = $state(false);
-	let ssoManaged = $state(false);
 
 	/*
 	 * The layout kicks off an OIDC profile sync in the background, so the user object can be
@@ -43,7 +43,6 @@
 		const fresh = app.user;
 		if (touched || !fresh) return;
 		name = fresh.name ?? '';
-		email = fresh.email ?? '';
 	});
 	let saving = $state(false);
 	let saved = $state(false);
@@ -65,30 +64,21 @@
 		const date = new Date(raw);
 		return Number.isNaN(date.getTime())
 			? ''
-			: date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+			: formatDate(date, { month: 'long', year: 'numeric' });
 	});
 
 	const meta = $derived(
 		[
-			memberSince ? { label: 'Member since', value: memberSince } : null,
-			spaceStore.active ? { label: 'Active space', value: spaceStore.active.name } : null,
-			{ label: 'Sign-in', value: ssoManaged ? 'Facile SSO' : 'Password on this instance' }
+			memberSince ? { label: t('profile.memberSince'), value: memberSince } : null,
+			spaceStore.active ? { label: t('profile.activeSpace'), value: spaceStore.active.name } : null,
+			{ label: t('profile.signIn'), value: t('profile.signInValue') }
 		].filter((entry): entry is { label: string; value: string } => entry !== null)
 	);
 
-	const rejections: Record<string, string> = {
-		type: 'that file is not a PNG, JPEG, GIF or WebP image',
-		size: 'that file is larger than 5 MB',
-		count: 'only one photo at a time'
-	};
-
-	onMount(async () => {
-		try {
-			const config = await backend.authConfig();
-			ssoManaged = config.oidc_enabled;
-		} catch {
-			ssoManaged = false;
-		}
+	const rejections = $derived<Record<string, string>>({
+		type: t('profile.rejectType'),
+		size: t('profile.rejectSize'),
+		count: t('profile.rejectCount')
 	});
 
 	async function saveIdentity() {
@@ -96,13 +86,11 @@
 		saved = false;
 		saveError = '';
 		try {
-			const payload: { name?: string; email?: string } = { name: name.trim() };
-			if (!ssoManaged && email.trim() !== app.user?.email) payload.email = email.trim();
-			app.setUser(await backend.updateMe(payload));
+			app.setUser(await backend.updateMe({ name: name.trim() }));
 			touched = false;
 			saved = true;
 		} catch (err) {
-			saveError = err instanceof Error ? err.message : 'Could not save your details';
+			saveError = err instanceof Error ? err.message : t('profile.saveFailed');
 		}
 		saving = false;
 	}
@@ -126,7 +114,7 @@
 			app.setUser(user);
 		} catch (err) {
 			const item = uploads.find((entry) => entry.id === id);
-			const message = err instanceof Error ? err.message : 'Upload failed';
+			const message = err instanceof Error ? err.message : t('profile.uploadFailed');
 			if (item) {
 				item.status = 'error';
 				item.error = message;
@@ -142,7 +130,7 @@
 			app.setUser(await backend.clearAvatar());
 			uploads = [];
 		} catch (err) {
-			avatarError = err instanceof Error ? err.message : 'Could not remove the photo';
+			avatarError = err instanceof Error ? err.message : t('profile.removeFailed');
 		}
 		clearing = false;
 	}
@@ -160,17 +148,17 @@
 
 <div class="flex flex-col gap-10">
 	<ProfileCard
-		name={name.trim() || app.user?.email || 'You'}
+		name={name.trim() || app.user?.email || t('common.you')}
 		email={app.user?.email}
 		avatar={app.user?.avatar_url || undefined}
 		role={spaceStore.active?.role}
 		{meta}
 	/>
 
-	<SettingsSection title="Identity" description="How Courrier names you when you send mail.">
+	<SettingsSection title={t('profile.identity')} description={t('profile.identityBody')}>
 		<SettingsRow
-			label="Display name"
-			description="Used as the From name on messages you send and on your sidebar card."
+			label={t('profile.displayName')}
+			description={t('profile.displayNameBody')}
 			for="profile-name"
 			stacked
 		>
@@ -178,34 +166,31 @@
 				id="profile-name"
 				bind:value={name}
 				maxlength={80}
-				placeholder="Your name"
+				placeholder={t('profile.namePlaceholder')}
 				class="sm:w-80"
 				oninput={() => (touched = true)}
 			/>
 		</SettingsRow>
 
 		<SettingsRow
-			label="Email"
-			description={ssoManaged
-				? 'Managed by Facile SSO — change it at sso.facile.studio and it syncs back here.'
-				: 'The address you sign in with. Mail accounts have their own addresses.'}
+			label={t('common.email')}
+			description={t('profile.emailBody')}
 			for="profile-email"
 			stacked
 		>
 			<Input
 				id="profile-email"
-				bind:value={email}
+				value={app.user?.email ?? ''}
 				type="email"
-				disabled={ssoManaged}
+				disabled
 				class="sm:w-80"
-				oninput={() => (touched = true)}
 			/>
 		</SettingsRow>
 
 		{#if saveError}
 			<Alert tone="danger">{saveError}</Alert>
 		{:else if saved}
-			<Alert tone="success">Saved.</Alert>
+			<Alert tone="success">{t('profile.saved')}</Alert>
 		{/if}
 
 		<Button
@@ -214,7 +199,7 @@
 			disabled={saving || name.trim().length === 0}
 			onclick={saveIdentity}
 		>
-			{saving ? 'Saving…' : 'Save changes'}
+			{saving ? t('common.saving') : t('profile.save')}
 		</Button>
 	</SettingsSection>
 
@@ -224,25 +209,29 @@
 		would spend a 4xx to say what the copy can say for free.
 	-->
 	<SettingsSection
-		title="Photo"
-		description="Shown on your sidebar card. Square images crop best."
+		title={t('profile.photo')}
+		description={t('profile.photoBody')}
 		bare
 	>
 		{#if fromSSO}
-			<Alert tone="info" title="Your photo comes from Facile SSO">
-				Change it in your <a href="https://sso.facile.studio/account" class="underline">Facile
-				account</a> and it shows here on the next page load. Courrier keeps no copy, so there is
-				nothing to upload or delete on this side.
+			<Alert tone="info" title={t('profile.photoFromFacile')}>
+				{#each slots(t('profile.photoFromFacileBody')) as part, i (i)}
+					{#if typeof part === 'string'}
+						{part}
+					{:else}
+						<a href="https://sso.facile.studio/account" class="underline">{t('profile.facileAccount')}</a>
+					{/if}
+				{/each}
 			</Alert>
 		{:else}
 			<Dropzone
 				accept="image/png,image/jpeg,image/gif,image/webp"
 				maxSize={5 * 1024 * 1024}
-				label="Drop a photo here"
-				hint="PNG, JPEG, GIF or WebP — up to 5 MB"
+				label={t('profile.drop')}
+				hint={t('profile.dropHint')}
 				onFiles={upload}
 				onReject={(rejected) =>
-					(avatarError = `Not uploaded — ${rejections[rejected[0].reason] ?? 'that file was rejected'}.`)}
+					(avatarError = t('profile.notUploaded', { reason: rejections[rejected[0].reason] ?? t('profile.rejectOther') }))}
 			/>
 
 			{#if avatarError}
@@ -261,24 +250,19 @@
 					disabled={clearing}
 					onclick={removePhoto}
 				>
-					{clearing ? 'Removing…' : 'Remove photo'}
+					{clearing ? t('profile.removing') : t('profile.removePhoto')}
 				</Button>
 			{/if}
 		{/if}
 	</SettingsSection>
 
 	<SettingsSection
-		title="Session"
-		description={ssoManaged
-			? 'Signed in through Facile SSO at sso.facile.studio.'
-			: 'Signed in with a password on this instance.'}
+		title={t('profile.session')}
+		description={t('profile.sessionBody')}
 	>
-		<SettingsRow
-			label="Log out"
-			description="Ends this session in this browser. Other browsers stay signed in."
-		>
+		<SettingsRow label={t('shell.signOut')} description={t('profile.signOutBody')}>
 			<Button variant="outline" icon={icons.logout} disabled={loggingOut} onclick={logOut}>
-				{loggingOut ? 'Logging out…' : 'Log out'}
+				{loggingOut ? t('profile.signingOut') : t('shell.signOut')}
 			</Button>
 		</SettingsRow>
 	</SettingsSection>

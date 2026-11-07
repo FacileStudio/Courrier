@@ -12,6 +12,7 @@
 	} from '@facile/muse';
 	import { backend, type AuthConfig, type MailAccount, type UserProfile } from '$lib/backend';
 	import { spaceStore } from '$lib/stores/space.svelte';
+	import { t } from '$lib/i18n/index.svelte';
 
 	const app = getContext<{
 		user: UserProfile | null;
@@ -60,7 +61,7 @@
 				await backend.deleteAccount(account.id);
 				wiped += 1;
 			} catch (err) {
-				wipeError = err instanceof Error ? err.message : 'Could not remove every account';
+				wipeError = err instanceof Error ? err.message : t('advanced.wipeFailed');
 				break;
 			}
 		}
@@ -72,60 +73,40 @@
 
 <div class="flex flex-col gap-10">
 	<SettingsSection
-		title="Instance"
-		description="The facts worth quoting when you file a bug against a self-hosted install."
+		title={t('advanced.instance')}
+		description={t('advanced.instanceBody')}
 	>
-		<SettingsRow label="API base URL" description="Same origin as this page in production." stacked>
+		<SettingsRow label={t('advanced.apiBase')} description={t('advanced.apiBaseBody')} stacked>
 			<SecretField value={endpoint} sensitive={false} class="w-full" />
 		</SettingsRow>
 
-		<SettingsRow label="Your user ID" description="What the API knows you as." stacked>
+		<SettingsRow label={t('advanced.userId')} description={t('advanced.userIdBody')} stacked>
 			<SecretField value={app.user?.id ?? '—'} sensitive={false} class="w-full" />
 		</SettingsRow>
 
-		<SettingsRow
-			label="Single sign-on"
-			description="OIDC is optional: when it is off, this instance only knows local passwords."
-		>
+		<SettingsRow label={t('advanced.signIn')} description={t('advanced.signInBody')}>
 			{#if config === null}
-				<StatusDot tone="neutral" label="Unknown" />
+				<StatusDot tone="neutral" label={t('advanced.unknown')} />
 			{:else if config.oidc_enabled}
-				<StatusDot tone="success" label="Federated over OIDC" />
+				<StatusDot tone="success" label={t('advanced.federated')} />
 			{:else}
-				<StatusDot tone="neutral" label="Not configured" />
+				<StatusDot tone="neutral" label={t('advanced.notConfigured')} />
 			{/if}
 		</SettingsRow>
 
-		<SettingsRow
-			label="Password sign-in"
-			description="SSO_ONLY hides the password form and closes registration."
-		>
-			{#if config === null}
-				<StatusDot tone="neutral" label="Unknown" />
-			{:else if config.sso_only}
-				<StatusDot tone="neutral" label="Disabled — SSO only" />
-			{:else}
-				<StatusDot tone="success" label="Enabled" />
-			{/if}
-		</SettingsRow>
-
-		<SettingsRow
-			label="Credential encryption"
-			description="ENCRYPTION_KEY is what keeps your IMAP and SMTP passwords unreadable in the database."
-		>
+		<SettingsRow label={t('advanced.encryption')} description={t('advanced.encryptionBody')}>
 			{#if encryptionKeySet === null}
-				<StatusDot tone="neutral" label="Unknown" />
+				<StatusDot tone="neutral" label={t('advanced.unknown')} />
 			{:else if encryptionKeySet}
-				<StatusDot tone="success" label="Key configured" />
+				<StatusDot tone="success" label={t('advanced.keyConfigured')} />
 			{:else}
-				<StatusDot tone="danger" label="No key set" />
+				<StatusDot tone="danger" label={t('advanced.noKey')} />
 			{/if}
 		</SettingsRow>
 
 		{#if encryptionKeySet === false}
-			<Alert tone="danger" title="Mail credentials are not encrypted at rest">
-				This instance is running without an ENCRYPTION_KEY. Set one in the server environment and
-				restart before you add another mail account.
+			<Alert tone="danger" title={t('advanced.noKeyTitle')}>
+				{t('advanced.noKeyBody')}
 			</Alert>
 		{/if}
 	</SettingsSection>
@@ -134,12 +115,12 @@
 		Danger zone lives at the bottom of the last tab, never as a tab of its own: a destructive
 		action should cost a scroll instead of sitting one mis-click from every other section.
 	-->
-	<SettingsSection title="Danger zone" description="Irreversible, and nobody can undo it for you.">
+	<SettingsSection title={t('advanced.danger')} description={t('advanced.dangerBody')}>
 		<SettingsRow
-			label="Disconnect every mail account"
+			label={t('advanced.disconnectAll')}
 			description={accounts.length === 0
-				? 'Nothing to disconnect — there are no mail accounts in this space.'
-				: `Removes all ${accounts.length} account${accounts.length === 1 ? '' : 's'} in this space, along with everything Courrier has cached from them.`}
+				? t('advanced.disconnectNone')
+				: t('advanced.disconnectBody', { count: accounts.length })}
 		>
 			<Button
 				variant="danger"
@@ -147,18 +128,16 @@
 				disabled={wiping || accounts.length === 0}
 				onclick={() => (wipeOpen = true)}
 			>
-				{wiping ? 'Disconnecting…' : 'Disconnect all'}
+				{wiping ? t('advanced.disconnecting') : t('advanced.disconnectAllButton')}
 			</Button>
 		</SettingsRow>
 
 		{#if wipeError}
-			<Alert tone="danger" title={`Stopped after ${wiped} account${wiped === 1 ? '' : 's'}`}>
+			<Alert tone="danger" title={t('advanced.stoppedAfter', { count: wiped })}>
 				{wipeError}
 			</Alert>
 		{:else if wiped > 0}
-			<Alert tone="success">
-				Disconnected {wiped} account{wiped === 1 ? '' : 's'}. Your mail is untouched on the server.
-			</Alert>
+			<Alert tone="success">{t('advanced.disconnected', { count: wiped })}</Alert>
 		{/if}
 	</SettingsSection>
 </div>
@@ -166,9 +145,9 @@
 <ConfirmModal
 	bind:open={wipeOpen}
 	tone="danger"
-	title="Disconnect every mail account?"
-	description={`Courrier deletes all ${accounts.length} account${accounts.length === 1 ? '' : 's'} in this space, their stored IMAP and SMTP credentials, and every folder, message and draft cached from them — the mail views go empty. Your mail itself stays on the servers, but adding the accounts back means re-entering every password and syncing from scratch.`}
-	confirmLabel="Disconnect all"
-	cancelLabel="Leave them alone"
+	title={t('advanced.wipeTitle')}
+	description={t('advanced.wipeBody', { count: accounts.length })}
+	confirmLabel={t('advanced.disconnectAllButton')}
+	cancelLabel={t('advanced.leaveThem')}
 	onConfirm={wipeAccounts}
 />

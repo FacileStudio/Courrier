@@ -4,6 +4,7 @@
 	import { backend, type PushConfig } from '$lib/backend';
 	import { enable, permission, supported, type Permission } from '$lib/notifications';
 	import { isDesktop, isNative } from '$lib/platform';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let { showTest = false }: { showTest?: boolean } = $props();
 
@@ -27,9 +28,9 @@
 		busy = true;
 		try {
 			access = await enable(push);
-			if (access === 'granted') toast.success('Notifications are on');
+			if (access === 'granted') toast.success(t('notify.on'));
 		} catch (err) {
-			toast.danger(err instanceof Error ? err.message : 'Could not turn on notifications');
+			toast.danger(err instanceof Error ? err.message : t('notify.enableFailed'));
 		} finally {
 			busy = false;
 		}
@@ -39,9 +40,9 @@
 		testing = true;
 		try {
 			await backend.testPush();
-			toast.success('Test notification sent');
+			toast.success(t('notify.testSent'));
 		} catch (err) {
-			toast.danger(err instanceof Error ? err.message : 'Could not send the test');
+			toast.danger(err instanceof Error ? err.message : t('notify.testFailed'));
 		} finally {
 			testing = false;
 		}
@@ -53,34 +54,34 @@
 		<Spinner size="sm" />
 	{:else if !supported(push)}
 		<p class="text-fc-sm text-fc-fg-muted">
-			{native ? 'Phone notifications' : 'Browser notifications'} are not set up on this server yet.
+			{native ? t('notify.notSetUpPhone') : t('notify.notSetUpBrowser')}
 		</p>
 	{:else if access === 'unsupported'}
-		<p class="text-fc-sm text-fc-fg-muted">This browser cannot show notifications.</p>
+		<p class="text-fc-sm text-fc-fg-muted">{t('notify.unsupported')}</p>
 	{:else if access === 'denied'}
 		<Alert tone="warning">
 			{native
-				? 'Notifications are blocked. Turn them on in Settings > Apps > Courrier > Notifications.'
+				? t('notify.blockedNative')
 				: desktop
-					? 'Notifications are blocked. Allow Courrier in your system notification settings.'
-					: 'Notifications are blocked for this site. Allow them in your browser settings.'}
+					? t('notify.blockedDesktop')
+					: t('notify.blockedBrowser')}
 		</Alert>
 	{:else if access === 'prompt'}
 		<div>
 			<Button variant="primary" class="min-h-11" icon={busy ? undefined : icons.notification} disabled={busy} onclick={turnOn}>
 				{#if busy}<Spinner size="sm" />{/if}
-				Turn on notifications
+				{t('notify.turnOn')}
 			</Button>
 		</div>
 	{:else}
-		<StatusDot tone="success" label="On for this device" />
+		<StatusDot tone="success" label={t('notify.onThisDevice')} />
 	{/if}
 
 	{#if showTest && supported(push) && access === 'granted'}
 		<div>
 			<Button variant="outline" class="min-h-11" disabled={testing} onclick={sendTest}>
 				{#if testing}<Spinner size="sm" />{/if}
-				Send a test
+				{t('notify.sendTest')}
 			</Button>
 		</div>
 	{/if}
