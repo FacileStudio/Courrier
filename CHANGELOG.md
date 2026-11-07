@@ -2,6 +2,12 @@
 
 All notable changes to Courrier are listed here. The format follows Keep a Changelog, and versions follow semver.
 
+## [Unreleased]
+
+### Changed
+
+- build(client): bump muse to v0.14.4 (from v0.14.2). Switching the language in the user menu re-renders the whole UI at once, with no reload. A single 100% DonutChart slice draws as a full ring.
+
 ## [0.13.2] - 2026-11-07
 
 ### Security
