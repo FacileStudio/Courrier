@@ -1,15 +1,35 @@
 import type { Catalogs, Message } from '@facile/muse';
+import { accounts } from './accounts';
+import { advanced } from './advanced';
+import { assist } from './assist';
+import { auth } from './auth';
+import { common } from './common';
+import { compose } from './compose';
+import { landing } from './landing';
 import { mail } from './mail';
-import { settings } from './settings';
-import { shell } from './shell';
+import { onboarding } from './onboarding';
+import { preferences } from './preferences';
+import { profile } from './profile';
+import { spaceSettings } from './spaceSettings';
 import { spaces } from './spaces';
+import { templates } from './templates';
 import type { Row } from '../row';
 
 const rows = {
-	...shell,
+	...common,
+	...auth,
+	...landing,
+	...onboarding,
+	...preferences,
+	...profile,
+	...accounts,
+	...templates,
+	...advanced,
 	...mail,
+	...assist,
+	...compose,
 	...spaces,
-	...settings
+	...spaceSettings
 };
 
 export type AppKey = keyof typeof rows;

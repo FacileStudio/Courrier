@@ -86,7 +86,6 @@ prefix on every boot.
 
 | Variable | Required | Default | What it does |
 |---|---|---|---|
-| `SSO_ONLY` | no | `false` | When true, the register and login routes are not registered at all |
 | `OIDC_ISSUER` | no | — | Discovery URL, for example `https://porte.facile.studio/application/o/courrier/` |
 | `OIDC_CLIENT_ID` | with issuer | — | Client id from the provider |
 | `OIDC_CLIENT_SECRET` | with issuer | — | Client secret from the provider |
