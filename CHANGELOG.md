@@ -4,6 +4,17 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- `@facile/muse` v0.13.0 to v0.14.1. The sidebar user card and the mobile avatar open muse's user menu: Facile account, Downloads (browser only), Settings, language, theme, help and Sign out. The hand-made `SidebarFooter` popover and its drawn rule are gone, and so is the cog.
+- Settings use muse's `SettingsLayout` in the order Profile, Preferences, Notifications, Accounts, Templates, API tokens, Advanced (plus Updates on the desktop app). Profile is read-only and links to the Facile account, since Registre owns the identity. The Appearance tab became Preferences (language and theme), and the in-settings Sign out is in the user menu. The API token page uses `TokensSection` and the Advanced danger zone uses `DangerZone`.
+- `/settings/appearance` redirects to `/settings/preferences` and `/settings/api` to `/settings/tokens`.
+- Choosing a theme no longer fails when the browser blocks local storage.
+
+### Removed
+
+- The local name edit, photo upload and the profile meta rows, and the unused client calls and strings behind them.
+
 ## [0.12.1] - 2026-11-07
 
 ### Fixed

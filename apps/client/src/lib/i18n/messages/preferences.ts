@@ -12,37 +12,13 @@ export const preferences = {
 	],
 	'settings.sections': ['Settings sections', 'Sections des paramètres', 'Secciones de ajustes', 'Einstellungsbereiche'],
 	'settings.profile': ['Profile', 'Profil', 'Perfil', 'Profil'],
-	'settings.appearance': ['Appearance', 'Apparence', 'Apariencia', 'Darstellung'],
+	'settings.preferences': ['Preferences', 'Préférences', 'Preferencias', 'Einstellungen'],
 	'settings.accounts': ['Accounts', 'Comptes', 'Cuentas', 'Konten'],
 	'settings.notifications': ['Notifications', 'Notifications', 'Notificaciones', 'Benachrichtigungen'],
 	'settings.templates': ['Templates', 'Modèles', 'Plantillas', 'Vorlagen'],
-	'settings.api': ['API', 'API', 'API', 'API'],
+	'settings.tokens': ['API tokens', 'Jetons d’API', 'Tokens de API', 'API-Tokens'],
 	'settings.advanced': ['Advanced', 'Avancé', 'Avanzado', 'Erweitert'],
 	'settings.updates': ['Updates', 'Mises à jour', 'Actualizaciones', 'Updates'],
-	'appearance.theme': ['Theme', 'Thème', 'Tema', 'Design'],
-	'appearance.themeBody': [
-		'Stored in this browser. Every device you sign in from keeps its own choice.',
-		'Enregistré dans ce navigateur. Chaque appareil depuis lequel vous vous connectez garde son propre choix.',
-		'Se guarda en este navegador. Cada dispositivo desde el que inicias sesión conserva su propia elección.',
-		'In diesem Browser gespeichert. Jedes Gerät, mit dem du dich anmeldest, behält seine eigene Wahl.'
-	],
-	'appearance.scheme': ['Colour scheme', 'Schéma de couleurs', 'Esquema de color', 'Farbschema'],
-	'appearance.schemeBody': [
-		'System follows your operating system, and keeps following it while the app is open.',
-		'« Système » suit votre système d’exploitation, même pendant que l’application est ouverte.',
-		'«Sistema» sigue tu sistema operativo y lo sigue mientras la app está abierta.',
-		'„System“ folgt deinem Betriebssystem und folgt ihm auch, solange die App geöffnet ist.'
-	],
-	'appearance.system': ['System', 'Système', 'Sistema', 'System'],
-	'appearance.light': ['Light', 'Clair', 'Claro', 'Hell'],
-	'appearance.dark': ['Dark', 'Sombre', 'Oscuro', 'Dunkel'],
-	'appearance.applied': ['Currently applied', 'Actuellement appliqué', 'Aplicado ahora', 'Derzeit angewendet'],
-	'appearance.appliedBody': [
-		'What System resolved to, or the scheme you picked.',
-		'Ce que « Système » a donné, ou le schéma que vous avez choisi.',
-		'Lo que resolvió «Sistema» o el esquema que elegiste.',
-		'Was „System“ ergeben hat oder das Schema, das du gewählt hast.'
-	],
 	'notifySettings.title': ['Notifications', 'Notifications', 'Notificaciones', 'Benachrichtigungen'],
 	'notifySettings.body': [
 		'Courrier checks your inboxes every few minutes and tells you when a person writes to you. Newsletters, lists and robots never notify.',

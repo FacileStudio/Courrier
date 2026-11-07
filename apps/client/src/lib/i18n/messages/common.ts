@@ -10,8 +10,6 @@ export const common = {
 	'common.back': ['Back', 'Retour', 'Atrás', 'Zurück'],
 	'common.next': ['Next', 'Suivant', 'Siguiente', 'Weiter'],
 	'common.skip': ['Skip', 'Passer', 'Omitir', 'Überspringen'],
-	'common.revoke': ['Revoke', 'Révoquer', 'Revocar', 'Widerrufen'],
-	'common.email': ['Email', 'E-mail', 'Correo electrónico', 'E-Mail'],
 	'common.noSubject': ['(no subject)', '(sans objet)', '(sin asunto)', '(kein Betreff)'],
 	'common.you': ['You', 'Vous', 'Tú', 'Du'],
 	'error.requestFailed': [
@@ -25,25 +23,6 @@ export const common = {
 		'Le téléchargement a échoué (statut {status})',
 		'La descarga falló con el estado {status}',
 		'Download fehlgeschlagen (Status {status})'
-	],
-	'error.uploadNetwork': [
-		'Upload failed. The request never arrived.',
-		'L’envoi a échoué. La requête n’est jamais arrivée.',
-		'La subida falló. La solicitud nunca llegó.',
-		'Upload fehlgeschlagen. Die Anfrage ist nie angekommen.'
-	],
-	'error.uploadCancelled': ['Upload cancelled', 'Envoi annulé', 'Subida cancelada', 'Upload abgebrochen'],
-	'error.uploadNoProfile': [
-		'Upload succeeded but the server sent no profile back',
-		'L’envoi a réussi mais le serveur n’a renvoyé aucun profil',
-		'La subida se completó pero el servidor no devolvió ningún perfil',
-		'Upload erfolgreich, aber der Server hat kein Profil zurückgeschickt'
-	],
-	'error.uploadFailed': [
-		'Upload failed with status {status}',
-		'L’envoi a échoué (statut {status})',
-		'La subida falló con el estado {status}',
-		'Upload fehlgeschlagen (Status {status})'
 	],
 	'error.signInState': [
 		'Sign-in state did not match. Try again.',
@@ -70,11 +49,7 @@ export const common = {
 	'tabs.notifications': ['Notifications', 'Notifications', 'Notificaciones', 'Benachrichtigungen'],
 	'shell.compose': ['Compose', 'Écrire', 'Redactar', 'Verfassen'],
 	'shell.mail': ['Mail', 'Courrier', 'Correo', 'Mail'],
-	'shell.account': ['Account', 'Compte', 'Cuenta', 'Konto'],
-	'shell.accountMenu': ['{name}, account menu', '{name}, menu du compte', '{name}, menú de la cuenta', '{name}, Kontomenü'],
-	'shell.settings': ['Settings', 'Paramètres', 'Ajustes', 'Einstellungen'],
 	'shell.desktopApp': ['Desktop app', 'Application de bureau', 'Aplicación de escritorio', 'Desktop-App'],
-	'shell.signOut': ['Sign out', 'Se déconnecter', 'Cerrar sesión', 'Abmelden'],
 	'shell.switchAccount': [
 		'Switch account, current {email}',
 		'Changer de compte, actuel : {email}',

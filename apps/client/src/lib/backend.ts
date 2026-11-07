@@ -556,62 +556,6 @@ export const backend = {
 		return apiFetch<{ settings: InstanceSettings }>('/api/settings/').then((r) => r.settings);
 	},
 
-	updateMe(data: { name?: string }) {
-		return apiFetch<MeResponse>('/api/users/me', {
-			method: 'PATCH',
-			body: JSON.stringify(data)
-		}).then((r) => normalizeUser(r.user));
-	},
-	clearAvatar() {
-		return apiFetch<MeResponse>('/api/users/me/avatar', { method: 'DELETE' }).then((r) =>
-			normalizeUser(r.user)
-		);
-	},
-
-	/**
-	 * Uploaded over XHR rather than fetch because `UploadProgress` wants a real percentage and
-	 * `fetch` still cannot report request-body progress in any browser.
-	 */
-	async uploadAvatar(file: File, onProgress: (percent: number) => void): Promise<UserProfile> {
-		const credential = new Headers((await authed({ method: 'POST' })).headers);
-		return new Promise((resolve, reject) => {
-			const body = new FormData();
-			body.append('avatar', file);
-
-			const xhr = new XMLHttpRequest();
-			xhr.open('POST', `${backendBaseUrl}/api/users/me/avatar`);
-			xhr.withCredentials = !isApp();
-			credential.forEach((value, name) => xhr.setRequestHeader(name, value));
-			xhr.upload.addEventListener('progress', (event) => {
-				if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
-			});
-			xhr.addEventListener('error', () =>
-				reject(new Error(t('error.uploadNetwork')))
-			);
-			xhr.addEventListener('abort', () => reject(new Error(t('error.uploadCancelled'))));
-			xhr.addEventListener('load', () => {
-				let payload: unknown;
-				try {
-					payload = JSON.parse(xhr.responseText);
-				} catch {
-					payload = undefined;
-				}
-				if (xhr.status >= 200 && xhr.status < 300) {
-					const user = (payload as MeResponse | undefined)?.user;
-					if (!user) {
-						reject(new Error(t('error.uploadNoProfile')));
-						return;
-					}
-					resolve(normalizeUser(user));
-					return;
-				}
-				const message = (payload as ApiErrorPayload | undefined)?.error?.message;
-				reject(new Error(message || t('error.uploadFailed', { status: xhr.status })));
-			});
-			xhr.send(body);
-		});
-	},
-
 	apiTokenStatus() {
 		return apiFetch<ApiTokenStatus>('/api/users/me/api-token');
 	},
