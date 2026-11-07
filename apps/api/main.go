@@ -27,7 +27,6 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/modules/users"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
-	"github.com/FacileStudio/porte/local"
 	"github.com/FacileStudio/porte/oidc"
 	portepg "github.com/FacileStudio/porte/pg"
 	"github.com/FacileStudio/porte/session"
@@ -73,20 +72,10 @@ func referenceConfig() apiref.Config {
 	}
 }
 
-// buildAuth constructs porte: one session manager, shared by the OIDC kit and
-// the local login, over the identity tables.
-//
-// One manager and not two: they would each keep their own idea of the clock
-// and of whether the cookie is Secure, and porte refuses a kit whose config
-// disagrees with its manager's for exactly that reason. Discovery runs here,
-// so an unreachable or half-configured issuer fails at boot rather than on
-// somebody's first login — a change from what this app did, where a discovery
-// failure at route-registration time logged an error and left SSO 404ing until
-// the next restart.
-//
-// Courrier's password floor has always been eight characters while porte
-// defaults to twelve; raising it here would reject a password this app
-// accepted yesterday — a product decision, not a migration.
+// buildAuth constructs porte: one session manager and the OIDC kit over the
+// identity tables. Sign-in goes through Registre only; there is no local
+// password kit. Discovery runs here, so an unreachable or half-configured
+// issuer fails at boot rather than on somebody's first login.
 func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *slog.Logger) (services, error) {
 	sqlDB, err := db.DB()
 	if err != nil {
@@ -110,17 +99,7 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 	if err != nil {
 		return services{}, err
 	}
-	passwords, err := local.New(local.Config{AllowRegistration: !appEnv.SSOOnly, MinPasswordLength: 8}, local.Deps{
-		Users:      users,
-		Identities: store.Identities(),
-		Sessions:   sessions,
-		Logger:     appLogger,
-		Count:      users.CountUsers,
-	})
-	if err != nil {
-		return services{}, err
-	}
-	return services{sessions: sessions, passwords: passwords, kit: kit, assist: newAssist(appEnv, store.Identities())}, nil
+	return services{sessions: sessions, kit: kit, assist: newAssist(appEnv, store.Identities())}, nil
 }
 
 // buildRouter wires every module service and the shared middleware onto the
@@ -131,7 +110,8 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 // the visitor survives in Cf-Connecting-Ip alone. TRUSTED_PROXIES=private,cloudflare
 // fills all three.
 func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger *slog.Logger, svc services) chi.Router {
-	authService := auth.NewService(db, svc.sessions, svc.passwords, appLogger)
+	clientDir := spa.DirFromEnv()
+	authService := auth.NewService(db, svc.sessions, appLogger)
 	accountService := accounts.NewService(db, appEnv.EncryptionKey, svc.plans)
 	userService := users.NewService(db, appEnv.StorageDir, authService)
 	settingsService := settings.NewService(len(appEnv.EncryptionKey) > 0)
@@ -145,10 +125,11 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 			AllowedOrigins:   appEnv.CORSAllowedOrigins,
 			AllowCredentials: true,
 		},
+		Security: securityConfig(clientDir, appLogger),
 	})
-	router.Use(middleware.SecurityHeaders)
 
 	health.Mount(router, dbCheck)
+	router.Get("/version", versionHandler)
 	apiref.Mount(router, referenceConfig())
 
 	router.Route("/api", func(r chi.Router) {
@@ -163,10 +144,9 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 		assist.RegisterRoutes(r, svc.assist, authService)
 		users.RegisterRoutes(r, userService, authService)
 		settings.RegisterRoutes(r, settingsService, authService)
-		registerSpaces(r, db, appEnv, svc.directory, authService)
+		registerSpaces(r, db, appEnv, svc.directory, svc.deletions, authService)
 	})
 
-	clientDir := spa.DirFromEnv()
 	if spa.Available(clientDir) {
 		router.Handle("/*", middleware.Gzip(spa.Handler(spa.Config{Dir: clientDir})))
 		appLogger.Info("serving client", slog.String("dir", clientDir))
@@ -264,6 +244,9 @@ func run() int {
 	if svc.directory != nil {
 		go svc.directory.Run(shutdownSignal)
 	}
+	if svc.deletions != nil {
+		go svc.deletions.Run(shutdownSignal)
+	}
 
 	appLogger.Info("server starting", slog.String("addr", addr))
 	select {
@@ -284,4 +267,26 @@ func run() int {
 	}
 
 	return 0
+}
+
+// externalConnect lists the origins the built client calls besides itself:
+// Ardoise's public plan catalog and the icon API behind iconify-icon.
+var externalConnect = []string{"https://api-ardoise.facile.studio", "https://api.iconify.design"}
+
+// securityConfig extends tronc's default security headers with what the built
+// client needs: the inline scripts adapter-static writes into its pages, which
+// script-src 'self' would otherwise block, and the external origins above. A
+// client directory that cannot be hashed is logged and leaves the default
+// script policy, which only reports.
+func securityConfig(clientDir string, appLogger *slog.Logger) troncmiddleware.SecurityConfig {
+	sources := map[string][]string{"connect-src": externalConnect}
+	if spa.Available(clientDir) {
+		hashes, err := spa.InlineScriptHashes(clientDir)
+		if err != nil {
+			appLogger.Warn("failed to hash the client's inline scripts", slog.Any("error", err))
+		} else {
+			sources["script-src"] = hashes
+		}
+	}
+	return troncmiddleware.SecurityConfig{CSPSources: sources}
 }

@@ -212,3 +212,11 @@ func currentUserID(req *http.Request) (int64, error) {
 	identity := authcontext.MustIdentity(req.Context())
 	return parseUserID(identity.UserID)
 }
+
+// RegisterDeletions mounts Registre's signed user.deleted push at
+// /registre/deletions under the /api router, which is directory.DeletionsPath.
+// It sits outside RequireAuth: the handler verifies the notice's signature
+// itself.
+func RegisterDeletions(router chi.Router, deletions *Deletions) {
+	router.Method(http.MethodPost, "/registre/deletions", deletions.Handler())
+}

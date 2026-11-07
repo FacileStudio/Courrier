@@ -10,11 +10,9 @@ import (
 	"testing"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
-	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/Courrier/apps/api/modules/spaces"
 	"github.com/FacileStudio/porte/directory"
-	"github.com/FacileStudio/porte/local"
 	"github.com/FacileStudio/porte/oidc"
 	portepg "github.com/FacileStudio/porte/pg"
 	"github.com/FacileStudio/porte/session"
@@ -39,25 +37,17 @@ func referenceRouter(t *testing.T) chi.Router {
 	if err != nil {
 		t.Fatalf("oidc.New: %v", err)
 	}
-	passwords, err := local.New(local.Config{}, local.Deps{
-		Users:      auth.NewUserStore(nil),
-		Identities: store.Identities(),
-		Sessions:   sessions,
-		Count:      func(context.Context) (int64, error) { return 0, nil },
-	})
-	if err != nil {
-		t.Fatalf("local.New: %v", err)
-	}
 	appEnv.OIDC = &env.OIDCConfig{Issuer: "https://sso.test"}
 	svc := services{
-		sessions: sessions, passwords: passwords, kit: kit, mail: mail.NewService(nil, nil),
+		sessions: sessions, kit: kit, mail: mail.NewService(nil, nil),
 		directory: spaces.NewDirectory(nil, directory.Client{Issuer: appEnv.OIDC.Issuer}, appLogger),
+		deletions: spaces.NewDeletions(nil, directory.Client{Issuer: appEnv.OIDC.Issuer}, nil, appEnv.StorageDir, appLogger),
 	}
 	return buildRouter(nil, func(context.Context) error { return nil }, appEnv, appLogger, svc)
 }
 
 func TestEveryRouteIsDocumented(t *testing.T) {
-	if missing := apiref.Undocumented(referenceRouter(t), referenceConfig()); len(missing) > 0 {
+	if missing := apiref.Undocumented(referenceRouter(t), referenceConfig(), "/version"); len(missing) > 0 {
 		t.Errorf("routes missing from the API registry: %v", missing)
 	}
 }
@@ -80,6 +70,7 @@ func TestRegistryIsComplete(t *testing.T) {
 		"/users/me/avatar",
 		"/spaces/{spaceId}/leave",
 		"/registre/sync",
+		"/registre/deletions",
 	); len(issues) > 0 {
 		t.Errorf("incomplete documentation routes: %v", issues)
 	}

@@ -12,24 +12,23 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/modules/spaces"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
-	"github.com/FacileStudio/porte/local"
 	"github.com/FacileStudio/porte/oidc"
 	"github.com/FacileStudio/porte/session"
 
 	"gorm.io/gorm"
 )
 
-// services are the long-lived pieces run builds once: porte's session manager,
-// password login and OIDC kit, the mail service the watcher shares with the
-// HTTP routes, the push hub, and the Registre space sync and plan gate when
+// services are the long-lived pieces run builds once: porte's session manager
+// and OIDC kit, the mail service the watcher shares with the HTTP routes, the
+// push hub, and the Registre space sync, deletion receiver and plan gate when
 // SSO is on.
 type services struct {
 	sessions  *session.Manager
-	passwords *local.Kit
 	kit       *oidc.Kit
 	mail      *mail.Service
 	push      *push.Hub
 	directory *spaces.Directory
+	deletions *spaces.Deletions
 	plans     *plans.Gate
 	assist    *assist.Service
 }
@@ -48,6 +47,9 @@ func buildServices(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogge
 		return services{}, err
 	}
 	svc.directory = newDirectory(db, appEnv, svc.plans, appLogger)
+	if svc.deletions, err = newDeletions(db, appEnv, appLogger); err != nil {
+		return services{}, err
+	}
 	reportSpaceIDs(db, appLogger)
 	return svc, nil
 }

@@ -24,6 +24,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
     expose:
     - '4000'
     networks:
@@ -76,7 +78,6 @@ services:
       BULLE_URL: ${BULLE_URL:-}
       TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
       MAIL_POLL_INTERVAL: ${MAIL_POLL_INTERVAL:-2m}
-      SSO_ONLY: ${SSO_ONLY:-false}
       JOURNAL_URL: ${JOURNAL_URL:-}
       JOURNAL_TOKEN: ${JOURNAL_TOKEN:-}
     depends_on:

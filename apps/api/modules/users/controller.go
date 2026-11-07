@@ -60,7 +60,7 @@ func (controller *Controller) me(context context.Context) (*MeResponse, error) {
 	return &MeResponse{User: *user}, nil
 }
 
-func (controller *Controller) updateMe(context context.Context, w http.ResponseWriter, request *http.Request, req *UpdateRequest) (*MeResponse, error) {
+func (controller *Controller) updateMe(context context.Context, req *UpdateRequest) (*MeResponse, error) {
 	identity, ok := authcontext.IdentityFromContext(context)
 	if !ok {
 		return nil, errors.Unauthorized("missing auth")
@@ -75,34 +75,11 @@ func (controller *Controller) updateMe(context context.Context, w http.ResponseW
 		name = &trimmed
 	}
 
-	var email *string
-	if req.Email != nil {
-		normalized := strings.TrimSpace(strings.ToLower(*req.Email))
-		if normalized == "" || !strings.Contains(normalized, "@") {
-			return nil, errors.Invalid("invalid email")
-		}
-		email = &normalized
+	if name == nil {
+		return nil, errors.Invalid("name is required")
 	}
 
-	var password *string
-	if req.Password != nil {
-		if len(*req.Password) < 8 {
-			return nil, errors.Invalid("password must be at least 8 characters")
-		}
-		password = req.Password
-	}
-
-	if name == nil && email == nil && password == nil {
-		return nil, errors.Invalid("at least one field must be provided")
-	}
-
-	if password != nil {
-		if err := controller.changePassword(context, w, request, identity.UserID, req, *password); err != nil {
-			return nil, err
-		}
-	}
-
-	user, err := controller.service.updateUser(context, identity.UserID, name, email)
+	user, err := controller.service.updateUser(context, identity.UserID, name)
 	if err != nil {
 		return nil, err
 	}

@@ -98,10 +98,6 @@ func Load() (Config, error) {
 	cfg.ResourceTokenSecret = resourcetoken.DeriveSecret(encryptionKey)
 	cfg.EncryptionKey = crypto.DeriveKey(encryptionKey)
 
-	if cfg.SSOOnly, err = troncenv.Bool("SSO_ONLY", false); err != nil {
-		return Config{}, err
-	}
-
 	cfg.BulleURL = troncenv.String("BULLE_URL", "")
 	if issuer := troncenv.String("OIDC_ISSUER", ""); issuer != "" {
 		clientID := troncenv.String("OIDC_CLIENT_ID", "")
@@ -127,6 +123,10 @@ func Load() (Config, error) {
 			MobileRedirect:  troncenv.String("OIDC_MOBILE_REDIRECT", DefaultMobileRedirect),
 		}
 		cfg.CORSAllowedOrigins = withAppOrigins(cfg.CORSAllowedOrigins, cfg.OIDC.MobileRedirect)
+	}
+
+	if cfg.IsProduction() && cfg.OIDC == nil {
+		return Config{}, fmt.Errorf("OIDC_ISSUER is required in production: sign-in goes through Registre only")
 	}
 
 	if cfg.Push, err = loadPush(); err != nil {
@@ -190,7 +190,6 @@ func loadPush() (Push, error) {
 // one is written.
 func (c Config) Porte() porte.Config {
 	cfg := porte.Config{
-		SSOOnly:            c.SSOOnly,
 		AcceptLegacyCookie: true,
 	}
 	if c.OIDC == nil {

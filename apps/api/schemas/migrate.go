@@ -49,8 +49,22 @@ func MigrateWithIssuer(db *gorm.DB, issuer string) error {
 		return err
 	}
 
+	if err := db.Exec(directoryDeletionState).Error; err != nil {
+		return err
+	}
+
 	return AdoptPorte(db, issuer)
 }
+
+// directoryDeletionState holds the GDPR deletion receiver's cursor and handled
+// subjects in a single row, so a restart never replays or skips a notice.
+const directoryDeletionState = `
+CREATE TABLE IF NOT EXISTS directory_deletion_state (
+	id         smallint PRIMARY KEY CHECK (id = 1),
+	state      bytea NOT NULL,
+	updated_at timestamptz NOT NULL DEFAULT now()
+);
+`
 
 // backfillEmailClassColumns turns the NULL category and bulk_reason that
 // AutoMigrate leaves on every row cached before those columns existed into the

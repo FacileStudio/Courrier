@@ -81,7 +81,7 @@ func bearerRequest(method, path, token string) *http.Request {
 func scopeRouters(t *testing.T) (real, readable http.Handler) {
 	t.Helper()
 	sessions := bearerSessions(t)
-	authService := auth.NewService(nil, sessions, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	authService := auth.NewService(nil, sessions, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	realRoutes := chi.NewRouter()
 	realRoutes.Route("/api", func(r chi.Router) {
