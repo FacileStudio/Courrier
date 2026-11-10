@@ -54,10 +54,10 @@ func TestPersonalSubjectFallsBackToTheMostRecent(t *testing.T) {
 	}
 }
 
-// TestSnapshotVersionGoingBackIsIgnored pins porte/forfait v0.1.0: once a
-// snapshot is applied, one with a lower version is dropped even at a higher
-// revision, so a Registre restored from backup keeps Courrier on the newer
-// values until forfait_state is deleted and Courrier restarts.
+// TestSnapshotVersionGoingBackIsIgnored pins porte/forfait v0.1.1: a
+// snapshot with a lower version is dropped at the same revision, but a higher
+// revision wins whatever its version, so a Registre restored from backup
+// moves Courrier to the restored values on the next pull.
 func TestSnapshotVersionGoingBackIsIgnored(t *testing.T) {
 	requireDB(t)
 	alice := newUser(t, "alice@facile.studio", "alice")
@@ -65,10 +65,9 @@ func TestSnapshotVersionGoingBackIsIgnored(t *testing.T) {
 	gate := newGate()
 	apply(t, gate, versioned(10, 2, 1))
 	apply(t, gate, versioned(5, 2, 5))
+	expectLimit(t, check(gate, alice, nil), 1, testIssuer+"/spaces", "after an older version")
 	apply(t, gate, versioned(5, 3, 5))
-	expectLimit(t, check(gate, alice, nil), 1, testIssuer+"/spaces", "after older versions")
-	apply(t, gate, versioned(11, 3, 5))
-	expectAllowed(t, check(gate, alice, nil), "after a newer version")
+	expectAllowed(t, check(gate, alice, nil), "after a newer revision")
 }
 
 // versioned is a snapshot giving alice a personal mailbox limit.
