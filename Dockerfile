@@ -5,8 +5,9 @@ RUN bun install --frozen-lockfile
 COPY apps/client/ .
 RUN bun run build
 
-FROM golang:1.26-alpine AS api-build
+FROM golang:1.26.10-alpine AS api-build
 WORKDIR /app
+COPY apps/api/go.mod apps/api/go.sum ./
 COPY apps/api/ .
 COPY apps/client/package.json /version/package.json
 COPY scripts/version.sh /version/version.sh
