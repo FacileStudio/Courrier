@@ -67,6 +67,8 @@ func seedErasure(t *testing.T) erasureFixture {
 	mustCreate(t, &schemas.EmailTemplate{UserID: gone, SpaceID: &spaceID, Name: "team-template"})
 	mustCreate(t, &schemas.EmailTemplate{UserID: other, Name: "their-template"})
 
+	seedCredentials(t, gone)
+	seedCredentials(t, other)
 	deletions := newErasureDeletions(t)
 	return erasureFixture{gone: gone, other: other, deletions: deletions}
 }

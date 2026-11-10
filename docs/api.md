@@ -319,7 +319,9 @@ and `email_ids` appear only on collapsed conversation rows from the folder listi
 | POST | `/api/registre/deletions` | signed security event | 202. Registre's `user.deleted` notice; the body is verified against Registre's keys, anything else is a 400 |
 
 When Registre erases a person, Courrier deletes that person's account, personal mail accounts
-with their cached folders, messages, contacts and rules, personal templates and memberships.
-Mail accounts and templates attached to a space stay. The receiver also polls Registre, so the
+with their stored credentials, cached folders, messages, attachments, contacts and rules, personal
+templates, space memberships, sessions and API tokens, push devices, MCP pending actions and
+uploaded avatar, in one transaction through porte/kit's `EraseAccount`. Mail accounts and templates
+attached to a space belong to the space and stay. The receiver also polls Registre, so the
 push is optional; set `deletion_uri` on the Courrier client to receive it. `GET /version`
 answers `{"version"}`, baked in at build time from `apps/client/package.json`.
