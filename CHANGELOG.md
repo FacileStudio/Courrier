@@ -2,6 +2,12 @@
 
 All notable changes to Courrier are listed here. The format follows Keep a Changelog, and versions follow semver.
 
+## [Unreleased]
+
+### Changed
+
+- Licence: Courrier is now licensed under `AGPL-3.0-only` (see `LICENSE`); before this, the repository carried no licence.
+
 ## [0.15.1] - 2026-11-10
 
 ### Fixed

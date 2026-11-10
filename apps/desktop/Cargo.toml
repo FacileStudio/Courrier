@@ -3,6 +3,7 @@ name = "courrier-desktop"
 version = "0.0.0"
 description = "Courrier desktop app: a Tauri shell around the web client"
 edition = "2024"
+license = "AGPL-3.0-only"
 publish = false
 
 [workspace]
