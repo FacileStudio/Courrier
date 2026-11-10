@@ -23,8 +23,8 @@ mise run install
 docker compose up db -d
 ```
 
-`mise run hooks` points `core.hooksPath` at `.githooks`, which wires up the pre-push
-quality gate. `mise run install` runs `bun install --frozen-lockfile` in `apps/client`.
+`mise run hooks` installs the tracked `lefthook.yml` hooks (and resets a clone still
+pointed at the old `.githooks`), which wires up the pre-push quality gate. `mise run install` runs `bun install --frozen-lockfile` in `apps/client`.
 
 The `db` service requires `POSTGRES_USER` and `POSTGRES_PASSWORD` in your `.env` — Compose
 declares them with `:?`, so it refuses to start without them. Copy `.env.example` first.
@@ -72,15 +72,17 @@ goroutine — `mail.BackfillThreads`.
 | `mise run check` | `sh ./scripts/check.sh` | The full quality gate: Go, then the client |
 | `mise run check-go` | `sh ./scripts/check.sh --go-only` | Go half only |
 | `mise run format` | `sh ./scripts/check.sh --format` | `go fmt ./...`, rewriting files in place |
-| `mise run hooks` | `git config core.hooksPath .githooks` | Enables the tracked hooks in this clone |
+| `mise run hooks` | `lefthook install --reset-hooks-path` | Installs the tracked `lefthook.yml` hooks in this clone |
 
 Client scripts, run from `apps/client`: `bun run dev`, `bun run build`, `bun run preview`,
 `bun run check` (`svelte-check` against `tsconfig.json`).
 
 ## The quality gate
 
-`scripts/check.sh` is the gate, and `.githooks/pre-push` does nothing but exec it. It
-reports and never rewrites, except under `--format`:
+`scripts/check.sh` is the gate. The `lefthook.yml` pre-push hook runs it, then `filet gate .`
+(format, filet rules, vet, staticcheck, tests with `-race`, clippy and douane; its gofmt step is
+off because `apps/api/vendor` is upstream code, which `check.sh` skips). `check.sh` reports and
+never rewrites, except under `--format`:
 
 1. `gofmt -l .` over `apps/api`, ignoring `vendor/`. Any listed file fails the gate.
 2. `go vet ./...`
