@@ -37,7 +37,8 @@ func mountPending(router chi.Router, svc services, authService *auth.Service) {
 
 // newMCP builds the MCP server when MCP_RESOURCE is set and SSO is on, and
 // nothing otherwise. The verifier runs Registre discovery here, so a wrong
-// issuer fails at boot like the OIDC kit does.
+// issuer fails at boot like the OIDC kit does. A person's first MCP call
+// creates their account through the OIDC kit, as a first web login would.
 func newMCP(ctx context.Context, db *gorm.DB, appEnv env.Config, svc services, appLogger *slog.Logger) (*mcp.Service, error) {
 	if appEnv.OIDC == nil || appEnv.MCP.Resource == "" {
 		return nil, nil
@@ -47,6 +48,8 @@ func newMCP(ctx context.Context, db *gorm.DB, appEnv env.Config, svc services, a
 		Resource:    appEnv.MCP.Resource,
 		ScopePrefix: "courrier",
 		Identities:  svc.identity,
+		Provision:   true,
+		Accounts:    svc.kit,
 		Logger:      appLogger,
 	})
 	if err != nil {
