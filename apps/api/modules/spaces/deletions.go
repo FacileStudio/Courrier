@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/FacileStudio/porte/directory"
 
@@ -17,24 +18,33 @@ import (
 // list with the same client credentials as the snapshot sync and accepts
 // Registre's signed push on directory.DeletionsPath.
 type Deletions struct {
-	orm        *gorm.DB
-	storageDir string
-	receiver   *directory.Deletions
+	orm          *gorm.DB
+	storageDir   string
+	eraseAccount func(context.Context, string, string) error
+	receiver     *directory.Deletions
 }
 
-// NewDeletions builds the receiver over Courrier's tables. erase is porte's
-// own rows eraser, pg.Store.EraseIdentity.
-func NewDeletions(
-	orm *gorm.DB, client directory.Client, erase func(context.Context, string, string) error,
-	storageDir string, logger *slog.Logger,
-) *Deletions {
-	d := &Deletions{orm: orm, storageDir: storageDir}
+// DeletionsConfig is what the receiver needs besides the database.
+// EraseAccount is porte/kit's (*Store).EraseAccount, which deletes the users
+// row and what it owns; EraseIdentity is porte's own rows eraser,
+// pg.Store.EraseIdentity.
+type DeletionsConfig struct {
+	Client        directory.Client
+	EraseAccount  func(context.Context, string, string) error
+	EraseIdentity func(context.Context, string, string) error
+	StorageDir    string
+	Logger        *slog.Logger
+}
+
+// NewDeletions builds the receiver over Courrier's tables.
+func NewDeletions(orm *gorm.DB, cfg DeletionsConfig) *Deletions {
+	d := &Deletions{orm: orm, storageDir: cfg.StorageDir, eraseAccount: cfg.EraseAccount}
 	d.receiver = &directory.Deletions{
-		Client:          client,
+		Client:          cfg.Client,
 		OnPersonDeleted: d.ErasePerson,
-		Erase:           erase,
+		Erase:           cfg.EraseIdentity,
 		State:           deletionState{orm: orm},
-		Logger:          logger,
+		Logger:          cfg.Logger,
 	}
 	return d
 }
@@ -49,56 +59,38 @@ func (d *Deletions) Handler() http.Handler {
 	return d.receiver.Handler()
 }
 
-const (
-	personalAccounts = `SELECT id FROM accounts WHERE user_id = @id AND space_id IS NULL`
-
-	deleteOwnedAttachments = `DELETE FROM attachments WHERE email_id IN (
-		SELECT id FROM emails WHERE account_id IN (` + personalAccounts + `))`
-	deleteOwnedEmails  = `DELETE FROM emails WHERE account_id IN (` + personalAccounts + `)`
-	deleteOwnedFolders = `DELETE FROM folders WHERE account_id IN (` + personalAccounts + `)`
-	deleteOwnedLinks   = `DELETE FROM thread_links WHERE account_id IN (` + personalAccounts + `)`
-	deleteOwnedRules   = `DELETE FROM sender_rules WHERE account_id IN (` + personalAccounts + `)`
-	deleteOwnedContact = `DELETE FROM contacts WHERE account_id IN (` + personalAccounts + `)`
-	deleteOwnedAccount = `DELETE FROM accounts WHERE user_id = @id AND space_id IS NULL`
-	deleteTemplates    = `DELETE FROM email_templates WHERE user_id = @id AND space_id IS NULL`
-	deleteMemberships  = `DELETE FROM space_members WHERE user_id = @id`
-	deleteAccount      = `DELETE FROM users WHERE id = @id`
-)
-
-// ErasePerson deletes the account behind a Registre identity and what it owns:
-// its personal mail accounts with their folders, cached messages, contacts and
-// rules, its personal templates, its memberships, its devices and sessions.
-// Mail accounts and templates attached to a space belong to the space and
-// stay. A subject that is already gone is a no-op, so a replayed notice
-// changes nothing.
+// ErasePerson deletes the account behind a Registre identity and what it owns,
+// through the kit's EraseAccount, then removes its uploaded avatar from disk.
+// A subject that is already gone is a no-op, so a replayed notice changes
+// nothing.
 func (d *Deletions) ErasePerson(ctx context.Context, provider, subject string) error {
-	var account struct {
-		ID         int64
-		UploadPath string
-	}
+	var uploads []string
 	err := d.orm.WithContext(ctx).Raw(
-		`SELECT u.id, coalesce(u.avatar_upload_path, '') AS upload_path FROM users u
-		 JOIN porte_identities i ON i.user_id = u.id WHERE i.provider = ? AND i.subject = ?`,
-		provider, subject).Scan(&account).Error
-	if err != nil || account.ID == 0 {
+		`SELECT coalesce(u.avatar_upload_path, '') FROM users u
+		 JOIN porte_identities i ON i.user_id = u.id
+		 WHERE i.provider IN (?, ?) AND i.subject = ?`,
+		provider, toggleSlash(provider), subject).Scan(&uploads).Error
+	if err != nil {
 		return err
 	}
-	err = d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for _, statement := range []string{
-			deleteOwnedAttachments, deleteOwnedEmails, deleteOwnedFolders, deleteOwnedLinks,
-			deleteOwnedRules, deleteOwnedContact, deleteOwnedAccount, deleteTemplates,
-			deleteMemberships, deleteAccount,
-		} {
-			if err := tx.Exec(statement, map[string]any{"id": account.ID}).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err == nil && account.UploadPath != "" {
-		removeUpload(d.storageDir, account.UploadPath)
+	if err := d.eraseAccount(ctx, provider, subject); err != nil {
+		return err
 	}
-	return err
+	for _, upload := range uploads {
+		if upload != "" {
+			removeUpload(d.storageDir, upload)
+		}
+	}
+	return nil
+}
+
+// toggleSlash is the issuer with its one trailing slash added or removed, the
+// other spelling the kit also matches.
+func toggleSlash(provider string) string {
+	if trimmed, ok := strings.CutSuffix(provider, "/"); ok {
+		return trimmed
+	}
+	return provider + "/"
 }
 
 func removeUpload(storageDir, relative string) {

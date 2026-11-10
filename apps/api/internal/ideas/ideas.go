@@ -9,11 +9,10 @@ package ideas
 import (
 	"context"
 	"net/http"
-	"strconv"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/Courrier/apps/api/internal/plans"
 	"github.com/FacileStudio/Courrier/apps/api/internal/spaceid"
+	"github.com/FacileStudio/porte/kit"
 
 	"github.com/FacileStudio/tronc/bulle"
 	"github.com/FacileStudio/tronc/errors"
@@ -72,14 +71,11 @@ func (g *Gate) resolve(next http.Handler) http.Handler {
 }
 
 func (g *Gate) scope(r *http.Request) (scope, error) {
-	identity, ok := authcontext.IdentityFromContext(r.Context())
+	identity, ok := kit.FromContext(r.Context())
 	if !ok {
 		return scope{}, errors.Unauthorized("missing auth")
 	}
-	userID, err := strconv.ParseInt(identity.UserID, 10, 64)
-	if err != nil {
-		return scope{}, errors.Unauthorized("missing auth")
-	}
+	userID := identity.UserID
 	id, err := spaceid.Query(r.URL.Query().Get("space_id"))
 	if err != nil {
 		return scope{}, err

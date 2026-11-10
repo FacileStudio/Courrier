@@ -36,9 +36,7 @@ func urlID(req *http.Request, name, label string) (int64, error) {
 }
 
 func (s *Service) accountScope(req *http.Request) (userID, accountID int64, err error) {
-	if userID, err = requestUserID(req); err != nil {
-		return 0, 0, err
-	}
+	userID = middleware.UserID(req)
 	accountID, err = urlID(req, "accountId", "account")
 	return userID, accountID, err
 }

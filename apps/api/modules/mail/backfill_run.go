@@ -10,6 +10,7 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
 
+	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/tronc/errors"
 	"github.com/FacileStudio/tronc/httpjson"
@@ -138,11 +139,7 @@ func (s *Service) runBackgroundBackfill(userID, accountID int64) {
 }
 
 func (s *Service) handleBackfill(w http.ResponseWriter, req *http.Request) {
-	uid, err := requestUserID(req)
-	if err != nil {
-		httpjson.WriteError(w, err)
-		return
-	}
+	uid := middleware.UserID(req)
 	accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 	if err != nil {
 		httpjson.WriteError(w, errors.Invalid("invalid account id"))

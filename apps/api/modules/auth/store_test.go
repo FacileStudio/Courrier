@@ -2,12 +2,15 @@ package auth
 
 import (
 	"context"
+	"io"
 	"log"
+	"log/slog"
 	"os"
 	"testing"
 
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/porte"
+	"github.com/FacileStudio/porte/kit"
 	"github.com/FacileStudio/tronc/testdb"
 
 	"gorm.io/gorm"
@@ -45,6 +48,19 @@ func openTestDatabase(t *testing.T) *gorm.DB {
 	return testORM
 }
 
+func newStore(t *testing.T, db *gorm.DB) *kit.Store {
+	t.Helper()
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("db: %v", err)
+	}
+	store, err := NewUserStore(context.Background(), sqlDB, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewUserStore: %v", err)
+	}
+	return store
+}
+
 func claims(subject, email string, verified bool) porte.Claims {
 	return porte.Claims{Provider: testIssuer, Subject: subject, Email: email, EmailVerified: verified, Locale: "de"}
 }
@@ -62,7 +78,7 @@ func link(t *testing.T, db *gorm.DB, userID int64, subject string) {
 // and then resolve by subject. The session locale is stored on the way.
 func TestFirstFacileSignInLinksAnExistingAccountByVerifiedEmail(t *testing.T) {
 	db := openTestDatabase(t)
-	store := NewUserStore(db)
+	store := newStore(t, db)
 	ctx := context.Background()
 
 	existing := schemas.User{Email: "camille@facile.studio", Name: "Camille"}
@@ -95,7 +111,7 @@ func TestFirstFacileSignInLinksAnExistingAccountByVerifiedEmail(t *testing.T) {
 
 func TestAnUnverifiedAddressNeverLinksToAnExistingAccount(t *testing.T) {
 	db := openTestDatabase(t)
-	store := NewUserStore(db)
+	store := newStore(t, db)
 
 	if err := db.Create(&schemas.User{Email: "noah@facile.studio", Name: "Noah"}).Error; err != nil {
 		t.Fatalf("seed: %v", err)
@@ -107,7 +123,7 @@ func TestAnUnverifiedAddressNeverLinksToAnExistingAccount(t *testing.T) {
 
 func TestARecycledAddressIsNotHandedToANewSubject(t *testing.T) {
 	db := openTestDatabase(t)
-	store := NewUserStore(db)
+	store := newStore(t, db)
 
 	owner := schemas.User{Email: "lea@facile.studio", Name: "Lea"}
 	if err := db.Create(&owner).Error; err != nil {

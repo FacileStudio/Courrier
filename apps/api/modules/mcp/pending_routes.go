@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
+	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/porte"
 	"github.com/FacileStudio/tronc/errors"
@@ -23,11 +23,7 @@ func pendingUser(r *http.Request) (mcpkit.Caller, error) {
 	if identity, ok := porte.From(r.Context()); ok && identity.Actor != "" {
 		return mcpkit.Caller{}, errors.Forbidden("a delegated token cannot confirm actions")
 	}
-	userID := authcontext.MustIdentity(r.Context()).UserID
-	if _, err := strconv.ParseInt(userID, 10, 64); err != nil {
-		return mcpkit.Caller{}, errors.Invalid("invalid user id")
-	}
-	return mcpkit.Caller{UserID: userID, Actor: webActor}, nil
+	return mcpkit.Caller{UserID: strconv.FormatInt(middleware.UserID(r), 10), Actor: webActor}, nil
 }
 
 // handleList answers the person's open actions with their drafts.

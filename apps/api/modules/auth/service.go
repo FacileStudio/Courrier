@@ -2,31 +2,25 @@ package auth
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
-	"strconv"
 
-	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/porte"
+	"github.com/FacileStudio/porte/kit"
 	"github.com/FacileStudio/porte/session"
-	"github.com/FacileStudio/tronc/errors"
-
-	"gorm.io/gorm"
 )
 
 // Service is what is left of Courrier's authentication after porte took the
 // credential: the profile lookup the rest of the app reads, and the named API
 // tokens.
 type Service struct {
-	orm      *gorm.DB
 	sessions *session.Manager
-	logger   *slog.Logger
+	users    kit.Resolver
 }
 
-// NewService builds the auth Service over the porte session manager.
-func NewService(orm *gorm.DB, sessions *session.Manager, logger *slog.Logger) *Service {
-	service := &Service{orm: orm, sessions: sessions, logger: logger}
-	return service
+// NewService builds the auth Service over the porte session manager and the
+// kit store that resolves a user id to its identity.
+func NewService(sessions *session.Manager, users kit.Resolver) *Service {
+	return &Service{sessions: sessions, users: users}
 }
 
 // RequireAuth is porte's session middleware, re-exported so the module routers
@@ -35,33 +29,11 @@ func (service *Service) RequireAuth(next http.Handler) http.Handler {
 	return service.sessions.RequireAuth(next)
 }
 
-// IdentityForUser turns the user id porte authenticated into the identity the
-// rest of Courrier reads. It is no longer where authentication happens.
-//
-// porte deliberately carries neither the email nor any role: what a role may
-// do is the app's business, and the profile lives in the app's table. So the
-// address is looked up here, which costs the one query the old join cost.
-//
-// An absent row means the session outlived the user: porte's foreign key
-// cascades a delete, so this is a race, and the caller is still not
-// authenticated.
-func (service *Service) IdentityForUser(ctx context.Context, userID int64) (string, string, error) {
-	var out struct {
-		ID    int64
-		Email string
-	}
-	err := service.orm.WithContext(ctx).
-		Model(&schemas.User{}).
-		Select("id", "email").
-		Where("id = ?", userID).
-		Scan(&out).Error
-	if err != nil {
-		return "", "", errors.Internal("failed to load the account", err)
-	}
-	if out.ID == 0 {
-		return "", "", errors.Unauthorized("invalid auth token")
-	}
-	return strconv.FormatInt(out.ID, 10), out.Email, nil
+// Identity turns the user id porte authenticated into the identity the rest
+// of Courrier reads, through porte/kit's store. A session that outlived its
+// user answers 401 invalid auth token.
+func (service *Service) Identity(ctx context.Context, userID int64) (kit.Identity, error) {
+	return service.users.Identity(ctx, userID)
 }
 
 // Issue mints a named API token: a porte session with a label and no expiry,

@@ -2,12 +2,9 @@ package spaces
 
 import (
 	"context"
-	"io"
-	"log/slog"
 	"testing"
 
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
-	"github.com/FacileStudio/porte/directory"
 	portepg "github.com/FacileStudio/porte/pg"
 
 	"gorm.io/gorm"
@@ -70,20 +67,19 @@ func seedErasure(t *testing.T) erasureFixture {
 	mustCreate(t, &schemas.EmailTemplate{UserID: gone, SpaceID: &spaceID, Name: "team-template"})
 	mustCreate(t, &schemas.EmailTemplate{UserID: other, Name: "their-template"})
 
-	deletions := NewDeletions(testORM, directory.Client{Issuer: testIssuer}, nil, t.TempDir(),
-		slog.New(slog.NewTextHandler(io.Discard, nil)))
+	deletions := newErasureDeletions(t)
 	return erasureFixture{gone: gone, other: other, deletions: deletions}
 }
 
-// A deleted subject loses the account and every personal mail account with
-// what hangs off it. A mailbox attached to a space stays, other people's data
-// is untouched, and a second call is a no-op.
+// A subject Registre lists as erased, handled by the same receiver the
+// deletion poller runs, loses the account and every personal mail account
+// with what hangs off it. A mailbox attached to a space stays, other people's
+// data is untouched, and a replay is a no-op.
 func TestErasePersonDeletesPersonalDataAndKeepsSpaceData(t *testing.T) {
 	f := seedErasure(t)
-	for range 2 {
-		if err := f.deletions.ErasePerson(context.Background(), testIssuer, "sub-gone"); err != nil {
-			t.Fatalf("erase: %v", err)
-		}
+	pollErased(t, f.deletions)
+	if err := f.deletions.ErasePerson(context.Background(), testIssuer, "sub-gone"); err != nil {
+		t.Fatalf("replayed erase: %v", err)
 	}
 
 	checks := map[string]int64{

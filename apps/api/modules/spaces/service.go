@@ -384,11 +384,3 @@ func (s *Service) toSpaceDetailResponse(space schemas.Space, role string, member
 	resp.Members = members
 	return resp
 }
-
-func parseUserID(raw string) (int64, error) {
-	uid, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		return 0, errors.Invalid("invalid user id")
-	}
-	return uid, nil
-}

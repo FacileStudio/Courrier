@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/FacileStudio/porte"
+	"github.com/FacileStudio/porte/kit"
 )
 
 type stubAuth struct{ identity porte.Identity }
@@ -17,8 +18,8 @@ func (s stubAuth) RequireAuth(next http.Handler) http.Handler {
 	})
 }
 
-func (stubAuth) IdentityForUser(context.Context, int64) (string, string, error) {
-	return "1", "a@example.com", nil
+func (stubAuth) Identity(_ context.Context, userID int64) (kit.Identity, error) {
+	return kit.Identity{UserID: userID, Email: "a@example.com"}, nil
 }
 
 func status(identity porte.Identity, method, path string) int {

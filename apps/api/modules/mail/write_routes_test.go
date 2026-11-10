@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
+	"github.com/FacileStudio/porte/kit"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -23,8 +23,8 @@ func (e *mailEnv) call(userID int, method, path, contentType string, body []byte
 	router.Route("/accounts/{accountId}/mail", func(r chi.Router) {
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				id := authcontext.Identity{UserID: strconv.Itoa(userID)}
-				next.ServeHTTP(w, req.WithContext(authcontext.WithIdentity(req.Context(), id)))
+				id := kit.Identity{UserID: int64(userID)}
+				next.ServeHTTP(w, req.WithContext(kit.WithIdentity(req.Context(), id)))
 			})
 		})
 		registerWriteRoutes(r, e.svc)

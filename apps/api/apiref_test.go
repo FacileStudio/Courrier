@@ -43,7 +43,9 @@ func referenceRouter(t *testing.T) chi.Router {
 		sessions: sessions, kit: kit, mail: mail.NewService(nil, nil),
 		directory: spaces.NewDirectory(nil, directory.Client{Issuer: appEnv.OIDC.Issuer}, appLogger),
 		ideas:     &bulle.Options{URL: "http://bulle.invalid", TokenSource: func(context.Context) (string, error) { return "", nil }},
-		deletions: spaces.NewDeletions(nil, directory.Client{Issuer: appEnv.OIDC.Issuer}, nil, appEnv.StorageDir, appLogger),
+		deletions: spaces.NewDeletions(nil, spaces.DeletionsConfig{
+			Client: directory.Client{Issuer: appEnv.OIDC.Issuer}, StorageDir: appEnv.StorageDir, Logger: appLogger,
+		}),
 	}
 	router, err := buildRouter(nil, func(context.Context) error { return nil }, appEnv, appLogger, svc)
 	if err != nil {

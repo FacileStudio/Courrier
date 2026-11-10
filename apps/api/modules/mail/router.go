@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/internal/resourcetoken"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
@@ -142,12 +141,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		registerWriteRoutes(r, service)
 
 		r.With(middleware.RateLimit(10, time.Minute)).Post("/check", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -163,12 +157,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.With(middleware.RateLimit(5, time.Minute)).Post("/sync", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -183,12 +172,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Get("/folders", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -208,12 +192,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.With(middleware.RateLimit(10, time.Minute)).Post("/folders/{folderId}/sync", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -233,12 +212,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Get("/folders/{folderType}/emails", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -285,12 +259,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Get("/threads/{threadId}", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -314,12 +283,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Get("/search", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -364,12 +328,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Get("/emails/{emailId}", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -390,12 +349,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Get("/emails/{emailId}/attachments/{attachmentId}/download", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -416,12 +370,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Patch("/emails/{emailId}", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -448,12 +397,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Get("/contacts", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -473,12 +417,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.With(middleware.RateLimit(10, time.Minute)).Post("/send", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -520,12 +459,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Delete("/drafts/{emailId}", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -545,12 +479,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.With(middleware.RateLimit(30, time.Minute)).Post("/emails/bulk-action", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid account id"))
@@ -633,12 +562,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		r.Use(middleware.RateLimit(30, time.Minute))
 
 		r.Get("/", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			var spaceID *string
 			if sid := req.URL.Query().Get("space_id"); sid != "" {
 				spaceID = &sid
@@ -665,12 +589,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Post("/", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 
 			var body EmailTemplateRequest
 			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
@@ -695,12 +614,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Put("/{templateId}", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			templateID, err := strconv.ParseInt(chi.URLParam(req, "templateId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid template id"))
@@ -730,12 +644,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Delete("/{templateId}", func(w http.ResponseWriter, req *http.Request) {
-			identity := authcontext.MustIdentity(req.Context())
-			uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-			if err != nil {
-				httpjson.WriteError(w, errors.Invalid("invalid user id"))
-				return
-			}
+			uid := middleware.UserID(req)
 			templateID, err := strconv.ParseInt(chi.URLParam(req, "templateId"), 10, 64)
 			if err != nil {
 				httpjson.WriteError(w, errors.Invalid("invalid template id"))

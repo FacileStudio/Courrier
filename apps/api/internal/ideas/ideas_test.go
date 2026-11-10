@@ -13,9 +13,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/Courrier/apps/api/internal/plans"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
+	"github.com/FacileStudio/porte/kit"
 
 	"github.com/FacileStudio/porte/directory"
 	"github.com/FacileStudio/tronc/bulle"
@@ -86,12 +86,12 @@ func setup(t *testing.T) env {
 		r.Group(func(r chi.Router) {
 			r.Use(func(next http.Handler) http.Handler {
 				return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-					id := req.Header.Get("X-Test-User")
-					if id == "" {
+					id, err := strconv.ParseInt(req.Header.Get("X-Test-User"), 10, 64)
+					if err != nil {
 						http.Error(w, "unauthenticated", http.StatusUnauthorized)
 						return
 					}
-					next.ServeHTTP(w, req.WithContext(authcontext.WithIdentity(req.Context(), authcontext.Identity{UserID: id})))
+					next.ServeHTTP(w, req.WithContext(kit.WithIdentity(req.Context(), kit.Identity{UserID: id})))
 				})
 			})
 			err := New(testORM, gate).Mount(r, bulle.Options{

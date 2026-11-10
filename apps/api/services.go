@@ -14,6 +14,7 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
 	"github.com/FacileStudio/porte"
+	"github.com/FacileStudio/porte/kit"
 	"github.com/FacileStudio/porte/oidc"
 	"github.com/FacileStudio/porte/session"
 	"github.com/FacileStudio/tronc/bulle"
@@ -28,6 +29,7 @@ import (
 type services struct {
 	sessions  *session.Manager
 	kit       *oidc.Kit
+	users     *kit.Store
 	mail      *mail.Service
 	push      *push.Hub
 	directory *spaces.Directory
@@ -53,7 +55,7 @@ func buildServices(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogge
 		return services{}, err
 	}
 	svc.directory = newDirectory(db, appEnv, svc.plans, appLogger)
-	if svc.deletions, err = newDeletions(db, appEnv, appLogger); err != nil {
+	if svc.deletions, err = newDeletions(db, svc.users, appEnv, appLogger); err != nil {
 		return services{}, err
 	}
 	if svc.mcp, err = newMCP(ctx, db, appEnv, svc, appLogger); err != nil {

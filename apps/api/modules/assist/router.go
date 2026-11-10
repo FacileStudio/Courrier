@@ -2,12 +2,9 @@ package assist
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
-	"github.com/FacileStudio/tronc/errors"
 	"github.com/FacileStudio/tronc/httpjson"
 	"github.com/go-chi/chi/v5"
 )
@@ -21,29 +18,13 @@ func RegisterRoutes(router chi.Router, service *Service, authenticator middlewar
 	})
 }
 
-func userID(req *http.Request) (int64, error) {
-	uid, err := strconv.ParseInt(authcontext.MustIdentity(req.Context()).UserID, 10, 64)
-	if err != nil {
-		return 0, errors.Invalid("invalid user id")
-	}
-	return uid, nil
-}
-
 func (s *Service) handleStatus(w http.ResponseWriter, req *http.Request) {
-	uid, err := userID(req)
-	if err != nil {
-		httpjson.WriteError(w, err)
-		return
-	}
+	uid := middleware.UserID(req)
 	httpjson.WriteJSON(w, http.StatusOK, s.Status(req.Context(), uid))
 }
 
 func (s *Service) handleRun(w http.ResponseWriter, req *http.Request) {
-	uid, err := userID(req)
-	if err != nil {
-		httpjson.WriteError(w, err)
-		return
-	}
+	uid := middleware.UserID(req)
 	req.Body = http.MaxBytesReader(w, req.Body, 256<<10)
 	var body Request
 	if err := httpjson.DecodeJSON(w, req, &body); err != nil {

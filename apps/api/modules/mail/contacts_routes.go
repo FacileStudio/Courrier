@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
 	"github.com/FacileStudio/tronc/errors"
@@ -38,15 +37,6 @@ func (s *Service) serveContacts(w http.ResponseWriter, req *http.Request, userID
 	httpjson.WriteJSON(w, http.StatusOK, ContactsResponse{Contacts: rows, Total: total, Page: page, Limit: limit})
 }
 
-func requestUserID(req *http.Request) (int64, error) {
-	identity := authcontext.MustIdentity(req.Context())
-	uid, err := strconv.ParseInt(identity.UserID, 10, 64)
-	if err != nil {
-		return 0, errors.Invalid("invalid user id")
-	}
-	return uid, nil
-}
-
 func registerContactRoutes(router chi.Router, service *Service, authService *auth.Service) {
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.RequireAuth(authService))
@@ -56,11 +46,7 @@ func registerContactRoutes(router chi.Router, service *Service, authService *aut
 }
 
 func (s *Service) handleAllContacts(w http.ResponseWriter, req *http.Request) {
-	uid, err := requestUserID(req)
-	if err != nil {
-		httpjson.WriteError(w, err)
-		return
-	}
+	uid := middleware.UserID(req)
 	accountID, err := optionalAccountID(req)
 	if err != nil {
 		httpjson.WriteError(w, err)
@@ -82,11 +68,7 @@ func optionalAccountID(req *http.Request) (*int64, error) {
 }
 
 func (s *Service) handleBackfillContacts(w http.ResponseWriter, req *http.Request) {
-	uid, err := requestUserID(req)
-	if err != nil {
-		httpjson.WriteError(w, err)
-		return
-	}
+	uid := middleware.UserID(req)
 	accountID, err := strconv.ParseInt(chi.URLParam(req, "accountId"), 10, 64)
 	if err != nil {
 		httpjson.WriteError(w, errors.Invalid("invalid account id"))

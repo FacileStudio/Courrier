@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	pushsender "github.com/FacileStudio/Courrier/apps/api/internal/push"
+	"github.com/FacileStudio/porte/kit"
 	troncerrors "github.com/FacileStudio/tronc/errors"
 	"github.com/FacileStudio/tronc/httpjson"
 )
@@ -19,12 +18,8 @@ type Handler struct {
 }
 
 func userID(r *http.Request) (int64, bool) {
-	identity, ok := authcontext.IdentityFromContext(r.Context())
-	if !ok {
-		return 0, false
-	}
-	id, err := strconv.ParseInt(identity.UserID, 10, 64)
-	return id, err == nil
+	identity, ok := kit.FromContext(r.Context())
+	return identity.UserID, ok
 }
 
 func (h *Handler) status(w http.ResponseWriter, _ *http.Request) {

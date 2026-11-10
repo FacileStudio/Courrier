@@ -11,6 +11,7 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
 	"github.com/FacileStudio/Courrier/apps/api/modules/spaces"
 	"github.com/FacileStudio/porte/directory"
+	"github.com/FacileStudio/porte/kit"
 	portepg "github.com/FacileStudio/porte/pg"
 
 	"github.com/go-chi/chi/v5"
@@ -32,8 +33,9 @@ func newDirectory(db *gorm.DB, appEnv env.Config, gate *plans.Gate, appLogger *s
 }
 
 // newDeletions builds the GDPR deletion receiver over the same client
-// credentials as the snapshot sync, or nil when SSO is off.
-func newDeletions(db *gorm.DB, appEnv env.Config, appLogger *slog.Logger) (*spaces.Deletions, error) {
+// credentials as the snapshot sync, or nil when SSO is off. The kit store
+// erases the account and what it owns.
+func newDeletions(db *gorm.DB, users *kit.Store, appEnv env.Config, appLogger *slog.Logger) (*spaces.Deletions, error) {
 	if appEnv.OIDC == nil {
 		return nil, nil
 	}
@@ -46,7 +48,13 @@ func newDeletions(db *gorm.DB, appEnv env.Config, appLogger *slog.Logger) (*spac
 		ClientID:     appEnv.OIDC.ClientID,
 		ClientSecret: appEnv.OIDC.ClientSecret,
 	}
-	return spaces.NewDeletions(db, client, portepg.New(sqlDB).EraseIdentity, appEnv.StorageDir, appLogger), nil
+	return spaces.NewDeletions(db, spaces.DeletionsConfig{
+		Client:        client,
+		EraseAccount:  users.EraseAccount,
+		EraseIdentity: portepg.New(sqlDB).EraseIdentity,
+		StorageDir:    appEnv.StorageDir,
+		Logger:        appLogger,
+	}), nil
 }
 
 // newPlans builds the plan gate and restores the plan values saved before the

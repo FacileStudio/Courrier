@@ -47,7 +47,7 @@ func testAuth() (*session.Manager, *oidc.Kit, *auth.Service) {
 	if err != nil {
 		panic(err)
 	}
-	return sessions, kit, auth.NewService(nil, sessions, logger)
+	return sessions, kit, auth.NewService(sessions, nil)
 }
 
 // testRouter wires the modules exactly as run() does. The services are nil

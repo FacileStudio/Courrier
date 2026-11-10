@@ -2,9 +2,9 @@ package auth
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/internal/resourcetoken"
@@ -24,8 +24,8 @@ func RegisterRoutes(router chi.Router, service *Service, appEnv env.Config) {
 	router.Route("/auth", func(router chi.Router) {
 		if len(appEnv.ResourceTokenSecret) > 0 {
 			router.With(middleware.RequireAuth(service)).Get("/resource-token", func(w http.ResponseWriter, r *http.Request) {
-				identity := authcontext.MustIdentity(r.Context())
-				token := resourcetoken.Sign(appEnv.ResourceTokenSecret, identity.UserID, 5*time.Minute)
+				userID := strconv.FormatInt(middleware.UserID(r), 10)
+				token := resourcetoken.Sign(appEnv.ResourceTokenSecret, userID, 5*time.Minute)
 				httpjson.WriteJSON(w, http.StatusOK, map[string]string{"token": token})
 			})
 		} else {

@@ -29,6 +29,7 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/modules/users"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
+	"github.com/FacileStudio/porte/kit"
 	"github.com/FacileStudio/porte/oidc"
 	"github.com/FacileStudio/porte/session"
 
@@ -75,10 +76,11 @@ func referenceConfig() apiref.Config {
 	}
 }
 
-// buildAuth constructs porte: one session manager and the OIDC kit over the
-// identity tables. Sign-in goes through Registre only; there is no local
-// password kit. Discovery runs here, so an unreachable or half-configured
-// issuer fails at boot rather than on somebody's first login.
+// buildAuth constructs porte: one session manager, porte/kit's store over
+// Courrier's users table, and the OIDC kit over the identity tables. Sign-in
+// goes through Registre only; there is no local password kit. Discovery runs
+// here, so an unreachable or half-configured issuer fails at boot rather than
+// on somebody's first login.
 func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *slog.Logger) (services, error) {
 	sqlDB, err := db.DB()
 	if err != nil {
@@ -89,24 +91,26 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 		return services{}, err
 	}
 	resealInBackground(ctx, store, appLogger)
-	users := auth.NewUserStore(db)
+	users, err := auth.NewUserStore(ctx, sqlDB, appLogger)
+	if err != nil {
+		return services{}, err
+	}
 	cfg := appEnv.Porte()
 
 	sessions, err := session.New(cfg, session.Deps{Sessions: store.Sessions(), Logger: appLogger})
 	if err != nil {
 		return services{}, err
 	}
-	kit, err := oidc.New(ctx, cfg, oidc.Deps{
-		Users:      users,
-		Identities: store.Identities(),
-		Sessions:   sessions,
-		Codes:      store.LoginCodes(),
-		Logger:     appLogger,
+	oidcKit, err := oidc.New(ctx, cfg, oidc.Deps{
+		Users: users, Identities: store.Identities(), Sessions: sessions, Codes: store.LoginCodes(), Logger: appLogger,
 	})
 	if err != nil {
 		return services{}, err
 	}
-	return services{sessions: sessions, kit: kit, assist: newAssist(appEnv, store.Identities()), identity: store.Identities()}, nil
+	return services{
+		sessions: sessions, kit: oidcKit, users: users,
+		assist: newAssist(appEnv, store.Identities()), identity: store.Identities(),
+	}, nil
 }
 
 // buildRouter wires every module service and the shared middleware onto the
@@ -118,7 +122,7 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 // fills all three.
 func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger *slog.Logger, svc services) (chi.Router, error) {
 	clientDir := spa.DirFromEnv()
-	authService := auth.NewService(db, svc.sessions, appLogger)
+	authService := auth.NewService(svc.sessions, svc.users)
 	accountService := accounts.NewService(db, appEnv.EncryptionKey, svc.plans)
 	userService := users.NewService(db, appEnv.StorageDir, authService)
 	settingsService := settings.NewService(len(appEnv.EncryptionKey) > 0)
@@ -137,12 +141,11 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 
 	mountRoot(router, dbCheck, svc)
 
-	var ideasErr error
+	var mountErr error
 	router.Route("/api", func(r chi.Router) {
 		r.Handle("/files/*", http.StripPrefix("/api/files/", http.FileServer(http.Dir(appEnv.StorageDir))))
 
-		svc.sessions.Mount(r)
-		svc.kit.Mount(r)
+		mountErr = kit.Mount(r, kit.Config{Sessions: svc.sessions, OIDC: svc.kit})
 		auth.RegisterRoutes(r, authService, appEnv)
 		accounts.RegisterRoutes(r, accountService, authService)
 		mail.RegisterRoutes(r, svc.mail, authService, appEnv.ResourceTokenSecret)
@@ -152,10 +155,10 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 		settings.RegisterRoutes(r, settingsService, authService)
 		registerSpaces(r, db, appEnv, svc.directory, svc.deletions, authService)
 		mountPending(r, svc, authService)
-		ideasErr = mountIdeas(r, db, svc, authService)
+		mountErr = errors.Join(mountErr, mountIdeas(r, db, svc, authService))
 	})
-	if ideasErr != nil {
-		return nil, ideasErr
+	if mountErr != nil {
+		return nil, mountErr
 	}
 
 	if spa.Available(clientDir) {

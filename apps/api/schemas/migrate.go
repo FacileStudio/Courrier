@@ -133,7 +133,7 @@ func backfillAvatarURLs(db *gorm.DB) error {
 // avatar_url and avatar_source stay in the table, unread, until the next release drops them.
 // Expanding first means a rollback is redeploying the old binary, not restoring a backup.
 //
-// lower() is used so the second statement agrees with oidcavatar.PhotoURL,
+// lower() is used so the second statement agrees with kit.PictureURL,
 // which compares the picture scheme case-insensitively. The trailing coalesce
 // turns NULLs into empty strings, because a NULL here would fail to scan into
 // the plain string the model declares.

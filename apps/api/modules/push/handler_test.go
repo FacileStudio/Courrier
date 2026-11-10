@@ -11,6 +11,7 @@ import (
 	pushsender "github.com/FacileStudio/Courrier/apps/api/internal/push"
 	"github.com/FacileStudio/Courrier/apps/api/modules/push"
 	"github.com/FacileStudio/porte"
+	"github.com/FacileStudio/porte/kit"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -22,8 +23,8 @@ func (signedIn) RequireAuth(next http.Handler) http.Handler {
 	})
 }
 
-func (signedIn) IdentityForUser(_ context.Context, userID int64) (string, string, error) {
-	return "7", "ada@example.com", nil
+func (signedIn) Identity(_ context.Context, userID int64) (kit.Identity, error) {
+	return kit.Identity{UserID: userID, Email: "ada@example.com"}, nil
 }
 
 func serve(t *testing.T, method, path, body string) *httptest.ResponseRecorder {

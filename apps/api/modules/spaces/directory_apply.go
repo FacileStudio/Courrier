@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/oidcavatar"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/porte/directory"
+	"github.com/FacileStudio/porte/kit"
 
 	"gorm.io/gorm"
 )
@@ -108,7 +108,7 @@ func (d *Directory) userByEmail(tx *gorm.DB, member directory.Member) (int64, er
 		return 0, found.Error
 	}
 	if found.RowsAffected == 0 {
-		user = schemas.User{Email: email, Name: member.Name, OIDCPictureURL: oidcavatar.PhotoURL(member.Picture)}
+		user = schemas.User{Email: email, Name: member.Name, OIDCPictureURL: kit.PictureURL(member.Picture)}
 		err := tx.Create(&user).Error
 		return user.ID, err
 	}

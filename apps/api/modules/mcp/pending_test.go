@@ -4,15 +4,14 @@ import (
 	stdcontext "context"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 
 	mcpkit "github.com/FacileStudio/tronc/mcp"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/porte"
+	"github.com/FacileStudio/porte/kit"
 	"github.com/go-chi/chi/v5"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -31,7 +30,7 @@ func pendingSend(t *testing.T, f *fixture) actionOutput {
 func confirmOnPage(f *fixture, confirmURL, actor string) *httptest.ResponseRecorder {
 	id := confirmURL[strings.LastIndex(confirmURL, "=")+1:]
 	req := httptest.NewRequest(http.MethodPost, "/api/mcp/pending/"+id+"/confirm", nil)
-	ctx := authcontext.WithIdentity(req.Context(), authcontext.Identity{UserID: strconv.FormatInt(f.userID, 10)})
+	ctx := kit.WithIdentity(req.Context(), kit.Identity{UserID: f.userID})
 	ctx = porte.WithIdentity(ctx, porte.Identity{UserID: f.userID, Actor: actor})
 	routes := chi.NewRouteContext()
 	routes.URLParams.Add("id", id)

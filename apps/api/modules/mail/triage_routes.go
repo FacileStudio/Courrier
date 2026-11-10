@@ -37,11 +37,7 @@ func parseTriageQuery(req *http.Request) (TriageQuery, error) {
 }
 
 func (s *Service) handleTriage(w http.ResponseWriter, req *http.Request) {
-	uid, err := requestUserID(req)
-	if err != nil {
-		httpjson.WriteError(w, err)
-		return
-	}
+	uid := middleware.UserID(req)
 	q, err := parseTriageQuery(req)
 	if err != nil {
 		httpjson.WriteError(w, err)

@@ -5,10 +5,11 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
+	"github.com/FacileStudio/porte/kit"
 	"github.com/FacileStudio/tronc/errors"
 )
 
@@ -22,7 +23,7 @@ func newController(service *Service) *Controller {
 }
 
 func (controller *Controller) list(context context.Context) (*ListResponse, error) {
-	if _, ok := authcontext.IdentityFromContext(context); !ok {
+	if _, ok := kit.FromContext(context); !ok {
 		return nil, errors.Unauthorized("missing auth")
 	}
 
@@ -43,12 +44,12 @@ func (controller *Controller) get(context context.Context, userID string) (*MeRe
 }
 
 func (controller *Controller) me(context context.Context) (*MeResponse, error) {
-	identity, ok := authcontext.IdentityFromContext(context)
+	identity, ok := kit.FromContext(context)
 	if !ok {
 		return nil, errors.Unauthorized("missing auth")
 	}
 
-	user, err := controller.service.getUser(context, identity.UserID)
+	user, err := controller.service.getUser(context, strconv.FormatInt(identity.UserID, 10))
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +62,7 @@ func (controller *Controller) me(context context.Context) (*MeResponse, error) {
 }
 
 func (controller *Controller) updateMe(context context.Context, req *UpdateRequest) (*MeResponse, error) {
-	identity, ok := authcontext.IdentityFromContext(context)
+	identity, ok := kit.FromContext(context)
 	if !ok {
 		return nil, errors.Unauthorized("missing auth")
 	}
@@ -79,7 +80,7 @@ func (controller *Controller) updateMe(context context.Context, req *UpdateReque
 		return nil, errors.Invalid("name is required")
 	}
 
-	user, err := controller.service.updateUser(context, identity.UserID, name)
+	user, err := controller.service.updateUser(context, strconv.FormatInt(identity.UserID, 10), name)
 	if err != nil {
 		return nil, err
 	}
@@ -88,11 +89,11 @@ func (controller *Controller) updateMe(context context.Context, req *UpdateReque
 }
 
 func (controller *Controller) deleteAvatar(context context.Context) (*MeResponse, error) {
-	identity, ok := authcontext.IdentityFromContext(context)
+	identity, ok := kit.FromContext(context)
 	if !ok {
 		return nil, errors.Unauthorized("missing auth")
 	}
-	user, err := controller.service.clearAvatar(context, identity.UserID)
+	user, err := controller.service.clearAvatar(context, strconv.FormatInt(identity.UserID, 10))
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +101,7 @@ func (controller *Controller) deleteAvatar(context context.Context) (*MeResponse
 }
 
 func (controller *Controller) uploadAvatar(context context.Context, request *http.Request) (*MeResponse, error) {
-	identity, ok := authcontext.IdentityFromContext(context)
+	identity, ok := kit.FromContext(context)
 	if !ok {
 		return nil, errors.Unauthorized("missing auth")
 	}
@@ -122,7 +123,7 @@ func (controller *Controller) uploadAvatar(context context.Context, request *htt
 	}
 
 	contentType := http.DetectContentType(header[:n])
-	user, err := controller.service.storeAvatar(context, identity.UserID, io.MultiReader(bytes.NewReader(header[:n]), file), contentType)
+	user, err := controller.service.storeAvatar(context, strconv.FormatInt(identity.UserID, 10), io.MultiReader(bytes.NewReader(header[:n]), file), contentType)
 	if err != nil {
 		return nil, err
 	}
@@ -131,11 +132,11 @@ func (controller *Controller) uploadAvatar(context context.Context, request *htt
 }
 
 func (controller *Controller) getApiToken(context context.Context) (*ApiTokenStatusResponse, error) {
-	identity, ok := authcontext.IdentityFromContext(context)
+	identity, ok := kit.FromContext(context)
 	if !ok {
 		return nil, errors.Unauthorized("missing auth")
 	}
-	record, err := controller.service.getApiToken(context, identity.UserID)
+	record, err := controller.service.getApiToken(context, strconv.FormatInt(identity.UserID, 10))
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +151,7 @@ func (controller *Controller) getApiToken(context context.Context) (*ApiTokenSta
 }
 
 func (controller *Controller) createApiToken(context context.Context, req *CreateApiTokenRequest) (*ApiTokenResponse, error) {
-	identity, ok := authcontext.IdentityFromContext(context)
+	identity, ok := kit.FromContext(context)
 	if !ok {
 		return nil, errors.Unauthorized("missing auth")
 	}
@@ -158,7 +159,7 @@ func (controller *Controller) createApiToken(context context.Context, req *Creat
 	if name == "" {
 		name = "CLI"
 	}
-	rawToken, record, err := controller.service.createApiToken(context, identity.UserID, name)
+	rawToken, record, err := controller.service.createApiToken(context, strconv.FormatInt(identity.UserID, 10), name)
 	if err != nil {
 		return nil, err
 	}
@@ -170,9 +171,9 @@ func (controller *Controller) createApiToken(context context.Context, req *Creat
 }
 
 func (controller *Controller) deleteApiToken(context context.Context) error {
-	identity, ok := authcontext.IdentityFromContext(context)
+	identity, ok := kit.FromContext(context)
 	if !ok {
 		return errors.Unauthorized("missing auth")
 	}
-	return controller.service.deleteApiToken(context, identity.UserID)
+	return controller.service.deleteApiToken(context, strconv.FormatInt(identity.UserID, 10))
 }

@@ -3,7 +3,6 @@ package spaces
 import (
 	"net/http"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/authcontext"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
 	"github.com/FacileStudio/tronc/httpjson"
@@ -18,11 +17,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		r.Use(middleware.RequireAuth(authService))
 
 		r.Post("/", func(w http.ResponseWriter, req *http.Request) {
-			uid, err := currentUserID(req)
-			if err != nil {
-				httpjson.WriteError(w, err)
-				return
-			}
+			uid := middleware.UserID(req)
 			var body CreateSpaceRequest
 			if err := httpjson.DecodeJSON(w, req, &body); err != nil {
 				httpjson.WriteError(w, err)
@@ -37,11 +32,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 		})
 
 		r.Get("/", func(w http.ResponseWriter, req *http.Request) {
-			uid, err := currentUserID(req)
-			if err != nil {
-				httpjson.WriteError(w, err)
-				return
-			}
+			uid := middleware.UserID(req)
 			spaceList, roleMap, err := service.List(req.Context(), uid)
 			if err != nil {
 				httpjson.WriteError(w, err)
@@ -56,11 +47,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 		r.Route("/{spaceId}", func(r chi.Router) {
 			r.Get("/", func(w http.ResponseWriter, req *http.Request) {
-				uid, err := currentUserID(req)
-				if err != nil {
-					httpjson.WriteError(w, err)
-					return
-				}
+				uid := middleware.UserID(req)
 				spaceID := chi.URLParam(req, "spaceId")
 				space, role, err := service.Get(req.Context(), uid, spaceID)
 				if err != nil {
@@ -76,11 +63,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			})
 
 			r.Put("/", func(w http.ResponseWriter, req *http.Request) {
-				uid, err := currentUserID(req)
-				if err != nil {
-					httpjson.WriteError(w, err)
-					return
-				}
+				uid := middleware.UserID(req)
 				spaceID := chi.URLParam(req, "spaceId")
 				var body UpdateSpaceRequest
 				if err := httpjson.DecodeJSON(w, req, &body); err != nil {
@@ -97,11 +80,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			})
 
 			r.Delete("/", func(w http.ResponseWriter, req *http.Request) {
-				uid, err := currentUserID(req)
-				if err != nil {
-					httpjson.WriteError(w, err)
-					return
-				}
+				uid := middleware.UserID(req)
 				spaceID := chi.URLParam(req, "spaceId")
 				if err := service.Delete(req.Context(), uid, spaceID); err != nil {
 					httpjson.WriteError(w, err)
@@ -111,11 +90,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			})
 
 			r.Post("/leave", func(w http.ResponseWriter, req *http.Request) {
-				uid, err := currentUserID(req)
-				if err != nil {
-					httpjson.WriteError(w, err)
-					return
-				}
+				uid := middleware.UserID(req)
 				spaceID := chi.URLParam(req, "spaceId")
 				if err := service.Leave(req.Context(), uid, spaceID); err != nil {
 					httpjson.WriteError(w, err)
@@ -126,11 +101,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 
 			r.Route("/members", func(r chi.Router) {
 				r.Get("/", func(w http.ResponseWriter, req *http.Request) {
-					uid, err := currentUserID(req)
-					if err != nil {
-						httpjson.WriteError(w, err)
-						return
-					}
+					uid := middleware.UserID(req)
 					spaceID := chi.URLParam(req, "spaceId")
 					members, err := service.ListMembers(req.Context(), uid, spaceID)
 					if err != nil {
@@ -141,11 +112,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 				})
 
 				r.Post("/", func(w http.ResponseWriter, req *http.Request) {
-					uid, err := currentUserID(req)
-					if err != nil {
-						httpjson.WriteError(w, err)
-						return
-					}
+					uid := middleware.UserID(req)
 					spaceID := chi.URLParam(req, "spaceId")
 					var body AddMemberRequest
 					if err := httpjson.DecodeJSON(w, req, &body); err != nil {
@@ -166,11 +133,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 				})
 
 				r.Put("/{memberId}", func(w http.ResponseWriter, req *http.Request) {
-					uid, err := currentUserID(req)
-					if err != nil {
-						httpjson.WriteError(w, err)
-						return
-					}
+					uid := middleware.UserID(req)
 					spaceID := chi.URLParam(req, "spaceId")
 					memberID := chi.URLParam(req, "memberId")
 					var body UpdateMemberRequest
@@ -190,11 +153,7 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 				})
 
 				r.Delete("/{memberId}", func(w http.ResponseWriter, req *http.Request) {
-					uid, err := currentUserID(req)
-					if err != nil {
-						httpjson.WriteError(w, err)
-						return
-					}
+					uid := middleware.UserID(req)
 					spaceID := chi.URLParam(req, "spaceId")
 					memberID := chi.URLParam(req, "memberId")
 					if err := service.RemoveMember(req.Context(), uid, spaceID, memberID); err != nil {
@@ -206,11 +165,6 @@ func RegisterRoutes(router chi.Router, service *Service, authService *auth.Servi
 			})
 		})
 	})
-}
-
-func currentUserID(req *http.Request) (int64, error) {
-	identity := authcontext.MustIdentity(req.Context())
-	return parseUserID(identity.UserID)
 }
 
 // RegisterDeletions mounts Registre's signed user.deleted push at

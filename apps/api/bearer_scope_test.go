@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/FacileStudio/porte"
+	"github.com/FacileStudio/porte/kit"
 	portepg "github.com/FacileStudio/porte/pg"
 	"github.com/FacileStudio/porte/session"
 	"github.com/go-chi/chi/v5"
@@ -50,8 +51,8 @@ func (s stubAuthenticator) RequireAuth(next http.Handler) http.Handler {
 	return s.sessions.RequireAuth(next)
 }
 
-func (stubAuthenticator) IdentityForUser(context.Context, int64) (string, string, error) {
-	return "7", "user@example.test", nil
+func (stubAuthenticator) Identity(_ context.Context, userID int64) (kit.Identity, error) {
+	return kit.Identity{UserID: userID, Email: "user@example.test"}, nil
 }
 
 func bearerSessions(t *testing.T) *session.Manager {
@@ -81,7 +82,7 @@ func bearerRequest(method, path, token string) *http.Request {
 func scopeRouters(t *testing.T) (real, readable http.Handler) {
 	t.Helper()
 	sessions := bearerSessions(t)
-	authService := auth.NewService(nil, sessions, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	authService := auth.NewService(sessions, stubAuthenticator{sessions})
 
 	realRoutes := chi.NewRouter()
 	realRoutes.Route("/api", func(r chi.Router) {
