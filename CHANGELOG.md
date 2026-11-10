@@ -4,9 +4,25 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-10
+
+### Added
+
+- User menu: pending Registre space invitations, with a count and a link, in the sidebar and the phone bar. `GET /api/me/invitations` (porte/kit) answers `{"count", "href"?}`, never fails a page, caches per user for 60 seconds, and is mounted only with SSO on.
+
 ### Changed
 
 - Licence: Courrier is now licensed under `AGPL-3.0-only` (see `LICENSE`); before this, the repository carried no licence.
+- refactor(api): the sign-in glue runs on `porte/kit`: its user store over Courrier's `users` table, its middleware and request identity, and its `EraseAccount`. `internal/authcontext`, `internal/oidcavatar` and the hand-written user store are gone. Routes, status codes and error bodies are unchanged. By owner decision, a sign-in now rewrites the stored email only when Registre marks it verified. Accounts the kit creates are filled exactly like the older ones (only `oidc_subject` stays NULL), pinned by a test.
+- build: tronc v0.21.0, porte v0.18.2 (`directory` v0.4.0), muse v0.18.0, Go 1.26.10 (stdlib criticals), `golang.org/x/crypto` v0.56.0, `golang.org/x/text` v0.41.0, `go-jose` v4.1.6, dompurify 3.4.17. The Dockerfile builds on `golang:1.26.10-alpine` and copies `go.mod` explicitly.
+- ci: filet v0.19.1 with `preset: facile`, and a douane job (`-fail critical -scope prod`). `douane.yml` permits GO-2026-5932 (x/crypto `openpgp`, not compiled in) until 2027-02-07.
+- The pre-push hook moves from `.githooks` to `lefthook.yml`: `scripts/check.sh`, then `filet gate .`. Run `mise run hooks` once in each clone.
+
+### Fixed
+
+- Erasure: when Registre erases a person, Courrier now also deletes their open MCP actions (`mcp_actions`), and deletes sessions, API tokens and push devices explicitly. A test drives the deletion poller against a fake Registre and asserts no row with a `user_id` still references the person, apart from mailboxes and templates that belong to a space.
+- Client: the bearer token the web app kept in `localStorage` before the cookie session (`courrier.token`) is deleted on load. The installed apps keep theirs.
+- api: FCM credentials are read with `CredentialsFromJSONWithType` and must be a service account; two unused functions are removed.
 
 ## [0.15.1] - 2026-11-10
 
