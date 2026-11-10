@@ -7,5 +7,6 @@
 | [Development](development.md) | Local setup, tests, the quality gate |
 | [Deployment](deployment.md) | Docker Compose, Dokploy, Traefik routing |
 | [API](api.md) | HTTP endpoints and payloads |
+| [MCP](mcp.md) | The MCP server, its tools and confirmations |
 
 Back to the [README](../README.md).

@@ -103,6 +103,10 @@ Capacitor origin `https://localhost` to the CORS list by itself, so a deploy tha
 The Registre client needs no new redirect URI: the browser still returns to
 `/api/auth/oidc/callback`.
 
+`MCP_RESOURCE` (compose default `https://courrier.facile.studio/mcp`) turns on the MCP server
+when SSO is on. It must equal, byte for byte, the resource Registre's seed declares for
+Courrier, because Registre binds MCP tokens to it. Empty turns the server off. See [MCP](mcp.md).
+
 ## Push notifications
 
 New inbox mail reaches the Android app through Firebase Cloud Messaging and browsers

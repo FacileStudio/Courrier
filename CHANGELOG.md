@@ -2,6 +2,20 @@
 
 All notable changes to Courrier are listed here. The format follows Keep a Changelog, and versions follow semver.
 
+## [Unreleased]
+
+### Added
+
+- A remote MCP server at `/mcp` for any MCP client, free for every account (docs/mcp.md). Registre is the authorization server: tokens are bound to `MCP_RESOURCE`, scoped `courrier.read` and `courrier.write`, and verified by `porte/mcpauth` v0.1.0. go-sdk v1.8.0, stateless, spec 2026-07-28.
+- Seven tools: `courrier_list_accounts`, `courrier_search_mail`, `courrier_read_thread`, `courrier_draft`, `courrier_send`, `courrier_organize`, `courrier_delete_draft`, each annotated, with concise or detailed output, cursor pages and a 25,000-token cap.
+- Sending and deleting a draft need the person's confirmation: MRTR `input_required` when the client can ask, otherwise a pending action and a link to the new Pending actions page (`/pending`). Every write is logged with the client id.
+- The `mcp_pending_actions` table (created at boot, additive).
+
+### Changed
+
+- porte to v0.14.0 and porte/forfait to v0.1.1: a higher entitlements revision now wins over a lower version, so a Registre restored from backup no longer freezes the plan values.
+- The per-address rate limiter takes a key function and locks its counters.
+
 ## [0.13.4] - 2026-11-07
 
 ### Changed
