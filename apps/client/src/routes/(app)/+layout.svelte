@@ -29,6 +29,7 @@
 	let collapsed = $state(false);
 	let scroller: HTMLElement | null = $state(null);
 	let ideasReady = $state(false);
+	let invitations = $state<{ count: number; href: string } | null>(null);
 	const i18n = getI18n();
 
 	function setUser(nextUser: UserProfile) {
@@ -112,6 +113,7 @@
 				return;
 			}
 			void backend.getPush().then(syncDevice).catch(() => undefined);
+			void backend.invitations().then((answer) => (invitations = answer));
 		} catch (err) {
 			if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
 				rememberReturn(page.url);
@@ -211,7 +213,8 @@
 		onSignOut: signOut,
 		theme: theme.preference,
 		onThemeChange: (next: ThemePreference) => theme.set(next),
-		onLocaleChange: rememberLocale
+		onLocaleChange: rememberLocale,
+		invitations
 	});
 
 	const mobileItems = $derived([

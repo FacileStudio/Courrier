@@ -3,7 +3,16 @@ package auth
 import (
 	documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
 	"github.com/FacileStudio/porte"
+	"github.com/FacileStudio/porte/kit"
 )
+
+// invitationsRoute is porte/kit's GET /me/invitations with its response
+// schema, mounted when SSO is on.
+func invitationsRoute() documentation.Route {
+	route := kit.InvitationsRoute()
+	route.ResponseBody = kit.InvitationsResponse{}
+	return route
+}
 
 var Documentation = documentation.Module{
 	Name:        "auth",
@@ -75,5 +84,6 @@ var Documentation = documentation.Module{
 				{Status: 401, Code: "unauthenticated", Description: "No valid session cookie, bearer token or API token."},
 			},
 		},
+		invitationsRoute(),
 	},
 }

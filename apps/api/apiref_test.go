@@ -38,9 +38,9 @@ func referenceRouter(t *testing.T) chi.Router {
 	if err != nil {
 		t.Fatalf("oidc.New: %v", err)
 	}
-	appEnv.OIDC = &env.OIDCConfig{Issuer: "https://sso.test"}
+	appEnv.OIDC = &env.OIDCConfig{Issuer: "https://sso.test", ClientID: "courrier", ClientSecret: "secret"}
 	svc := services{
-		sessions: sessions, kit: kit, mail: mail.NewService(nil, nil),
+		sessions: sessions, kit: kit, mail: mail.NewService(nil, nil), identity: store.Identities(),
 		directory: spaces.NewDirectory(nil, directory.Client{Issuer: appEnv.OIDC.Issuer}, appLogger),
 		ideas:     &bulle.Options{URL: "http://bulle.invalid", TokenSource: func(context.Context) (string, error) { return "", nil }},
 		deletions: spaces.NewDeletions(nil, spaces.DeletionsConfig{
@@ -122,5 +122,13 @@ func TestIdeasRoutesRefuseAnonymousCallers(t *testing.T) {
 		if recorder.Code != http.StatusUnauthorized {
 			t.Errorf("%s %s = %d, want 401", method, path, recorder.Code)
 		}
+	}
+}
+
+func TestInvitationsNeedASession(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	referenceRouter(t).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/me/invitations", nil))
+	if recorder.Code != http.StatusUnauthorized {
+		t.Errorf("GET /api/me/invitations = %d, want 401", recorder.Code)
 	}
 }

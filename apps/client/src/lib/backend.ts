@@ -376,6 +376,12 @@ export const backend = {
 			await clearToken();
 		}
 	},
+	/** The pending Registre space invitations for the user menu, or null when there is none to show. */
+	invitations() {
+		return apiFetch<{ count: number; href?: string }>('/api/me/invitations')
+			.then((r) => (r.href ? { count: r.count, href: r.href } : null))
+			.catch(() => null);
+	},
 	me() {
 		return apiFetch<MeResponse>('/api/users/me').then((r) => {
 			setSessionLocale(r.user.locale ?? null);

@@ -155,7 +155,8 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 		settings.RegisterRoutes(r, settingsService, authService)
 		registerSpaces(r, db, appEnv, svc.directory, svc.deletions, authService)
 		mountPending(r, svc, authService)
-		mountErr = errors.Join(mountErr, mountIdeas(r, db, svc, authService))
+		mountErr = errors.Join(mountErr, mountIdeas(r, db, svc, authService),
+			mountInvitations(r, appEnv, svc, authService, appLogger))
 	})
 	if mountErr != nil {
 		return nil, mountErr
