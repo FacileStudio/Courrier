@@ -3,6 +3,8 @@ package mcp
 import (
 	"context"
 
+	mcpkit "github.com/FacileStudio/tronc/mcp"
+
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -13,13 +15,13 @@ func (t *toolset) listAccounts(ctx context.Context, req *sdk.CallToolRequest, in
 	if err != nil {
 		return nil, accountsOutput{}, err
 	}
-	full, err := detailed(in.ResponseFormat)
+	full, err := mcpkit.Detailed(in.ResponseFormat)
 	if err != nil {
 		return nil, accountsOutput{}, err
 	}
 	accounts, err := t.mail.VisibleAccounts(ctx, who.userID)
 	if err != nil {
-		return nil, accountsOutput{}, failure(err, "")
+		return nil, accountsOutput{}, mcpkit.Failure(err, "")
 	}
 	out := accountsOutput{Accounts: make([]accountSummary, 0, len(accounts))}
 	for _, account := range accounts {
@@ -43,7 +45,7 @@ func (t *toolset) addFolders(ctx context.Context, accounts []schemas.Account, su
 	}
 	folders, err := t.mail.FoldersByID(ctx, ids)
 	if err != nil {
-		return failure(err, "")
+		return mcpkit.Failure(err, "")
 	}
 	byAccount := map[int64][]folderSummary{}
 	for _, folder := range sortedFolders(folders) {

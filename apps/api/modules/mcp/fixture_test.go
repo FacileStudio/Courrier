@@ -2,19 +2,10 @@ package mcp
 
 import (
 	"context"
-	"crypto"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
 	"log"
-	"math/big"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/porte"
@@ -46,66 +37,6 @@ func needDB(t *testing.T) {
 	if testORM == nil {
 		t.Skip(testdb.SkipReason("createdb courrier_test  # or point at any scratch database"))
 	}
-}
-
-// registre is a fake authorization server: discovery, JWKS and a minter.
-type registre struct {
-	srv *httptest.Server
-	key *rsa.PrivateKey
-}
-
-// newRegistre serves discovery and one RSA key.
-func newRegistre(t *testing.T) *registre {
-	t.Helper()
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := &registre{key: key}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]string{"issuer": r.srv.URL, "jwks_uri": r.srv.URL + "/jwks"})
-	})
-	mux.HandleFunc("/jwks", func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]string{publicJWK(&key.PublicKey)}})
-	})
-	r.srv = httptest.NewServer(mux)
-	t.Cleanup(r.srv.Close)
-	return r
-}
-
-// publicJWK is the JWKS entry of key.
-func publicJWK(key *rsa.PublicKey) map[string]string {
-	return map[string]string{
-		"kty": "RSA", "kid": "k1", "n": base64.RawURLEncoding.EncodeToString(key.N.Bytes()),
-		"e": base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.E)).Bytes()),
-	}
-}
-
-// mint signs an access token for resource; overrides replace claims, and a
-// nil value removes one.
-func (r *registre) mint(t *testing.T, resource string, overrides map[string]any) string {
-	t.Helper()
-	claims := map[string]any{
-		"iss": r.srv.URL, "sub": subject, "aud": []string{resource}, "client_id": "https://claude.ai/oauth/mcp.json",
-		"exp": time.Now().Add(10 * time.Minute).Unix(), "iat": time.Now().Unix(), "jti": "j1",
-		"scope": "courrier.read courrier.write",
-	}
-	for name, value := range overrides {
-		claims[name] = value
-		if value == nil {
-			delete(claims, name)
-		}
-	}
-	header, _ := json.Marshal(map[string]string{"alg": "RS256", "typ": "at+jwt", "kid": "k1"})
-	body, _ := json.Marshal(claims)
-	input := base64.RawURLEncoding.EncodeToString(header) + "." + base64.RawURLEncoding.EncodeToString(body)
-	sum := sha256.Sum256([]byte(input))
-	signature, err := rsa.SignPKCS1v15(rand.Reader, r.key, crypto.SHA256, sum[:])
-	if err != nil {
-		t.Fatal(err)
-	}
-	return input + "." + base64.RawURLEncoding.EncodeToString(signature)
 }
 
 // identities maps the test subject to userID and nothing else.

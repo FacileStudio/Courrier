@@ -6,6 +6,8 @@ import (
 	"slices"
 	"time"
 
+	mcpkit "github.com/FacileStudio/tronc/mcp"
+
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -42,11 +44,11 @@ func (t *toolset) searchMail(ctx context.Context, req *sdk.CallToolRequest, in s
 	}
 	emails, err := t.mail.SearchMessages(ctx, who.userID, query)
 	if err != nil {
-		return nil, searchOutput{}, failure(err, hintAccount)
+		return nil, searchOutput{}, mcpkit.Failure(err, hintAccount)
 	}
 	folders, err := t.mail.FoldersByID(ctx, accountIDs(emails))
 	if err != nil {
-		return nil, searchOutput{}, failure(err, "")
+		return nil, searchOutput{}, mcpkit.Failure(err, "")
 	}
 	return nil, searchPage(emails, query.Limit-1, folders, full), nil
 }
@@ -54,7 +56,7 @@ func (t *toolset) searchMail(ctx context.Context, req *sdk.CallToolRequest, in s
 // messageQuery validates the input and turns it into the mail query, asking
 // for one message more than the page so the page knows whether more follow.
 func messageQuery(in searchInput) (mail.MessageQuery, bool, error) {
-	full, err := detailed(in.ResponseFormat)
+	full, err := mcpkit.Detailed(in.ResponseFormat)
 	if err != nil {
 		return mail.MessageQuery{}, false, err
 	}
@@ -87,8 +89,8 @@ func searchPage(emails []schemas.Email, limit int, folders map[int64]schemas.Fol
 		summaries = append(summaries, summarize(email, folders, full))
 	}
 	more := len(summaries) > limit
-	keep := fitCount(min(limit, len(summaries)), func(n int) int {
-		return encodedSize(searchOutput{Messages: summaries[:n], NextCursor: "next-cursor-placeholder"})
+	keep := mcpkit.FitCount(min(limit, len(summaries)), func(n int) int {
+		return mcpkit.EncodedSize(searchOutput{Messages: summaries[:n], NextCursor: "next-cursor-placeholder"})
 	})
 	out := searchOutput{Messages: summaries[:keep]}
 	if keep < min(limit, len(summaries)) {
@@ -96,7 +98,7 @@ func searchPage(emails []schemas.Email, limit int, folders map[int64]schemas.Fol
 	}
 	if (more || keep < len(summaries)) && keep > 0 {
 		last := emails[keep-1]
-		out.NextCursor = encodeCursor(searchPosition{Date: last.Date.UnixNano(), ID: last.ID})
+		out.NextCursor = mcpkit.EncodeCursor(searchPosition{Date: last.Date.UnixNano(), ID: last.ID})
 	}
 	if len(out.Messages) == 0 {
 		out.Note = "No message matched. Try fewer words, another folder, or folder \"any\"."
@@ -123,8 +125,8 @@ func searchCursor(cursor string) (*mail.MessageKey, error) {
 		return nil, nil
 	}
 	var position searchPosition
-	if err := decodeCursor(cursor, &position); err != nil || position.ID == 0 {
-		return nil, errCursor
+	if err := mcpkit.DecodeCursor(cursor, &position); err != nil || position.ID == 0 {
+		return nil, mcpkit.ErrCursor
 	}
 	return &mail.MessageKey{Date: time.Unix(0, position.Date), ID: position.ID}, nil
 }

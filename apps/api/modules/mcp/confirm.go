@@ -1,130 +1,96 @@
 package mcp
 
 import (
-	"crypto/hmac"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
+	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
-	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/FacileStudio/Courrier/apps/api/schemas"
+	"github.com/FacileStudio/tronc/errors"
+	mcpkit "github.com/FacileStudio/tronc/mcp"
 )
 
-// confirmInput is the key of the one input request a sensitive tool makes.
-const confirmInput = "confirm"
-
-// mrtrVersion is the first protocol version with multi round-trip requests.
-// Older clients reach this stateless server without a session, so the SDK's
-// fallback (a server-to-client elicitation) cannot run for them.
-const mrtrVersion = "2026-07-28"
-
-// verdict is what the person answered to a confirmation.
-type verdict int
-
+// Pending action kinds.
 const (
-	unanswered verdict = iota
-	accepted
-	declined
+	kindSend        = "send"
+	kindDeleteDraft = "delete_draft"
 )
 
-// errConfirmation is the refusal for a confirmation state this server did
-// not sign, signed for someone else, or signed too long ago.
-var errConfirmation = errors.New("this confirmation is no longer valid. Call the tool again to ask the user afresh")
+// errTarget is the refusal for a pending action whose target is not a draft
+// reference.
+var errTarget = errors.NotFound("this action names no draft")
 
-// confirmSchema is the form the client shows: a single checkbox, ticked.
-var confirmSchema = map[string]any{
-	"type": "object",
-	"properties": map[string]any{
-		"confirm": map[string]any{"type": "boolean", "title": "Confirm", "default": true},
-	},
-	"required": []string{"confirm"},
-}
-
-// confirmer asks a client to confirm a sensitive action through MRTR
-// input_required, and reads the answer on the retry. The request state it
-// hands out names a pending action, the person and an expiry, signed with
-// HMAC-SHA256: a client cannot forge a confirmation for an action the server
-// did not ask about, and the pending action makes each one single use.
-type confirmer struct {
-	key []byte
-	ttl time.Duration
-}
-
-// canElicit reports whether the client asked for form elicitation on a
-// protocol version that lets a stateless server use it.
-func canElicit(req *sdk.CallToolRequest) bool {
-	if req.ProtocolVersion() < mrtrVersion {
-		return false
-	}
-	caps := req.ClientCapabilities()
-	if caps == nil || caps.Elicitation == nil {
-		return false
-	}
-	return caps.Elicitation.Form != nil || caps.Elicitation.URL == nil
-}
-
-// retrying reports whether the call is the retry of an input_required
-// result.
-func retrying(req *sdk.CallToolRequest) bool {
-	return req.Params.RequestState != "" || len(req.Params.InputResponses) > 0
-}
-
-// ask returns the input_required result for pending action id.
-func (c confirmer) ask(userID int64, id, message string) *sdk.CallToolResult {
-	return &sdk.CallToolResult{
-		InputRequests: sdk.InputRequestMap{confirmInput: &sdk.ElicitParams{
-			Mode: "form", Message: message, RequestedSchema: confirmSchema,
-		}},
-		RequestState: c.sign(userID, id, time.Now().Add(c.ttl)),
+// kinds are the two sensitive actions: both fingerprint the draft, so an
+// edit after the question closes the action instead of sending it.
+func (t *toolset) kinds() map[string]mcpkit.Kind {
+	return map[string]mcpkit.Kind{
+		kindSend:        {Tool: toolSend, Fingerprint: t.fingerprint, Run: t.sendDraft},
+		kindDeleteDraft: {Tool: toolDeleteDraft, Fingerprint: t.fingerprint, Run: t.removeDraft},
 	}
 }
 
-// answer reads the retry of an ask: the pending action it was about and
-// whether the person accepted.
-func (c confirmer) answer(req *sdk.CallToolRequest, userID int64) (string, verdict, error) {
-	id, err := c.verify(req.Params.RequestState, userID, time.Now())
+// target is the pending action target of a draft.
+func target(ref draftRef) string {
+	return fmt.Sprintf("%d/%d", ref.AccountID, ref.DraftID)
+}
+
+// refOf reads the draft an action targets, and the person it acts for.
+func refOf(a mcpkit.Action) (int64, draftRef, error) {
+	userID, errUser := strconv.ParseInt(a.UserID, 10, 64)
+	account, draft, _ := strings.Cut(a.Target, "/")
+	accountID, errAccount := strconv.ParseInt(account, 10, 64)
+	draftID, errDraft := strconv.ParseInt(draft, 10, 64)
+	if errUser != nil || errAccount != nil || errDraft != nil {
+		return 0, draftRef{}, errTarget
+	}
+	return userID, draftRef{AccountID: accountID, DraftID: draftID}, nil
+}
+
+// loadDraft loads the draft an action targets.
+func (t *toolset) loadDraft(ctx context.Context, a mcpkit.Action) (schemas.Email, error) {
+	userID, ref, err := refOf(a)
 	if err != nil {
-		return "", unanswered, err
+		return schemas.Email{}, err
 	}
-	result, ok := req.Params.InputResponses[confirmInput].(*sdk.ElicitResult)
-	if !ok {
-		return "", unanswered, errConfirmation
-	}
-	if result.Action != "accept" || result.Content["confirm"] == false {
-		return id, declined, nil
-	}
-	return id, accepted, nil
+	return t.mail.Draft(ctx, userID, ref.AccountID, ref.DraftID)
 }
 
-// sign makes the request state for pending action id.
-func (c confirmer) sign(userID int64, id string, expires time.Time) string {
-	payload := strconv.FormatInt(userID, 10) + "." + id + "." + strconv.FormatInt(expires.Unix(), 10)
-	return payload + "." + c.mac(payload)
+// fingerprint is the digest of the targeted draft as it is now.
+func (t *toolset) fingerprint(ctx context.Context, a mcpkit.Action) (string, error) {
+	draft, err := t.loadDraft(ctx, a)
+	if err != nil {
+		return "", err
+	}
+	return digest(draft), nil
 }
 
-// verify returns the pending action id a state names, if the state is this
-// server's, for userID, and not expired at now.
-func (c confirmer) verify(state string, userID int64, now time.Time) (string, error) {
-	parts := strings.Split(state, ".")
-	if len(parts) != 4 || parts[0] != strconv.FormatInt(userID, 10) {
-		return "", errConfirmation
+// sendDraft sends the targeted draft.
+func (t *toolset) sendDraft(ctx context.Context, a mcpkit.Action) error {
+	userID, ref, err := refOf(a)
+	if err != nil {
+		return err
 	}
-	payload := strings.Join(parts[:3], ".")
-	if !hmac.Equal([]byte(parts[3]), []byte(c.mac(payload))) {
-		return "", errConfirmation
-	}
-	expires, err := strconv.ParseInt(parts[2], 10, 64)
-	if err != nil || now.Unix() > expires {
-		return "", errConfirmation
-	}
-	return parts[1], nil
+	return t.mail.SendDraft(ctx, userID, ref.AccountID, ref.DraftID)
 }
 
-// mac is the hex HMAC-SHA256 of payload.
-func (c confirmer) mac(payload string) string {
-	sum := hmac.New(sha256.New, c.key)
-	sum.Write([]byte(payload))
-	return hex.EncodeToString(sum.Sum(nil))
+// removeDraft deletes the targeted draft.
+func (t *toolset) removeDraft(ctx context.Context, a mcpkit.Action) error {
+	userID, ref, err := refOf(a)
+	if err != nil {
+		return err
+	}
+	return t.mail.DeleteDraft(ctx, userID, ref.AccountID, ref.DraftID)
+}
+
+// digest fingerprints what a draft would send.
+func digest(draft schemas.Email) string {
+	fields := []string{
+		draft.ToAddresses, draft.CcAddresses, draft.BccAddresses, draft.Subject,
+		draft.BodyText, draft.BodyHTML, draft.InReplyTo, fmt.Sprint(draft.HasAttachments),
+	}
+	sum := sha256.Sum256([]byte(strings.Join(fields, "\x00")))
+	return hex.EncodeToString(sum[:16])
 }

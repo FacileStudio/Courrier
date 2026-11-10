@@ -2,13 +2,6 @@ package mcp
 
 import "time"
 
-// Pending item states on the confirm page.
-const (
-	pendingReady   = "ready"
-	pendingChanged = "changed"
-	pendingMissing = "missing"
-)
-
 // PendingItem is one action waiting on the confirm page.
 type PendingItem struct {
 	ID           string        `json:"id"`
