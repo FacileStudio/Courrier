@@ -16,6 +16,7 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/internal/database"
 	documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
+	"github.com/FacileStudio/Courrier/apps/api/internal/ideas"
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/modules/accounts"
 	"github.com/FacileStudio/Courrier/apps/api/modules/assist"
@@ -68,6 +69,7 @@ func referenceConfig() apiref.Config {
 				pushmodule.Documentation,
 				assist.Documentation,
 				mcp.Documentation,
+				ideas.Documentation,
 			},
 		},
 	}
@@ -114,7 +116,7 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 // trusted: Traefik replaces the forwarded chain rather than extending it, so
 // the visitor survives in Cf-Connecting-Ip alone. TRUSTED_PROXIES=private,cloudflare
 // fills all three.
-func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger *slog.Logger, svc services) chi.Router {
+func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger *slog.Logger, svc services) (chi.Router, error) {
 	clientDir := spa.DirFromEnv()
 	authService := auth.NewService(db, svc.sessions, appLogger)
 	accountService := accounts.NewService(db, appEnv.EncryptionKey, svc.plans)
@@ -135,6 +137,7 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 
 	mountRoot(router, dbCheck, svc)
 
+	var ideasErr error
 	router.Route("/api", func(r chi.Router) {
 		r.Handle("/files/*", http.StripPrefix("/api/files/", http.FileServer(http.Dir(appEnv.StorageDir))))
 
@@ -149,14 +152,18 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 		settings.RegisterRoutes(r, settingsService, authService)
 		registerSpaces(r, db, appEnv, svc.directory, svc.deletions, authService)
 		mountPending(r, svc, authService)
+		ideasErr = mountIdeas(r, db, svc, authService)
 	})
+	if ideasErr != nil {
+		return nil, ideasErr
+	}
 
 	if spa.Available(clientDir) {
 		router.Handle("/*", middleware.Gzip(spa.Handler(spa.Config{Dir: clientDir})))
 		appLogger.Info("serving client", slog.String("dir", clientDir))
 	}
 
-	return router
+	return router, nil
 }
 
 func run() int {
@@ -224,7 +231,11 @@ func run() int {
 		return 1
 	}
 
-	router := buildRouter(db, health.DB(sqlDB), appEnv, appLogger, svc)
+	router, err := buildRouter(db, health.DB(sqlDB), appEnv, appLogger, svc)
+	if err != nil {
+		appLogger.Error("failed to build router", slog.Any("error", err))
+		return 1
+	}
 
 	addr := ":" + strconv.Itoa(appEnv.Port)
 	server := &http.Server{

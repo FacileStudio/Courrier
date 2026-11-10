@@ -3,13 +3,14 @@
 	import { goto } from '$app/navigation';
 	import { rememberReturn, takeReturn } from '$lib/after-login';
 	import { page } from '$app/state';
-	import { MobileNav, SideBar, SpaceSwitcher, Topbar, icons } from '@facile/muse';
+	import { MobileNav, SideBar, SpaceSwitcher, Topbar, getI18n, icons, ideasNavItem } from '@facile/muse';
 	import { backend, ApiError, type UserProfile, type MailAccount, type Folder, type Space } from '$lib/backend';
 	import { SPACES_URL } from '$lib/plan-limit';
 	import { MAIL_FOLDERS } from '$lib/mail-folders';
 	import { spaceStore } from '$lib/stores/space.svelte';
 	import { activeAccountStore } from '$lib/stores/account.svelte';
 	import { searchStore } from '$lib/stores/search.svelte';
+	import { ideasStore } from '$lib/ideas.svelte';
 	import AccountSwitcher from '$lib/components/AccountSwitcher.svelte';
 		import { syncDevice } from '$lib/notifications';
 	import { needsOnboarding, onboardingSeen } from '$lib/onboarding/steps';
@@ -27,6 +28,8 @@
 	let spaces = $state<Space[]>([]);
 	let collapsed = $state(false);
 	let scroller: HTMLElement | null = $state(null);
+	let ideasReady = $state(false);
+	const i18n = getI18n();
 
 	function setUser(nextUser: UserProfile) {
 		user = nextUser;
@@ -93,6 +96,7 @@
 			const result = await backend.me();
 			user = result.user;
 			loaded = true;
+			ideasReady = true;
 			const back = takeReturn();
 			if (back) await goto(back, { replaceState: true });
 			backend.syncProfile().then(async (r) => {
@@ -119,6 +123,11 @@
 	$effect(() => {
 		spaceStore.active;
 		if (loaded) refreshAccounts();
+	});
+
+	$effect(() => {
+		const id = spaceStore.active?.id ?? null;
+		if (ideasReady) void ideasStore.load(id);
 	});
 
 	/* The rail owns ⌘K now — it is the component that renders the chip, so binding the
@@ -149,7 +158,23 @@
 
 	const onSettings = $derived(path === '/settings' || path.startsWith('/settings/'));
 
+	/* Ideas leads the list in every suite app. A Courrier without Bulle answers 404 and drops it. */
+	const ideasItems = $derived(
+		ideasStore.available
+			? [
+					ideasNavItem({
+						href: '/ideas',
+						active: path === '/ideas',
+						count: ideasStore.count,
+						running: ideasStore.running,
+						i18n
+					})
+				]
+			: []
+	);
+
 	const pages = $derived([
+		...ideasItems,
 		{ href: '/mail/compose', label: t('shell.compose'), icon: icons.edit, active: path === '/mail/compose' },
 		...MAIL_FOLDERS.filter((folder) => folder.primary).map((folder) => {
 			const count = unread(folder.type);
@@ -190,6 +215,7 @@
 	});
 
 	const mobileItems = $derived([
+		...ideasItems,
 		{
 			href: '/mail',
 			label: t('shell.mail'),

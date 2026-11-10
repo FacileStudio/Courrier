@@ -238,6 +238,41 @@ export async function authed(options: RequestInit = {}): Promise<RequestInit> {
 	return { ...options, headers: withCSRF(headers, options.method ?? 'GET'), credentials: 'include' };
 }
 
+export type IdeaSource = { label: string; ref: string };
+
+export type BulleIdea = {
+	id: string;
+	kind: string;
+	title: string;
+	why: string;
+	draft: string;
+	sources: IdeaSource[] | null;
+	status: string;
+	expires_at: string;
+};
+
+export type IdeasResponse = {
+	ai_access: boolean;
+	upgrade_url?: string;
+	ideas: BulleIdea[];
+	generating: boolean;
+	last_batch_at: string | null;
+};
+
+export type RunState = 'running' | 'needs_approval' | 'done' | 'failed';
+
+export type IdeaRunResponse = {
+	id: string;
+	state: RunState;
+	summary: string;
+	outputs: { call_id: string; tool: string; url: string; preview: string }[] | null;
+	pending_approvals: { call_id: string; tool: string; args: unknown }[] | null;
+	continue_url: string;
+};
+
+const spaceQuery = (spaceId: string | null): string =>
+	spaceId === null ? '' : `?space_id=${encodeURIComponent(spaceId)}`;
+
 /** A draft as a pending action would send or delete it. */
 export interface PendingDraft {
 	id: number;
@@ -303,6 +338,35 @@ function normalizeUser(user: UserProfile): UserProfile {
 }
 
 export const backend = {
+	listIdeas(spaceId: string | null) {
+		return apiFetch<IdeasResponse>(`/api/ideas${spaceQuery(spaceId)}`);
+	},
+
+	generateIdeas(spaceId: string | null) {
+		return apiFetch<{ batch_id: string }>(`/api/ideas/generate${spaceQuery(spaceId)}`, { method: 'POST' });
+	},
+
+	runIdea(id: string, spaceId: string | null) {
+		return apiFetch<{ run_id: string }>(`/api/ideas/${encodeURIComponent(id)}/run${spaceQuery(spaceId)}`, {
+			method: 'POST'
+		});
+	},
+
+	dismissIdea(id: string) {
+		return apiFetch<object>(`/api/ideas/${encodeURIComponent(id)}/dismiss`, { method: 'POST' });
+	},
+
+	ideaRun(runId: string) {
+		return apiFetch<IdeaRunResponse>(`/api/ideas/runs/${encodeURIComponent(runId)}`);
+	},
+
+	decideIdea(runId: string, callId: string, approve: boolean) {
+		return apiFetch<object>(`/api/ideas/runs/${encodeURIComponent(runId)}/approvals/${encodeURIComponent(callId)}`, {
+			method: 'POST',
+			body: JSON.stringify({ approve })
+		});
+	},
+
 	baseUrl: backendBaseUrl,
 
 	async logout() {
