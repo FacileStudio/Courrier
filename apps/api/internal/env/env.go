@@ -1,6 +1,7 @@
 package env
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"slices"
 	"strings"
@@ -72,6 +73,16 @@ type Config struct {
 	EncryptionKey       []byte
 	Push                Push
 	BulleURL            string
+	MCP                 MCP
+}
+
+// MCP turns on the remote MCP server. Resource is the canonical URI clients
+// connect to, such as https://courrier.facile.studio/mcp, and the RFC 8707
+// resource Registre binds its tokens to. It needs SSO. StateKey signs the
+// confirmation state handed to clients.
+type MCP struct {
+	Resource string
+	StateKey []byte
 }
 
 // Load reads the configuration from the environment, deriving the encryption
@@ -99,6 +110,7 @@ func Load() (Config, error) {
 	cfg.EncryptionKey = crypto.DeriveKey(encryptionKey)
 
 	cfg.BulleURL = troncenv.String("BULLE_URL", "")
+	cfg.MCP = MCP{Resource: troncenv.String("MCP_RESOURCE", ""), StateKey: deriveStateKey(encryptionKey)}
 	if issuer := troncenv.String("OIDC_ISSUER", ""); issuer != "" {
 		clientID := troncenv.String("OIDC_CLIENT_ID", "")
 		clientSecret := troncenv.String("OIDC_CLIENT_SECRET", "")
@@ -134,6 +146,13 @@ func Load() (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// deriveStateKey derives the MCP confirmation key from the app's encryption
+// passphrase, namespaced so it collides with no other key.
+func deriveStateKey(encryptionKey string) []byte {
+	sum := sha256.Sum256([]byte("courrier-mcp-state:" + encryptionKey))
+	return sum[:]
 }
 
 // withAppOrigins adds the origins the installed apps serve their pages from to

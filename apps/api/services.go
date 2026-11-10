@@ -9,9 +9,11 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/internal/plans"
 	"github.com/FacileStudio/Courrier/apps/api/internal/push"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
+	"github.com/FacileStudio/Courrier/apps/api/modules/mcp"
 	"github.com/FacileStudio/Courrier/apps/api/modules/spaces"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 
+	"github.com/FacileStudio/porte"
 	"github.com/FacileStudio/porte/oidc"
 	"github.com/FacileStudio/porte/session"
 
@@ -21,7 +23,7 @@ import (
 // services are the long-lived pieces run builds once: porte's session manager
 // and OIDC kit, the mail service the watcher shares with the HTTP routes, the
 // push hub, and the Registre space sync, deletion receiver and plan gate when
-// SSO is on.
+// SSO is on, and the MCP server when it is configured.
 type services struct {
 	sessions  *session.Manager
 	kit       *oidc.Kit
@@ -31,6 +33,8 @@ type services struct {
 	deletions *spaces.Deletions
 	plans     *plans.Gate
 	assist    *assist.Service
+	mcp       *mcp.Service
+	identity  porte.IdentityStore
 }
 
 // buildServices builds porte, then the mail service with its push hub, and,
@@ -48,6 +52,9 @@ func buildServices(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogge
 	}
 	svc.directory = newDirectory(db, appEnv, svc.plans, appLogger)
 	if svc.deletions, err = newDeletions(db, appEnv, appLogger); err != nil {
+		return services{}, err
+	}
+	if svc.mcp, err = newMCP(ctx, db, appEnv, svc, appLogger); err != nil {
 		return services{}, err
 	}
 	reportSpaceIDs(db, appLogger)
