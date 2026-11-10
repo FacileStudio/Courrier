@@ -31,14 +31,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// needDB skips a test that stores pending actions when there is no database.
-func needDB(t *testing.T) {
-	t.Helper()
-	if testORM == nil {
-		t.Skip(testdb.SkipReason("createdb courrier_test  # or point at any scratch database"))
-	}
-}
-
 // identities maps the test subject to userID and nothing else.
 type identities struct {
 	porte.IdentityStore
