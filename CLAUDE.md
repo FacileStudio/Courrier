@@ -97,6 +97,7 @@ Client dev only (in `apps/client/.env`):
 - Settings: `/api/settings/`
 - Spaces: `/api/spaces` (CRUD), `/api/spaces/{id}/members` (member management), `/api/spaces/{id}/leave`
 - Registre nudge: `POST /api/registre/sync` (anonymous, answers 202, mounted only with OIDC on)
+- MCP: `POST /mcp` and `/.well-known/oauth-protected-resource/mcp` at the root, plus the confirm page API `/api/mcp/pending` (mounted only with OIDC on and `MCP_RESOURCE` set; see docs/mcp.md)
 
 Every API route is registered inside a single `router.Route("/api", ...)` in `main.go`; the
 modules declare relative prefixes (`/auth`, `/accounts`, ...). That subtree is what makes an
