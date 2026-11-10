@@ -5,7 +5,7 @@
 	import { bindLocale, localeSource } from '$lib/i18n/index.svelte';
 	import TitleBar from '$lib/components/native/TitleBar.svelte';
 	import { registerDeepLinks } from '$lib/native';
-	import { isApp, isDesktop } from '$lib/platform';
+	import { forgetLegacyWebToken, isApp, isDesktop } from '$lib/platform';
 	import { theme } from '$lib/theme.svelte';
 	import { updater } from '$lib/updater.svelte';
 
@@ -16,6 +16,7 @@
 
 	if (browser) {
 		theme.restore();
+		forgetLegacyWebToken(localStorage);
 		void import('iconify-icon');
 		if (isApp()) registerDeepLinks();
 		if (isDesktop()) {

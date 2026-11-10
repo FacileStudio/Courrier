@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { base64Url, parseDeepLink, pkceChallenge, randomState, randomString } from './platform';
+import { base64Url, forgetLegacyWebToken, parseDeepLink, pkceChallenge, randomState, randomString } from './platform';
 
 describe('pkce', () => {
 	it('matches the RFC 7636 appendix B vector', async () => {
@@ -42,5 +42,24 @@ describe('parseDeepLink', () => {
 		expect(parseDeepLink('studio.facile.bulle://auth?code=1')).toBeNull();
 		expect(parseDeepLink('studio.facile.courrier://other')).toBeNull();
 		expect(parseDeepLink('nonsense')).toBeNull();
+	});
+});
+
+describe('forgetLegacyWebToken', () => {
+	function storage() {
+		const keys = new Map([['courrier.token', 'old'], ['CapacitorStorage.courrier.token', 'app']]);
+		return { keys, removeItem: (key: string) => void keys.delete(key) };
+	}
+
+	it('deletes the pre-cookie token on the web', () => {
+		const s = storage();
+		forgetLegacyWebToken(s, false);
+		expect([...s.keys.keys()]).toEqual(['CapacitorStorage.courrier.token']);
+	});
+
+	it('leaves an installed app alone', () => {
+		const s = storage();
+		forgetLegacyWebToken(s, true);
+		expect(s.keys.size).toBe(2);
 	});
 });

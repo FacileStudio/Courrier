@@ -68,6 +68,20 @@ export async function clearToken(): Promise<void> {
 	await Preferences.remove({ key: TOKEN_KEY });
 }
 
+/**
+ * Deletes the bearer token the web app kept in localStorage under `courrier.token` before it
+ * moved to the session cookie. The installed apps keep theirs through Preferences, which on the
+ * desktop stores it as `CapacitorStorage.courrier.token`, so they are left alone.
+ */
+export function forgetLegacyWebToken(storage: Pick<Storage, 'removeItem'> | undefined, app = isApp()): void {
+	if (app || !storage) return;
+	try {
+		storage.removeItem(TOKEN_KEY);
+	} catch {
+		return;
+	}
+}
+
 /** Encodes bytes as unpadded base64url. */
 export function base64Url(bytes: Uint8Array): string {
 	let binary = '';
