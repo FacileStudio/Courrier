@@ -16,6 +16,7 @@ import (
 	"github.com/FacileStudio/porte/oidc"
 	portepg "github.com/FacileStudio/porte/pg"
 	"github.com/FacileStudio/porte/session"
+	"github.com/FacileStudio/tronc/bulle"
 	"github.com/FacileStudio/tronc/apiref"
 	"github.com/go-chi/chi/v5"
 )
@@ -41,9 +42,14 @@ func referenceRouter(t *testing.T) chi.Router {
 	svc := services{
 		sessions: sessions, kit: kit, mail: mail.NewService(nil, nil),
 		directory: spaces.NewDirectory(nil, directory.Client{Issuer: appEnv.OIDC.Issuer}, appLogger),
+		ideas:     &bulle.Options{URL: "http://bulle.invalid", TokenSource: func(context.Context) (string, error) { return "", nil }},
 		deletions: spaces.NewDeletions(nil, directory.Client{Issuer: appEnv.OIDC.Issuer}, nil, appEnv.StorageDir, appLogger),
 	}
-	return buildRouter(nil, func(context.Context) error { return nil }, appEnv, appLogger, svc)
+	router, err := buildRouter(nil, func(context.Context) error { return nil }, appEnv, appLogger, svc)
+	if err != nil {
+		t.Fatalf("buildRouter: %v", err)
+	}
+	return router
 }
 
 func TestEveryRouteIsDocumented(t *testing.T) {
@@ -99,5 +105,20 @@ func TestReferenceIsServedAtDocs(t *testing.T) {
 	}
 	if document.OpenAPI == "" || len(document.Paths) == 0 {
 		t.Fatalf("spec is empty: %+v", document)
+	}
+}
+
+func TestIdeasRoutesRefuseAnonymousCallers(t *testing.T) {
+	router := referenceRouter(t)
+	cases := map[string]string{
+		http.MethodGet:  "/api/ideas",
+		http.MethodPost: "/api/ideas/generate",
+	}
+	for method, path := range cases {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(method, path, nil))
+		if recorder.Code != http.StatusUnauthorized {
+			t.Errorf("%s %s = %d, want 401", method, path, recorder.Code)
+		}
 	}
 }

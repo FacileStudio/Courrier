@@ -19,6 +19,9 @@ import (
 // Mailboxes is the feature that caps how many mail accounts one scope holds.
 const Mailboxes = "courrier.mailboxes"
 
+// AIAccess is the suite-wide flag that unlocks AI features.
+const AIAccess = "ai.access"
+
 // Gate is Courrier's view of the plans Registre serves. A nil Gate, or one
 // that never received an entitlements snapshot, allows everything.
 type Gate struct {
@@ -34,7 +37,10 @@ type Gate struct {
 // issuer is both the provider of the porte identities a personal scope is read
 // from and the origin of every upgrade link.
 func New(orm *gorm.DB, issuer string, logger *slog.Logger) *Gate {
-	store := forfait.NewStore(forfait.Feature{Key: Mailboxes, Kind: forfait.Limit, Default: json.RawMessage("1")})
+	store := forfait.NewStore(
+		forfait.Feature{Key: Mailboxes, Kind: forfait.Limit, Default: json.RawMessage("1")},
+		forfait.Feature{Key: AIAccess, Kind: forfait.Bool, Default: json.RawMessage("false")},
+	)
 	store.Issuer = issuer
 	store.Logger = logger
 	return &Gate{orm: orm, issuer: issuer, logger: logger, store: store}

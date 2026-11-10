@@ -16,6 +16,7 @@ import (
 	"github.com/FacileStudio/porte"
 	"github.com/FacileStudio/porte/oidc"
 	"github.com/FacileStudio/porte/session"
+	"github.com/FacileStudio/tronc/bulle"
 
 	"gorm.io/gorm"
 )
@@ -35,6 +36,7 @@ type services struct {
 	assist    *assist.Service
 	mcp       *mcp.Service
 	identity  porte.IdentityStore
+	ideas     *bulle.Options
 }
 
 // buildServices builds porte, then the mail service with its push hub, and,
@@ -55,6 +57,9 @@ func buildServices(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogge
 		return services{}, err
 	}
 	if svc.mcp, err = newMCP(ctx, db, appEnv, svc, appLogger); err != nil {
+		return services{}, err
+	}
+	if svc.ideas, err = newIdeasOptions(appEnv, svc.identity, appLogger); err != nil {
 		return services{}, err
 	}
 	reportSpaceIDs(db, appLogger)

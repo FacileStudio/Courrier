@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/FacileStudio/Journal/sdk/journal v0.0.0-20260708221941-db985ad2b1ba
-	github.com/FacileStudio/porte v0.14.0
+	github.com/FacileStudio/porte v0.15.1
 	github.com/FacileStudio/porte/directory v0.3.0
 	github.com/FacileStudio/porte/forfait v0.1.1
 	github.com/FacileStudio/porte/mcpauth v0.1.0

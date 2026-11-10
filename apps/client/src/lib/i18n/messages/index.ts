@@ -5,6 +5,7 @@ import { assist } from './assist';
 import { auth } from './auth';
 import { common } from './common';
 import { compose } from './compose';
+import { ideas } from './ideas';
 import { landing } from './landing';
 import { mail } from './mail';
 import { onboarding } from './onboarding';
@@ -29,7 +30,8 @@ const rows = {
 	...compose,
 	...spaces,
 	...spaceSettings,
-	...pending
+	...pending,
+	...ideas
 };
 
 export type AppKey = keyof typeof rows;

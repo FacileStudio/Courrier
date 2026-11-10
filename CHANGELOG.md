@@ -2,6 +2,17 @@
 
 All notable changes to Courrier are listed here. The format follows Keep a Changelog, and versions follow semver.
 
+## [Unreleased]
+
+### Added
+
+- Ideas: a lightbulb entry first in the sidebar and the phone bar, with a badge for new ideas, and an `/ideas` page where Bulle suggests which mails to answer, follow up or sort in the active space. An idea runs in place: Courrier polls the run, shows an approval card for each held call, then the result with its links and a link to continue in Bulle. Ideas are paid (`ai.access`): a free plan sees the upsell and Registre's plans link.
+- API: `GET /api/ideas`, `POST /api/ideas/generate`, `POST /api/ideas/{id}/run`, `POST /api/ideas/{id}/dismiss`, `GET /api/ideas/runs/{run}` and `POST /api/ideas/runs/{run}/approvals/{call}`, mounted when SSO and `BULLE_URL` are set. They call Bulle as the signed-in user through a Registre token exchange (audience `bulle`, scopes `bulle.read` and `bulle.write`). `space_id` must be a space the caller belongs to and that Registre knows. Courrier declares `ai.access` as a plan feature and answers 402 with the upgrade link, or `ai_access: false` on the list, without calling Bulle when the plan lacks it.
+
+### Changed
+
+- porte to v0.15.1 (`porte/exchange`). Client: `@facile/muse` v0.16.1 to v0.17.1.
+
 ## [0.14.1] - 2026-11-10
 
 ### Changed
