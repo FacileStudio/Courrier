@@ -51,7 +51,7 @@ the old `/files/` prefix on every boot.
 | Router | `tronc/httpx.NewRouter` | Chi router with the suite's logging, recovery, and CORS middleware |
 | Modules | `apps/api/modules/*` | `auth`, `accounts`, `mail`, `users`, `settings`, `spaces` |
 | Schemas | `apps/api/schemas` | Twelve GORM models, `AutoMigrate`, the trigram indexes, and the avatar backfill |
-| Internal | `apps/api/internal/*` | `database`, `middleware`, `env`, `crypto`, `authcrypto`, `authcontext`, `resourcetoken`, `oidcavatar`, `documentation` |
+| Internal | `apps/api/internal/*` | `database`, `middleware`, `env`, `crypto`, `authcrypto`, `resourcetoken`, `documentation`; the request identity, user store and erasure come from `porte/kit` |
 | Client | `apps/client` | SvelteKit 5 with `adapter-static` and `fallback: index.html` |
 
 `modules/mail` is the biggest one and splits into `imap.go` (fetch and flag sync),
