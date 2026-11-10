@@ -62,6 +62,6 @@ the request, nothing is sent and the action closes. A delegated (Bulle) token ca
 confirm page.
 
 The transport, Origin check, scope gate, paging helpers and the whole confirmation flow come
-from `github.com/FacileStudio/tronc/mcp` (v0.19.0); `apps/api/modules/mcp` keeps only the mail
+from `github.com/FacileStudio/tronc/mcp` (v0.21.0); `apps/api/modules/mcp` keeps only the mail
 tools, what a send or a draft delete runs, and the confirm page's routes. Its
 `TestConformance` runs tronc's `mcptest` kit against the endpoint.
