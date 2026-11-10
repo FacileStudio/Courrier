@@ -21,6 +21,7 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/modules/assist"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
+	"github.com/FacileStudio/Courrier/apps/api/modules/mcp"
 	pushmodule "github.com/FacileStudio/Courrier/apps/api/modules/push"
 	"github.com/FacileStudio/Courrier/apps/api/modules/settings"
 	"github.com/FacileStudio/Courrier/apps/api/modules/spaces"
@@ -66,6 +67,7 @@ func referenceConfig() apiref.Config {
 				spaces.Documentation,
 				pushmodule.Documentation,
 				assist.Documentation,
+				mcp.Documentation,
 			},
 		},
 	}
@@ -102,7 +104,7 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 	if err != nil {
 		return services{}, err
 	}
-	return services{sessions: sessions, kit: kit, assist: newAssist(appEnv, store.Identities())}, nil
+	return services{sessions: sessions, kit: kit, assist: newAssist(appEnv, store.Identities()), identity: store.Identities()}, nil
 }
 
 // buildRouter wires every module service and the shared middleware onto the
@@ -131,9 +133,7 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 		Security: securityConfig(clientDir, appLogger),
 	})
 
-	health.Mount(router, dbCheck)
-	router.Get("/version", versionHandler)
-	apiref.Mount(router, referenceConfig())
+	mountRoot(router, dbCheck, svc)
 
 	router.Route("/api", func(r chi.Router) {
 		r.Handle("/files/*", http.StripPrefix("/api/files/", http.FileServer(http.Dir(appEnv.StorageDir))))
@@ -148,6 +148,7 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 		users.RegisterRoutes(r, userService, authService)
 		settings.RegisterRoutes(r, settingsService, authService)
 		registerSpaces(r, db, appEnv, svc.directory, svc.deletions, authService)
+		mountPending(r, svc, authService)
 	})
 
 	if spa.Available(clientDir) {

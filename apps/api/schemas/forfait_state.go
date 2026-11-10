@@ -19,10 +19,13 @@ func ensureForfaitState(db *gorm.DB) error {
 }
 
 // ensureRawTables creates the tables kept as raw DDL rather than GORM models:
-// push_devices and forfait_state. Idempotent.
+// push_devices, forfait_state and mcp_pending_actions. Idempotent.
 func ensureRawTables(db *gorm.DB) error {
 	if err := ensurePushDevices(db); err != nil {
 		return err
 	}
-	return ensureForfaitState(db)
+	if err := ensureForfaitState(db); err != nil {
+		return err
+	}
+	return ensurePendingActions(db)
 }
