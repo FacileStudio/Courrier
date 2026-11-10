@@ -238,6 +238,29 @@ export async function authed(options: RequestInit = {}): Promise<RequestInit> {
 	return { ...options, headers: withCSRF(headers, options.method ?? 'GET'), credentials: 'include' };
 }
 
+/** A draft as a pending action would send or delete it. */
+export interface PendingDraft {
+	id: number;
+	to: string[];
+	cc: string[];
+	bcc: string[];
+	subject: string;
+	body: string;
+}
+
+/** An action an AI client asked for, waiting for the person to confirm it. */
+export interface PendingAction {
+	id: string;
+	kind: 'send' | 'delete_draft';
+	client_id: string;
+	created_at: string;
+	expires_at: string;
+	account_id: number;
+	account_email: string;
+	state: 'ready' | 'changed' | 'missing';
+	draft?: PendingDraft;
+}
+
 async function send(path: string, options: RequestInit = {}): Promise<Response> {
 	const response = await fetch(`${backendBaseUrl}${path}`, await authed(options));
 	if (response.status === 401 && isApp()) await clearToken();
@@ -431,6 +454,18 @@ export const backend = {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
+	},
+
+	listPending() {
+		return apiFetch<{ actions: PendingAction[] }>('/api/mcp/pending');
+	},
+
+	confirmPending(id: string) {
+		return apiFetch<{ status: string }>(`/api/mcp/pending/${encodeURIComponent(id)}/confirm`, { method: 'POST' });
+	},
+
+	dismissPending(id: string) {
+		return apiFetch<{ status: string }>(`/api/mcp/pending/${encodeURIComponent(id)}/dismiss`, { method: 'POST' });
 	},
 
 	deleteDraft(accountId: number, draftId: number) {

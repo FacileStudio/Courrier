@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, setContext } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { rememberReturn, takeReturn } from '$lib/after-login';
 	import { page } from '$app/state';
 	import { MobileNav, SideBar, SpaceSwitcher, Topbar, icons } from '@facile/muse';
 	import { backend, ApiError, type UserProfile, type MailAccount, type Folder, type Space } from '$lib/backend';
@@ -92,6 +93,8 @@
 			const result = await backend.me();
 			user = result.user;
 			loaded = true;
+			const back = takeReturn();
+			if (back) await goto(back, { replaceState: true });
 			backend.syncProfile().then(async (r) => {
 				if (r.synced) {
 					const fresh = await backend.me();
@@ -107,6 +110,7 @@
 			void backend.getPush().then(syncDevice).catch(() => undefined);
 		} catch (err) {
 			if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+				rememberReturn(page.url);
 				goto('/login');
 			}
 		}
