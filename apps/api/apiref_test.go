@@ -16,8 +16,8 @@ import (
 	"github.com/FacileStudio/porte/oidc"
 	portepg "github.com/FacileStudio/porte/pg"
 	"github.com/FacileStudio/porte/session"
-	"github.com/FacileStudio/tronc/bulle"
 	"github.com/FacileStudio/tronc/apiref"
+	"github.com/FacileStudio/tronc/bulle"
 	"github.com/go-chi/chi/v5"
 )
 
