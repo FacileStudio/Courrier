@@ -10,6 +10,7 @@ import (
 	"github.com/FacileStudio/porte/mcpauth"
 	"github.com/FacileStudio/tronc/apiref"
 	"github.com/FacileStudio/tronc/health"
+	mcpkit "github.com/FacileStudio/tronc/mcp"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
@@ -52,13 +53,18 @@ func newMCP(ctx context.Context, db *gorm.DB, appEnv env.Config, svc services, a
 		return nil, err
 	}
 	appLogger.Info("mcp server on", slog.String("resource", appEnv.MCP.Resource))
-	return mcp.NewService(db, svc.mail, mcp.Config{
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+	return mcp.NewService(svc.mail, mcp.Config{
 		Resource: appEnv.MCP.Resource,
 		Issuer:   appEnv.OIDC.Issuer,
 		Version:  version,
 		Origins:  appEnv.CORSAllowedOrigins,
 		StateKey: appEnv.MCP.StateKey,
 		Verifier: verifier,
+		Pending:  mcpkit.PostgresPending{DB: sqlDB},
 		Logger:   appLogger,
 	})
 }

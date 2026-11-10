@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/FacileStudio/porte/mcpauth"
+	mcpkit "github.com/FacileStudio/tronc/mcp"
+	"github.com/FacileStudio/tronc/mcp/mcptest"
 	"github.com/go-chi/chi/v5"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -15,7 +17,7 @@ import (
 // fixture is a running MCP endpoint over a fake mailbox.
 type fixture struct {
 	srv       *httptest.Server
-	reg       *registre
+	issuer    *mcptest.Issuer
 	mail      *fakeMail
 	service   *Service
 	userID    int64
@@ -29,11 +31,24 @@ func newFixture(t *testing.T) *fixture {
 	return newFixtureOn(t, nil, nil)
 }
 
+// pendingStore is mcp_actions on the scratch database, or memory without
+// one.
+func pendingStore(t *testing.T) mcpkit.Pending {
+	if testORM == nil {
+		return mcptest.NewPending()
+	}
+	sqlDB, err := testORM.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return mcpkit.PostgresPending{DB: sqlDB}
+}
+
 // newFixtureOn is newFixture on a given listener, nil for any free port,
 // with front wrapping the routes when it is set.
 func newFixtureOn(t *testing.T, listener net.Listener, front func(*fixture, http.Handler) http.Handler) *fixture {
 	t.Helper()
-	f := &fixture{reg: newRegistre(t)}
+	f := &fixture{issuer: mcptest.NewIssuer(t)}
 	f.userID, f.accountID = seedPerson(t)
 	f.mail = newFakeMail(f.accountID)
 	var handler http.Handler
@@ -45,13 +60,14 @@ func newFixtureOn(t *testing.T, listener net.Listener, front func(*fixture, http
 	t.Cleanup(f.srv.Close)
 	f.resource = f.srv.URL + "/mcp"
 	verifier, err := mcpauth.Verifier(context.Background(), mcpauth.Config{
-		Issuer: f.reg.srv.URL, Resource: f.resource, ScopePrefix: scopePrefix, Identities: identities{userID: f.userID},
+		Issuer: f.issuer.URL, Resource: f.resource, ScopePrefix: "courrier", Identities: identities{userID: f.userID},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.service, err = NewService(testORM, f.mail, Config{
-		Resource: f.resource, Issuer: f.reg.srv.URL, Version: "test", StateKey: []byte("state-key"), Verifier: verifier,
+	f.service, err = NewService(f.mail, Config{
+		Resource: f.resource, Issuer: f.issuer.URL, Version: "test", StateKey: []byte("state-key"), Verifier: verifier,
+		Pending: pendingStore(t),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -65,51 +81,27 @@ func newFixtureOn(t *testing.T, listener net.Listener, front func(*fixture, http
 	return f
 }
 
-// token is a third-party token for this endpoint with both scopes.
-func (f *fixture) token(t *testing.T) string {
-	return f.reg.mint(t, f.resource, nil)
-}
-
-// bearer adds an access token to every request.
-type bearer string
-
-// RoundTrip sends r with the token.
-func (b bearer) RoundTrip(r *http.Request) (*http.Response, error) {
-	r = r.Clone(r.Context())
-	r.Header.Set("Authorization", "Bearer "+string(b))
-	return http.DefaultTransport.RoundTrip(r)
+// token is a third-party token for this endpoint with scopes, or both when
+// none is given.
+func (f *fixture) token(t testing.TB, scopes ...string) string {
+	if len(scopes) == 0 {
+		scopes = []string{"courrier.read", "courrier.write"}
+	}
+	return f.issuer.Token(t, f.resource, subject, scopes...)
 }
 
 // clientOptions shape the test client: whether it can elicit, and which
 // protocol version it speaks.
-type clientOptions struct {
-	elicit   func(context.Context, *sdk.ElicitRequest) (*sdk.ElicitResult, error)
-	version  string
-	noRetrys bool
-}
+type clientOptions = mcptest.ClientOptions
 
 // connect opens an SDK client session with token.
 func (f *fixture) connect(t *testing.T, token string, opts clientOptions) *sdk.ClientSession {
 	t.Helper()
-	client := sdk.NewClient(&sdk.Implementation{Name: "test", Version: "1"}, &sdk.ClientOptions{
-		ElicitationHandler: opts.elicit,
-		MultiRoundTrip:     &sdk.MultiRoundTripOptions{Disabled: opts.noRetrys},
-	})
-	transport := &sdk.StreamableClientTransport{Endpoint: f.resource, HTTPClient: &http.Client{Transport: bearer(token)}}
-	session, err := client.Connect(context.Background(), transport, &sdk.ClientSessionOptions{ProtocolVersion: opts.version})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = session.Close() })
-	return session
+	return mcptest.Connect(t, f.resource, token, opts)
 }
 
 // call runs one tool and fails the test on a protocol error.
 func call(t *testing.T, session *sdk.ClientSession, name string, args any) *sdk.CallToolResult {
 	t.Helper()
-	result, err := session.CallTool(context.Background(), &sdk.CallToolParams{Name: name, Arguments: args})
-	if err != nil {
-		t.Fatalf("%s: %v", name, err)
-	}
-	return result
+	return mcptest.Call(t, session, name, args)
 }

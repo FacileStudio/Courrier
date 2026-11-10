@@ -2,9 +2,9 @@ package mcp
 
 import (
 	"errors"
-	"log/slog"
 
 	"github.com/FacileStudio/porte/mcpauth"
+	mcpkit "github.com/FacileStudio/tronc/mcp"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -20,64 +20,33 @@ const (
 	toolDeleteDraft  = "courrier_delete_draft"
 )
 
-// writeTools need the courrier.write scope.
-var writeTools = map[string]bool{toolDraft: true, toolSend: true, toolOrganize: true, toolDeleteDraft: true}
+// Hints appended to a not_found error, naming the tool that lists valid ids.
+const (
+	hintAccount = "Call courrier_list_accounts for the account ids you can use."
+	hintMessage = "Call courrier_search_mail for the message ids of this account."
+	hintDraft   = "Call courrier_search_mail with folder \"drafts\" for this account's draft ids, or create one with courrier_draft."
+)
 
-// errNeedsWrite is the refusal inside a write tool for a read-only token.
-var errNeedsWrite = errors.New("this tool needs the courrier.write scope. Reconnect Courrier and grant write access")
+// errNoCaller is the refusal for a token that resolves to no Courrier user.
+var errNoCaller = errors.New("this request carries no valid access token. Reconnect Courrier")
 
 // toolset holds what the tool handlers share.
 type toolset struct {
 	mail    Mailbox
-	pending pendingStore
-	confirm confirmer
+	confirm *mcpkit.Confirmations
 	appURL  string
-	logger  *slog.Logger
 }
 
-// annotations builds a tool's hints. Clients treat them as untrusted UX
-// hints; the scope check and the confirmations are the actual gate.
-func annotations(title string, readOnly, destructive, idempotent, openWorld bool) *sdk.ToolAnnotations {
-	return &sdk.ToolAnnotations{
-		Title: title, ReadOnlyHint: readOnly, DestructiveHint: &destructive,
-		IdempotentHint: idempotent, OpenWorldHint: &openWorld,
-	}
-}
-
-// register adds the curated tools. tools/list returns them sorted by name.
-func (t *toolset) register(server *sdk.Server) {
-	t.registerReads(server)
-	t.registerWrites(server)
-}
-
-// caller is the person a tool call acts for, and the client acting.
+// caller is the person a tool call acts for.
 type caller struct {
-	userID   int64
-	clientID string
-	actor    string
-	canWrite bool
+	userID int64
 }
 
 // callerOf reads the caller from the verified token of the request.
 func callerOf(req *sdk.CallToolRequest) (caller, error) {
-	info := req.Extra.TokenInfo
-	identity, ok := mcpauth.Identity(info)
+	identity, ok := mcpauth.Identity(req.Extra.TokenInfo)
 	if !ok {
-		return caller{}, errors.New("this request carries no valid access token. Reconnect Courrier")
+		return caller{}, errNoCaller
 	}
-	clientID, _ := info.Extra[mcpauth.ExtraClientID].(string)
-	return caller{
-		userID: identity.UserID, clientID: clientID, actor: identity.Actor,
-		canWrite: mcpauth.HasScope(info, scopePrefix+".write"),
-	}, nil
-}
-
-// writer is callerOf for a write tool: a token without the write scope is
-// refused, even if the HTTP gate let it through.
-func writer(req *sdk.CallToolRequest) (caller, error) {
-	who, err := callerOf(req)
-	if err == nil && !who.canWrite {
-		err = errNeedsWrite
-	}
-	return who, err
+	return caller{userID: identity.UserID}, nil
 }

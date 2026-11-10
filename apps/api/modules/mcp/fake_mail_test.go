@@ -27,13 +27,14 @@ type fakeMail struct {
 	emails  map[int64]schemas.Email
 	nextID  int64
 	sent    []mail.SendRequest
+	removed map[int64]int
 }
 
 // newFakeMail holds one account and no mail.
 func newFakeMail(accountID int64) *fakeMail {
 	return &fakeMail{
 		account: schemas.Account{ID: accountID, Email: "me@example.test", Name: "Me", IsDefault: true},
-		emails:  map[int64]schemas.Email{}, nextID: 100,
+		emails:  map[int64]schemas.Email{}, nextID: 100, removed: map[int64]int{},
 	}
 }
 
@@ -55,6 +56,13 @@ func (f *fakeMail) sentCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return len(f.sent)
+}
+
+// removals is how many times draft id was sent or deleted.
+func (f *fakeMail) removals(id int64) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.removed[id]
 }
 
 // VisibleAccounts returns the one account.

@@ -3,10 +3,11 @@ package mcp
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	mcpkit "github.com/FacileStudio/tronc/mcp"
 
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -32,27 +33,6 @@ func text(result *sdk.CallToolResult) string {
 		}
 	}
 	return ""
-}
-
-// TestToolsCarryAnnotationsInNameOrder checks every tool is prefixed,
-// annotated with explicit hints, and listed in a stable order.
-func TestToolsCarryAnnotationsInNameOrder(t *testing.T) {
-	f := newFixture(t)
-	listed, err := f.connect(t, f.token(t), clientOptions{}).ListTools(t.Context(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	names := []string{}
-	for _, tool := range listed.Tools {
-		a := tool.Annotations
-		if !strings.HasPrefix(tool.Name, "courrier_") || a == nil || a.DestructiveHint == nil || a.OpenWorldHint == nil || a.Title == "" {
-			t.Fatalf("tool %s lacks its prefix or explicit annotations: %+v", tool.Name, a)
-		}
-		names = append(names, tool.Name)
-	}
-	if len(names) != 7 || !slices.IsSorted(names) {
-		t.Fatalf("want the 7 tools sorted by name, got %v", names)
-	}
 }
 
 // TestSearchPagesWithoutRepeats walks 45 messages in pages of 20.
@@ -99,8 +79,8 @@ func TestLongThreadIsCutToTheBudget(t *testing.T) {
 	result := call(t, session, toolReadThread, map[string]any{"account_id": f.accountID, "message_id": first.ID, "response_format": "detailed"})
 	var page threadOutput
 	decode(t, result, &page)
-	if size := encodedSize(page); size > resultBudget || page.NextCursor == "" || len(page.Messages) >= 10 {
-		t.Fatalf("want a page under %d bytes with a cursor, got %d bytes, %d messages", resultBudget, size, len(page.Messages))
+	if size := mcpkit.EncodedSize(page); size > mcpkit.ResultBudget || page.NextCursor == "" || len(page.Messages) >= 10 {
+		t.Fatalf("want a page under %d bytes with a cursor, got %d bytes, %d messages", mcpkit.ResultBudget, size, len(page.Messages))
 	}
 	var next threadOutput
 	decode(t, call(t, session, toolReadThread, map[string]any{"account_id": f.accountID, "message_id": first.ID,

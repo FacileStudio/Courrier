@@ -1,11 +1,21 @@
 package mcp
 
-// toolOf is the tool that asks for a pending action kind.
-func toolOf(kind string) string {
+import (
+	"fmt"
+	"strings"
+
+	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
+	"github.com/FacileStudio/Courrier/apps/api/schemas"
+)
+
+// question is what the client asks the person.
+func question(kind string, draft schemas.Email) string {
+	recipients := strings.Join(append(append(mail.AddressList(draft.ToAddresses), mail.AddressList(draft.CcAddresses)...),
+		mail.AddressList(draft.BccAddresses)...), ", ")
 	if kind == kindSend {
-		return toolSend
+		return fmt.Sprintf("Send the email %q to %s now?", draft.Subject, recipients)
 	}
-	return toolDeleteDraft
+	return fmt.Sprintf("Delete the draft %q (to %s) for good?", draft.Subject, recipients)
 }
 
 // doneStatus is the status of a confirmed action that ran.

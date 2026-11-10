@@ -48,7 +48,7 @@ continue. Business errors are `isError` results that name the tool or argument t
 
 `courrier_send` and `courrier_delete_draft` never run on the model's word alone.
 
-1. The tool stores a pending action (`mcp_pending_actions`) holding a digest of the draft.
+1. The tool stores a pending action (`mcp_actions`, tronc/mcp's table) holding a digest of the draft.
 2. A client on 2026-07-28 that declares form elicitation gets an `input_required` result
    asking the person. Its retry carries the answer and a `requestState` signed with a key
    derived from `ENCRYPTION_KEY`, naming the pending action, the person and a 15-minute expiry.
@@ -60,3 +60,8 @@ continue. Business errors are `isError` results that name the tool or argument t
 Either way the action runs once: the first confirmation claims it. If the draft changed after
 the request, nothing is sent and the action closes. A delegated (Bulle) token cannot use the
 confirm page.
+
+The transport, Origin check, scope gate, paging helpers and the whole confirmation flow come
+from `github.com/FacileStudio/tronc/mcp` (v0.19.0); `apps/api/modules/mcp` keeps only the mail
+tools, what a send or a draft delete runs, and the confirm page's routes. Its
+`TestConformance` runs tronc's `mcptest` kit against the endpoint.

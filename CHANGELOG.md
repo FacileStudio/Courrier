@@ -2,6 +2,15 @@
 
 All notable changes to Courrier are listed here. The format follows Keep a Changelog, and versions follow semver.
 
+## [Unreleased]
+
+### Changed
+
+- refactor(api): the MCP server runs on `tronc/mcp` v0.19.0, the kit extracted from this module. The transport, Origin check, scope gate, paging helpers, confirmation flow and audit now live in tronc; `modules/mcp` keeps the mail tools. Tools, arguments, statuses and the confirm page are unchanged.
+- Pending actions move to tronc's `mcp_actions` table, created at boot (additive). `mcp_pending_actions` is no longer read and is left in place; it held no open action on 2026-11-10.
+- Write audit records come from tronc: one per write tool call and one per confirmation event, with the target in `target`. A draft save or an organize call no longer logs its account id.
+- tests: `TestConformance` runs `mcptest.Run` (401 challenge, metadata, 405, Origin, annotations, schemas, order, write scope, and the confirmation path of `courrier_send` and `courrier_delete_draft`). Confirmation tests run without a database on the in-memory store.
+
 ## [0.14.0] - 2026-11-10
 
 ### Added

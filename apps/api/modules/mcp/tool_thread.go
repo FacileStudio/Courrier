@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	mcpkit "github.com/FacileStudio/tronc/mcp"
+
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -29,20 +31,20 @@ func (t *toolset) readThread(ctx context.Context, req *sdk.CallToolRequest, in t
 	if err != nil {
 		return nil, threadOutput{}, err
 	}
-	full, err := detailed(in.ResponseFormat)
+	full, err := mcpkit.Detailed(in.ResponseFormat)
 	if err != nil {
 		return nil, threadOutput{}, err
 	}
 	var position threadPosition
-	if err := decodeCursor(in.Cursor, &position); err != nil || position.Offset < 0 {
-		return nil, threadOutput{}, errCursor
+	if err := mcpkit.DecodeCursor(in.Cursor, &position); err != nil || position.Offset < 0 {
+		return nil, threadOutput{}, mcpkit.ErrCursor
 	}
 	emails, err := t.conversation(ctx, who.userID, in.AccountID, in.MessageID)
 	if err != nil {
 		return nil, threadOutput{}, err
 	}
 	if position.Offset >= len(emails) {
-		return nil, threadOutput{}, errCursor
+		return nil, threadOutput{}, mcpkit.ErrCursor
 	}
 	return nil, t.threadPage(ctx, who.userID, emails, position.Offset, full), nil
 }
@@ -52,7 +54,7 @@ func (t *toolset) readThread(ctx context.Context, req *sdk.CallToolRequest, in t
 func (t *toolset) conversation(ctx context.Context, userID, accountID, messageID int64) ([]schemas.Email, error) {
 	email, err := t.mail.GetEmail(ctx, userID, accountID, messageID)
 	if err != nil {
-		return nil, failure(err, hintMessage)
+		return nil, mcpkit.Failure(err, hintMessage)
 	}
 	if email.ThreadID == "" {
 		return []schemas.Email{email}, nil
@@ -76,12 +78,12 @@ func (t *toolset) threadPage(ctx context.Context, userID int64, emails []schemas
 		shortened = shortened || message.BodyTruncated
 		messages = append(messages, message)
 	}
-	keep := max(fitCount(len(messages), func(n int) int {
-		return encodedSize(threadOutput{Subject: out.Subject, Messages: messages[:n], NextCursor: "next-cursor-placeholder"})
+	keep := max(mcpkit.FitCount(len(messages), func(n int) int {
+		return mcpkit.EncodedSize(threadOutput{Subject: out.Subject, Messages: messages[:n], NextCursor: "next-cursor-placeholder"})
 	}), 1)
 	out.Messages = messages[:keep]
 	if offset+keep < len(emails) {
-		out.NextCursor = encodeCursor(threadPosition{Offset: offset + keep})
+		out.NextCursor = mcpkit.EncodeCursor(threadPosition{Offset: offset + keep})
 	}
 	if shortened && !full {
 		out.Note = threadTruncatedNote
@@ -104,7 +106,7 @@ func (t *toolset) threadMessage(ctx context.Context, userID int64, email schemas
 		}
 		limit = conciseBodyLength
 	}
-	body, cut := clip(body, limit)
+	body, cut := mcpkit.Clip(body, limit)
 	return threadMessage{
 		MessageID: email.ID, From: sender(email), To: mail.AddressList(email.ToAddresses),
 		Cc: mail.AddressList(email.CcAddresses), Date: email.Date.UTC().Format(time.RFC3339),

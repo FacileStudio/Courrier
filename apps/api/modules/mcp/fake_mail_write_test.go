@@ -73,6 +73,7 @@ func (f *fakeMail) DeleteDraft(ctx context.Context, userID, accountID, emailID i
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	delete(f.emails, emailID)
+	f.removed[emailID]++
 	return nil
 }
 

@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 
+	mcpkit "github.com/FacileStudio/tronc/mcp"
+
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -17,12 +19,11 @@ const maxRecipients = 50
 
 // draft is courrier_draft.
 func (t *toolset) draft(ctx context.Context, req *sdk.CallToolRequest, in draftInput) (*sdk.CallToolResult, draftOutput, error) {
-	who, err := writer(req)
+	who, err := callerOf(req)
 	if err != nil {
 		return nil, draftOutput{}, err
 	}
 	saved, err := t.saveDraft(ctx, who.userID, in)
-	t.audit(ctx, who, event{tool: toolDraft, outcome: outcomeOf(err), accountID: in.AccountID, targetID: saved.ID})
 	if err != nil {
 		return nil, draftOutput{}, err
 	}
@@ -41,10 +42,10 @@ func (t *toolset) saveDraft(ctx context.Context, userID int64, in draftInput) (s
 	}
 	if in.DraftID == 0 {
 		saved, err := t.mail.SaveDraft(ctx, userID, in.AccountID, message)
-		return saved, failure(err, hintAccount)
+		return saved, mcpkit.Failure(err, hintAccount)
 	}
 	saved, err := t.mail.UpdateDraft(ctx, userID, in.AccountID, in.DraftID, mail.DraftRequest{SendRequest: message})
-	return saved, failure(err, hintDraft)
+	return saved, mcpkit.Failure(err, hintDraft)
 }
 
 // compose builds the message of a draft input, threading it under the
@@ -59,7 +60,7 @@ func (t *toolset) compose(ctx context.Context, userID int64, in draftInput) (mai
 	}
 	original, err := t.mail.GetEmail(ctx, userID, in.AccountID, in.ReplyToMessageID)
 	if err != nil {
-		return message, failure(err, hintMessage)
+		return message, mcpkit.Failure(err, hintMessage)
 	}
 	return replyTo(message, original), nil
 }

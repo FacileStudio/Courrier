@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	mcpkit "github.com/FacileStudio/tronc/mcp"
+
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -23,7 +25,7 @@ var moves = map[string]string{
 
 // organize is courrier_organize.
 func (t *toolset) organize(ctx context.Context, req *sdk.CallToolRequest, in organizeInput) (*sdk.CallToolResult, actionOutput, error) {
-	who, err := writer(req)
+	who, err := callerOf(req)
 	if err != nil {
 		return nil, actionOutput{}, err
 	}
@@ -31,12 +33,11 @@ func (t *toolset) organize(ctx context.Context, req *sdk.CallToolRequest, in org
 		return nil, actionOutput{}, fmt.Errorf("message_ids must hold 1 to %d ids", maxOrganize)
 	}
 	err = t.apply(ctx, who.userID, in)
-	t.audit(ctx, who, event{tool: toolOrganize + ":" + in.Action, outcome: outcomeOf(err), accountID: in.AccountID})
 	if err != nil {
 		return nil, actionOutput{}, err
 	}
 	return nil, actionOutput{
-		Status: outcomeDone, Count: len(in.MessageIDs),
+		Status: mcpkit.StatusDone, Count: len(in.MessageIDs),
 		Message: fmt.Sprintf("%s applied to %d messages.", in.Action, len(in.MessageIDs)),
 	}, nil
 }
@@ -60,5 +61,5 @@ func (t *toolset) apply(ctx context.Context, userID int64, in organizeInput) err
 	default:
 		return errAction
 	}
-	return failure(err, hintMessage)
+	return mcpkit.Failure(err, hintMessage)
 }

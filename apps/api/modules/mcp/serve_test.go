@@ -25,7 +25,7 @@ func TestServe(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := newFixtureOn(t, listener, func(f *fixture, next http.Handler) http.Handler {
-		token := f.reg.mint(t, f.resource, map[string]any{"exp": time.Now().Add(12 * time.Hour).Unix()})
+		token := f.issuer.Mint(t, map[string]any{"aud": []string{f.resource}, "sub": subject, "scope": "courrier.read courrier.write", "exp": time.Now().Add(12 * time.Hour).Unix()})
 		t.Logf("resource %s\ntoken %s", f.resource, token)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("Authorization") == "" && os.Getenv("MCP_SERVE_TOKEN") == "" {

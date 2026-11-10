@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	mcpkit "github.com/FacileStudio/tronc/mcp"
+
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 )
@@ -16,7 +18,7 @@ const snippetLength = 200
 
 // summarize renders one message of a result list.
 func summarize(email schemas.Email, folders map[int64]schemas.Folder, full bool) messageSummary {
-	snippet, _ := clip(strings.Join(strings.Fields(email.BodyText), " "), snippetLength)
+	snippet, _ := mcpkit.Clip(strings.Join(strings.Fields(email.BodyText), " "), snippetLength)
 	summary := messageSummary{
 		MessageID: email.ID, AccountID: email.AccountID, From: sender(email), Subject: email.Subject,
 		Date: email.Date.UTC().Format(time.RFC3339), Snippet: snippet, Unread: !email.IsRead,
