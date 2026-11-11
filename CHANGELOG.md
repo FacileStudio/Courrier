@@ -4,6 +4,14 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.16.3] - 2026-11-11
+
+### Fixed
+
+- build: clear the douane high and medium findings. Client: vite 7.3.7 to 7.3.8, @sveltejs/kit 2.70.4, svelte 5.57.3, @tiptap/* 3.33.1 (prosemirror-view 1.42.3+), and refreshed transitive deps (devalue, postcss, picomatch, nanoid, source-map-js). `overrides` pin cookie ^0.7.2 and esbuild ^0.28.1. API: go-chi/chi v5.3.1 to v5.4.0, re-vendored.
+- build: drop the stale `apps/client/package-lock.json`. Bun is the only installer (Dockerfile, CI, `scripts/check.sh`), and the npm lockfile still pinned vite 7.3.1.
+- build: left open: glib 0.18 in the desktop app (the fix is glib 0.20, which Tauri 2's gtk 0.18 stack cannot take), the unmaintained zbus/zvariant and proc-macro-error crates (no fix), @sveltejs/kit findings fixed only in 3.0.0 (low) and deepmerge (no fix).
+
 ## [0.16.2] - 2026-11-11
 
 ### Security
