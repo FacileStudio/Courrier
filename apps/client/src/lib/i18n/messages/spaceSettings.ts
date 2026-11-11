@@ -106,6 +106,12 @@ export const spaceSettings = {
 		'Introduce un correo o elige a una persona',
 		'Gib eine E-Mail-Adresse ein oder wähle eine Person'
 	],
+	'members.noAccount': [
+		'No account uses that email address yet.',
+		'Aucun compte n’utilise encore cette adresse e-mail.',
+		'Ninguna cuenta usa todavía esa dirección de correo.',
+		'Noch kein Konto nutzt diese E-Mail-Adresse.'
+	],
 	'members.role': ['Role', 'Rôle', 'Rol', 'Rolle'],
 	'members.roleOf': ['Role of {name}', 'Rôle de {name}', 'Rol de {name}', 'Rolle von {name}'],
 	'members.add': ['Add', 'Ajouter', 'Añadir', 'Hinzufügen'],
