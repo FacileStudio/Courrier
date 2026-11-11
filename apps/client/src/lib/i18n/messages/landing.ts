@@ -2,18 +2,6 @@ import type { Row } from '../row';
 
 /** The public landing page and the downloads page. */
 export const landing = {
-	'landing.title': [
-		'Courrier — Self-hosted email for creative studios',
-		'Courrier — La messagerie auto-hébergée des studios créatifs',
-		'Courrier — Correo autoalojado para estudios creativos',
-		'Courrier — Selbst gehostete E-Mail für Kreativstudios'
-	],
-	'landing.description': [
-		'A self-hosted email client for creative studios. Connect your IMAP accounts, read and send from a clean interface.',
-		'Un client de messagerie auto-hébergé pour les studios créatifs. Connectez vos comptes IMAP, lisez et envoyez depuis une interface claire.',
-		'Un cliente de correo autoalojado para estudios creativos. Conecta tus cuentas IMAP, lee y envía desde una interfaz limpia.',
-		'Ein selbst gehosteter E-Mail-Client für Kreativstudios. Verbinde deine IMAP-Konten, lies und sende in einer aufgeräumten Oberfläche.'
-	],
 	'landing.tagline': [
 		'Self-hosted email for creative studios.',
 		'La messagerie auto-hébergée des studios créatifs.',

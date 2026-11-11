@@ -1,7 +1,7 @@
 {
   "name": "Courrier",
   "short_name": "Courrier",
-  "description": "Self-hosted email client for creative studios and freelancers.",
+  "description": "Native IMAP and SMTP, several accounts in one place, and a calm inbox without ads or distractions.",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -12,15 +12,10 @@
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
-    },
-    {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
     }
   ],
-  "theme_color": "#0a0a0a",
-  "background_color": "#0a0a0a",
+  "theme_color": "#fafafa",
+  "background_color": "#fafafa",
   "display": "standalone",
   "start_url": "/"
 }

@@ -87,11 +87,6 @@
 	]);
 </script>
 
-<svelte:head>
-	<title>{t('landing.title')}</title>
-	<meta name="description" content={t('landing.description')} />
-</svelte:head>
-
 {#if !ready}
 	{#if native || desktop}
 		<div class="flex min-h-dvh items-center justify-center bg-fc-page"><Spinner /></div>
