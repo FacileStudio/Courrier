@@ -234,7 +234,7 @@
 		<div class="hidden h-full shrink-0 flex-col gap-3 p-3 md:flex">
 			<div class="flex min-h-0 flex-1 flex-col rounded-fc-lg bg-fc-component">
 				<SideBar
-					icon="solar:letter-bold-duotone"
+					icon="solar:letter-opened-bold-duotone"
 					title="Courrier"
 					bind:collapsed
 					showSearch

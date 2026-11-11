@@ -95,7 +95,7 @@
 	<NativeIntro onfinish={finishIntro} />
 {:else}
 	<div class="min-h-dvh bg-fc-page text-fc-fg">
-		<LandingHeader appName="Courrier" icon="solar:letter-bold-duotone" {links} skipHref="#main">
+		<LandingHeader appName="Courrier" icon="solar:letter-opened-bold-duotone" {links} skipHref="#main">
 			{#snippet actions()}
 				<SignInWithFacile href={signInHref} data-sveltekit-reload />
 			{/snippet}
@@ -153,7 +153,7 @@
 
 		<LandingFooter
 			appName="Courrier"
-			icon="solar:letter-bold-duotone"
+			icon="solar:letter-opened-bold-duotone"
 			tagline={t('landing.tagline')}
 			{columns}
 			legal={{ onLocaleChange: rememberLocale }}

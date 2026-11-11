@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Alert, AuthScreen, icons } from '@facile/muse';
+	import { Alert, AuthScreen } from '@facile/muse';
 	import { backend } from '$lib/backend';
 	import NativeLogin from '$lib/components/native/NativeLogin.svelte';
 	import { rememberLocale, t } from '$lib/i18n/index.svelte';
@@ -39,7 +39,7 @@
 		onLocaleChange={rememberLocale}
 	>
 		{#snippet logo()}
-			<iconify-icon icon={icons.mail} width="40" height="40" class="block text-fc-fg"></iconify-icon>
+			<iconify-icon icon="solar:letter-opened-bold-duotone" width="40" height="40" class="block text-fc-fg"></iconify-icon>
 		{/snippet}
 		{#snippet tagline()}
 			{t('login.tagline')}
