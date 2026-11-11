@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-11-11
+
 ### Security
 
 - `GET /api/users` and `GET /api/users/{id}` show only the caller and the people it shares a space with. Any other id answers 404. Before, every signed-in account read every account's name and email. Accounts whose email is on the new `COURRIER_ADMINS` list (comma-separated, empty by default) still see every account.
