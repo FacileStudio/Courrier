@@ -75,6 +75,7 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:contact@facile.studio}
       BULLE_URL: ${BULLE_URL:-}
+      COURRIER_ADMINS: ${COURRIER_ADMINS:-}
       MCP_RESOURCE: ${MCP_RESOURCE:-https://courrier.facile.studio/mcp}
       TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
       MAIL_POLL_INTERVAL: ${MAIL_POLL_INTERVAL:-2m}

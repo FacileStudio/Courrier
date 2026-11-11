@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Security
+
+- `GET /api/users` and `GET /api/users/{id}` show only the caller and the people it shares a space with. Any other id answers 404. Before, every signed-in account read every account's name and email. Accounts whose email is on the new `COURRIER_ADMINS` list (comma-separated, empty by default) still see every account.
+- `POST /api/spaces/{id}/members` takes a `user_id` only for someone the caller already shares a space with. Anyone else is added by exact `email`. Before, an owner could add guessed ids to its own space and read their addresses in the member list.
+- The member picker lists the people you already share a space with and adds anyone else by exact email address.
+
 ## [0.16.1] - 2026-11-11
 
 ### Changed

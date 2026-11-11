@@ -14,7 +14,7 @@ var Documentation = documentation.Module{
 			Method:       "GET",
 			Path:         "/users",
 			Summary:      "List users",
-			Description:  "Returns all authenticated users with profile metadata.",
+			Description:  "Returns the accounts the caller may see: itself and everyone who shares a space with it. An account on COURRIER_ADMINS sees every account.",
 			Auth:         "bearer token required",
 			ResponseBody: ListResponse{},
 			Errors: []documentation.Error{
@@ -53,7 +53,7 @@ var Documentation = documentation.Module{
 			Method:      "GET",
 			Path:        "/users/{id}",
 			Summary:     "Return one user",
-			Description: "Returns a single user's profile metadata by ID.",
+			Description: "Returns one account the caller may see (itself, a space peer, or any account for COURRIER_ADMINS). Any other ID answers 404.",
 			Auth:        "bearer token required",
 			PathParams: []documentation.Field{
 				{Name: "id", Type: "string", Description: "User ID."},
@@ -61,7 +61,7 @@ var Documentation = documentation.Module{
 			ResponseBody: MeResponse{},
 			Errors: []documentation.Error{
 				{Status: 401, Code: "unauthenticated", Description: "Authorization header is missing or invalid."},
-				{Status: 404, Code: "not_found", Description: "No user with that ID."},
+				{Status: 404, Code: "not_found", Description: "No user with that ID that the caller may see."},
 				{Status: 500, Code: "internal", Description: "Unexpected server error."},
 			},
 		},

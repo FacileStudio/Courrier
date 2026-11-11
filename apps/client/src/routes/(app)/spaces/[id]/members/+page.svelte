@@ -8,6 +8,7 @@
 		ConfirmModal,
 		EmptyState,
 		Field,
+		Input,
 		Select,
 		Skeleton,
 		Table,
@@ -25,6 +26,7 @@
 	let allUsers = $state<User[]>([]);
 	let loading = $state(true);
 	let selectedUserId = $state('');
+	let addEmail = $state('');
 	let addRole = $state('member');
 	let addError = $state('');
 	let adding = $state(false);
@@ -65,13 +67,9 @@
 	}
 
 	async function addMember() {
-		if (!selectedUserId) {
-			addError = t('members.pickUserError');
-			return;
-		}
-
+		const email = addEmail.trim();
 		const uid = parseInt(selectedUserId, 10);
-		if (isNaN(uid)) {
+		if (!email && isNaN(uid)) {
 			addError = t('members.pickUserError');
 			return;
 		}
@@ -79,8 +77,9 @@
 		adding = true;
 		addError = '';
 		try {
-			await backend.addSpaceMember(spaceId, { user_id: uid, role: addRole });
+			await backend.addSpaceMember(spaceId, email ? { email, role: addRole } : { user_id: uid, role: addRole });
 			selectedUserId = '';
+			addEmail = '';
 			addRole = 'member';
 			await refreshMembers();
 			toast.success(t('members.added'));
@@ -181,19 +180,33 @@
 					</div>
 					<div class="flex flex-col gap-3 sm:flex-row sm:items-end">
 						<div class="min-w-0 flex-1">
-							<Field label={t('members.user')} error={addError}>
-								<Select
-									bind:value={selectedUserId}
+							<Field label={t('members.email')} error={addError}>
+								<Input
+									type="email"
+									bind:value={addEmail}
 									class="w-full"
-									placeholder={t('members.pickUser')}
-									options={userOptions}
+									autocomplete="off"
+									placeholder={t('members.emailPlaceholder')}
 								/>
 							</Field>
 						</div>
+						{#if userOptions.length > 0}
+							<div class="min-w-0 flex-1">
+								<Field label={t('members.user')}>
+									<Select
+										bind:value={selectedUserId}
+										class="w-full"
+										placeholder={t('members.pickUser')}
+										options={userOptions}
+										disabled={addEmail.trim() !== ''}
+									/>
+								</Field>
+							</div>
+						{/if}
 						<Field label={t('members.role')}>
 							<Select bind:value={addRole} class="min-w-36" options={addRoleOptions} />
 						</Field>
-						<Button icon={icons.plus} size="lg" disabled={adding || !selectedUserId} onclick={addMember}>
+						<Button icon={icons.plus} size="lg" disabled={adding || (!selectedUserId && !addEmail.trim())} onclick={addMember}>
 							{adding ? t('members.adding') : t('members.add')}
 						</Button>
 					</div>

@@ -166,10 +166,14 @@ func deleteSpaceRows(tx *gorm.DB, spaceID string) error {
 	return nil
 }
 
-func (s *Service) resolveTargetUser(ctx context.Context, req AddMemberRequest) (int64, error) {
+// resolveTargetUser finds the account to add. A user_id must belong to someone
+// actorID already shares a space with: ids are guessable, and the member list
+// would then show the address of whoever an id named. Anyone else is added by
+// exact email.
+func (s *Service) resolveTargetUser(ctx context.Context, actorID int64, req AddMemberRequest) (int64, error) {
 	var user schemas.User
 	if req.UserID != 0 {
-		if err := s.orm.WithContext(ctx).Where("id = ?", req.UserID).First(&user).Error; err != nil {
+		if err := s.orm.WithContext(ctx).Where("id = ? AND id IN (?)", req.UserID, schemas.SpacePeers(s.orm, actorID)).First(&user).Error; err != nil {
 			return 0, errors.NotFound("user not found")
 		}
 		return user.ID, nil
@@ -204,7 +208,7 @@ func (s *Service) AddMember(ctx context.Context, actorID int64, spaceID string, 
 		return schemas.SpaceMember{}, errors.Invalid("role must be admin or member")
 	}
 
-	targetUserID, err := s.resolveTargetUser(ctx, req)
+	targetUserID, err := s.resolveTargetUser(ctx, actorID, req)
 	if err != nil {
 		return schemas.SpaceMember{}, err
 	}
