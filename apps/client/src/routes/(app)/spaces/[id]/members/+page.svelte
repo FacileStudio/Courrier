@@ -15,7 +15,7 @@
 		icons,
 		toast
 	} from '@facile/muse';
-	import { backend, type SpaceMember, type Space, type User } from '$lib/backend';
+	import { ApiError, backend, type SpaceMember, type Space, type User } from '$lib/backend';
 	import { t } from '$lib/i18n/index.svelte';
 	import { roleLabelKey, roleTone } from '../../roles';
 
@@ -84,7 +84,12 @@
 			await refreshMembers();
 			toast.success(t('members.added'));
 		} catch (err) {
-			addError = err instanceof Error ? err.message : t('members.addFailed');
+			addError =
+				err instanceof ApiError && err.status === 404
+					? t('members.noAccount')
+					: err instanceof Error
+						? err.message
+						: t('members.addFailed');
 		}
 		adding = false;
 	}
