@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-11-11
+
 ### Changed
 
 - refactor(api): the MCP module runs on `tronc/mcp` v0.22.0 (`NewApp`, `PendingPage`, `PendingRoutes`, `Digest`, `ErasePending`). The local server setup, the three `/api/mcp/pending` handlers and their list, result and empty-request types are gone. Tool names and schemas are unchanged, and open pending actions still confirm (same digest). `GET /api/mcp/pending` items gain `summary`; the delegated-token 403 reads "only the person's own session can confirm actions" (code still `permission_denied`); the reference documents the `id` path param and an optional `url` in the result.
