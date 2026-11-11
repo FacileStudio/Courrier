@@ -23,11 +23,12 @@ func newController(service *Service) *Controller {
 }
 
 func (controller *Controller) list(context context.Context) (*ListResponse, error) {
-	if _, ok := kit.FromContext(context); !ok {
+	identity, ok := kit.FromContext(context)
+	if !ok {
 		return nil, errors.Unauthorized("missing auth")
 	}
 
-	users, err := controller.service.listUsers(context)
+	users, err := controller.service.listUsers(context, identity.UserID, controller.service.admins.Allows(identity.Email))
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +37,12 @@ func (controller *Controller) list(context context.Context) (*ListResponse, erro
 }
 
 func (controller *Controller) get(context context.Context, userID string) (*MeResponse, error) {
-	user, err := controller.service.getUser(context, userID)
+	identity, ok := kit.FromContext(context)
+	if !ok {
+		return nil, errors.Unauthorized("missing auth")
+	}
+
+	user, err := controller.service.getVisibleUser(context, identity.UserID, controller.service.admins.Allows(identity.Email), userID)
 	if err != nil {
 		return nil, err
 	}

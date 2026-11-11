@@ -74,6 +74,7 @@ type Config struct {
 	Push                Push
 	BulleURL            string
 	MCP                 MCP
+	Admins              []string
 }
 
 // MCP turns on the remote MCP server. Resource is the canonical URI clients
@@ -110,6 +111,7 @@ func Load() (Config, error) {
 	cfg.EncryptionKey = crypto.DeriveKey(encryptionKey)
 
 	cfg.BulleURL = troncenv.String("BULLE_URL", "")
+	cfg.Admins = troncenv.List("COURRIER_ADMINS")
 	cfg.MCP = MCP{Resource: troncenv.String("MCP_RESOURCE", ""), StateKey: deriveStateKey(encryptionKey)}
 	if issuer := troncenv.String("OIDC_ISSUER", ""); issuer != "" {
 		clientID := troncenv.String("OIDC_CLIENT_ID", "")

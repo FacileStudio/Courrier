@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/porte"
 	"github.com/FacileStudio/porte/session"
@@ -25,6 +26,7 @@ type Service struct {
 	orm        *gorm.DB
 	storageDir string
 	tokens     Auth
+	admins     middleware.Admins
 	controller *Controller
 }
 
@@ -40,9 +42,10 @@ type Auth interface {
 }
 
 // NewService builds a users Service over the database and avatar storage
-// directory, delegating tokens to the narrowed auth interface.
-func NewService(orm *gorm.DB, storageDir string, tokens Auth) *Service {
-	service := &Service{orm: orm, storageDir: storageDir, tokens: tokens}
+// directory, delegating tokens to the narrowed auth interface. admins is
+// COURRIER_ADMINS: only they list every account.
+func NewService(orm *gorm.DB, storageDir string, tokens Auth, admins middleware.Admins) *Service {
+	service := &Service{orm: orm, storageDir: storageDir, tokens: tokens, admins: admins}
 	service.controller = newController(service)
 	return service
 }
@@ -64,9 +67,20 @@ func (service *Service) getUser(context context.Context, userID string) (*User, 
 	return mapUser(record), nil
 }
 
-func (service *Service) listUsers(context context.Context) ([]User, error) {
+// visibleUsers narrows the users table to the accounts callerID may see:
+// itself and everyone who shares a space with it, or every account when all
+// is set for an admin. Nobody else's address is any of the caller's business.
+func (service *Service) visibleUsers(context context.Context, callerID int64, all bool) *gorm.DB {
+	query := service.orm.WithContext(context).Model(&schemas.User{})
+	if all {
+		return query
+	}
+	return query.Where("users.id = ? OR users.id IN (?)", callerID, schemas.SpacePeers(service.orm, callerID))
+}
+
+func (service *Service) listUsers(context context.Context, callerID int64, all bool) ([]User, error) {
 	var records []schemas.User
-	if err := service.orm.WithContext(context).Order("name asc, email asc, id asc").Find(&records).Error; err != nil {
+	if err := service.visibleUsers(context, callerID, all).Order("name asc, email asc, id asc").Find(&records).Error; err != nil {
 		return nil, errors.Internal("failed to list users", err)
 	}
 
@@ -76,6 +90,25 @@ func (service *Service) listUsers(context context.Context) ([]User, error) {
 	}
 
 	return users, nil
+}
+
+// getVisibleUser returns userID when callerID may see it, and not_found
+// otherwise, so the answer does not reveal whether an invisible account exists.
+func (service *Service) getVisibleUser(context context.Context, callerID int64, all bool, userID string) (*User, error) {
+	id, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		return nil, errors.NotFound("user not found")
+	}
+
+	var record schemas.User
+	if err := service.visibleUsers(context, callerID, all).Where("users.id = ?", id).First(&record).Error; err != nil {
+		if stderrors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.NotFound("user not found")
+		}
+		return nil, errors.Internal("failed to read user", err)
+	}
+
+	return mapUser(record), nil
 }
 
 // updateUser applies the caller's name change to their own account.

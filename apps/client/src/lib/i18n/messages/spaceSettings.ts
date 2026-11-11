@@ -86,18 +86,25 @@ export const spaceSettings = {
 		'Un miembro ve las cuentas de correo asociadas a este espacio.',
 		'Ein Mitglied sieht die E-Mail-Konten, die diesem Bereich zugeordnet sind.'
 	],
-	'members.user': ['User', 'Utilisateur', 'Usuario', 'Benutzer'],
+	'members.email': ['Email address', 'Adresse e-mail', 'Correo electrónico', 'E-Mail-Adresse'],
+	'members.emailPlaceholder': ['name@example.com', 'nom@exemple.fr', 'nombre@ejemplo.es', 'name@beispiel.de'],
+	'members.user': [
+		'Or someone you share a space with',
+		'Ou une personne d’un de vos espaces',
+		'O alguien con quien compartes un espacio',
+		'Oder jemand aus einem deiner Bereiche'
+	],
 	'members.pickUser': [
-		'Select a user…',
-		'Sélectionner un utilisateur…',
-		'Seleccionar un usuario…',
-		'Benutzer auswählen…'
+		'Select a person…',
+		'Sélectionner une personne…',
+		'Seleccionar una persona…',
+		'Person auswählen…'
 	],
 	'members.pickUserError': [
-		'Select a user',
-		'Sélectionnez un utilisateur',
-		'Selecciona un usuario',
-		'Wähle einen Benutzer aus'
+		'Enter an email address or pick a person',
+		'Saisissez une adresse e-mail ou choisissez une personne',
+		'Introduce un correo o elige a una persona',
+		'Gib eine E-Mail-Adresse ein oder wähle eine Person'
 	],
 	'members.role': ['Role', 'Rôle', 'Rol', 'Rolle'],
 	'members.roleOf': ['Role of {name}', 'Rôle de {name}', 'Rol de {name}', 'Rolle von {name}'],

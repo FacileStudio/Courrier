@@ -114,3 +114,31 @@ func TestAddMemberByEmail(t *testing.T) {
 		t.Fatalf("expected user id %d, got %d", invitee.ID, member.UserID)
 	}
 }
+
+// A user_id is guessable, and the member list shows the address of whoever it
+// names, so an owner adds by id only someone it already shares a space with.
+func TestAddMemberByIDRefusesAStranger(t *testing.T) {
+	service, spaceID, ownerID := newSpace(t)
+
+	stranger := schemas.User{Email: "stranger@facile.studio", Name: "Stranger"}
+	if err := testORM.Create(&stranger).Error; err != nil {
+		t.Fatalf("create stranger: %v", err)
+	}
+
+	_, err := service.AddMember(context.Background(), ownerID, spaceID, AddMemberRequest{UserID: stranger.ID})
+	var apiErr *errors.Error
+	if !stderrors.As(err, &apiErr) || apiErr.Code != "not_found" {
+		t.Fatalf("add a stranger by id = %v, want not_found", err)
+	}
+
+	other, _, err := service.Create(context.Background(), ownerID, CreateSpaceRequest{Name: "Other"})
+	if err != nil {
+		t.Fatalf("create the other space: %v", err)
+	}
+	if err := testORM.Create(&schemas.SpaceMember{SpaceID: other.ID, UserID: stranger.ID, Role: schemas.SpaceRoleMember}).Error; err != nil {
+		t.Fatalf("share the other space: %v", err)
+	}
+	if _, err := service.AddMember(context.Background(), ownerID, spaceID, AddMemberRequest{UserID: stranger.ID}); err != nil {
+		t.Fatalf("add a space peer by id: %v", err)
+	}
+}
