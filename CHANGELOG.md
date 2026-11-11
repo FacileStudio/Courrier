@@ -4,6 +4,13 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.16.4] - 2026-11-11
+
+### Fixed
+
+- fix(brand): favicons, touch and manifest icons, the link preview image and `site.webmanifest` come from muse v0.19.2's brand generator, and `app.html` carries its head block: the catalog title "Courrier · Your email, on your server", its description, theme colours and Open Graph and Twitter tags. The landing page no longer overrides the title and description, so every locale shows the catalog's.
+- feat(brand): the sidebar, landing header, footer and sign-in screen show the catalog icon `solar:letter-opened-bold-duotone`.
+
 ## [0.16.3] - 2026-11-11
 
 ### Fixed
