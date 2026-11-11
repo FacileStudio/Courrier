@@ -8,10 +8,7 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/porte"
-	"github.com/FacileStudio/tronc/errors"
-	"github.com/FacileStudio/tronc/httpjson"
 	mcpkit "github.com/FacileStudio/tronc/mcp"
-	"github.com/go-chi/chi/v5"
 )
 
 // webActor marks, in the audit, a confirmation made on the confirm page.
@@ -19,84 +16,32 @@ const webActor = "courrier-web"
 
 // pendingUser is the signed-in person of a confirm page request. A delegated
 // token is refused: an agent must never confirm its own request.
-func pendingUser(r *http.Request) (mcpkit.Caller, error) {
+func pendingUser(r *http.Request) (string, error) {
 	if identity, ok := porte.From(r.Context()); ok && identity.Actor != "" {
-		return mcpkit.Caller{}, errors.Forbidden("a delegated token cannot confirm actions")
+		return "", mcpkit.ErrDelegated
 	}
-	return mcpkit.Caller{UserID: strconv.FormatInt(middleware.UserID(r), 10), Actor: webActor}, nil
+	return strconv.FormatInt(middleware.UserID(r), 10), nil
 }
 
-// handleList answers the person's open actions with their drafts.
-func (s *Service) handleList(w http.ResponseWriter, r *http.Request) {
-	who, err := pendingUser(r)
+// describe adds an open action's mailbox and its draft as it is now.
+func (t *toolset) describe(ctx context.Context, item mcpkit.PendingItem, a mcpkit.Action) PendingItem {
+	userID, ref, _ := refOf(a)
+	out := PendingItem{PendingItem: item, AccountID: ref.AccountID, Draft: t.pendingDraft(ctx, a)}
+	accounts, err := t.mail.VisibleAccounts(ctx, userID)
 	if err != nil {
-		httpjson.WriteError(w, err)
-		return
+		return out
 	}
-	list, err := s.tools.pendingList(r.Context(), who.UserID)
-	if err != nil {
-		httpjson.WriteError(w, err)
-		return
-	}
-	httpjson.WriteJSON(w, http.StatusOK, list)
-}
-
-// handleConfirm runs one action.
-func (s *Service) handleConfirm(w http.ResponseWriter, r *http.Request) {
-	who, err := pendingUser(r)
-	if err != nil {
-		httpjson.WriteError(w, err)
-		return
-	}
-	outcome, err := s.tools.confirm.Confirm(r.Context(), who, chi.URLParam(r, "id"))
-	if err != nil {
-		httpjson.WriteError(w, err)
-		return
-	}
-	httpjson.WriteJSON(w, http.StatusOK, PendingResult{Status: doneStatus(outcome.Action.Kind)})
-}
-
-// handleDismiss closes one action without running it. The draft stays.
-func (s *Service) handleDismiss(w http.ResponseWriter, r *http.Request) {
-	who, err := pendingUser(r)
-	if err != nil {
-		httpjson.WriteError(w, err)
-		return
-	}
-	if err := s.tools.confirm.Dismiss(r.Context(), who, chi.URLParam(r, "id")); err != nil {
-		httpjson.WriteError(w, err)
-		return
-	}
-	httpjson.WriteJSON(w, http.StatusOK, PendingResult{Status: mcpkit.OutcomeDismissed})
-}
-
-// pendingList renders the person's open actions with the current content of
-// their drafts.
-func (t *toolset) pendingList(ctx context.Context, userID string) (PendingList, error) {
-	actions, err := t.confirm.Open(ctx, userID)
-	if err != nil {
-		return PendingList{}, err
-	}
-	id, _ := strconv.ParseInt(userID, 10, 64)
-	accounts, err := t.mail.VisibleAccounts(ctx, id)
-	if err != nil {
-		return PendingList{}, err
-	}
-	emails := map[int64]string{}
 	for _, account := range accounts {
-		emails[account.ID] = account.Email
-	}
-	list := PendingList{Actions: make([]PendingItem, 0, len(actions))}
-	for _, action := range actions {
-		_, ref, _ := refOf(action)
-		item := PendingItem{
-			ID: action.ID, Kind: action.Kind, ClientID: action.ClientID, CreatedAt: action.CreatedAt,
-			ExpiresAt: action.ExpiresAt, AccountID: ref.AccountID, AccountEmail: emails[ref.AccountID],
-			State: t.confirm.State(ctx, action), Draft: t.pendingDraft(ctx, action),
+		if account.ID == ref.AccountID {
+			out.AccountEmail = account.Email
 		}
-		list.Actions = append(list.Actions, item)
 	}
-	return list, nil
+	return out
+}
+
+// done is the status a confirmed action answers on the confirm page.
+func done(_ context.Context, o mcpkit.Outcome) mcpkit.PendingResult {
+	return mcpkit.PendingResult{Status: doneStatus(o.Action.Kind)}
 }
 
 // pendingDraft loads an action's draft as it is now, or nil when it is gone.

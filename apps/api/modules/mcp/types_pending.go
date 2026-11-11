@@ -1,17 +1,12 @@
 package mcp
 
-import "time"
+import mcpkit "github.com/FacileStudio/tronc/mcp"
 
 // PendingItem is one action waiting on the confirm page.
 type PendingItem struct {
-	ID           string        `json:"id"`
-	Kind         string        `json:"kind"`
-	ClientID     string        `json:"client_id"`
-	CreatedAt    time.Time     `json:"created_at"`
-	ExpiresAt    time.Time     `json:"expires_at"`
+	mcpkit.PendingItem
 	AccountID    int64         `json:"account_id"`
 	AccountEmail string        `json:"account_email"`
-	State        string        `json:"state"`
 	Draft        *PendingDraft `json:"draft,omitempty"`
 }
 
@@ -24,16 +19,3 @@ type PendingDraft struct {
 	Subject string   `json:"subject"`
 	Body    string   `json:"body"`
 }
-
-// PendingList is the body of GET /api/mcp/pending.
-type PendingList struct {
-	Actions []PendingItem `json:"actions"`
-}
-
-// PendingResult is the body answered when an action is confirmed or dismissed.
-type PendingResult struct {
-	Status string `json:"status"`
-}
-
-// EmptyRequest documents a route that takes no body.
-type EmptyRequest struct{}
