@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"strconv"
+
+	mcpkit "github.com/FacileStudio/tronc/mcp"
 )
 
 const personalAccounts = `SELECT id FROM accounts WHERE user_id = $1 AND space_id IS NULL`
@@ -31,13 +33,12 @@ func eraseStatements() []string {
 
 // eraseData is the kit's EraseData hook: it runs inside the erase
 // transaction, before the kit deletes the users row. tronc/mcp keys
-// mcp_actions by a text user id, so that table takes the id as text.
+// pending actions by a text user id, so they take the id as text.
 func eraseData(ctx context.Context, tx *sql.Tx, userID int64) error {
 	for _, statement := range eraseStatements() {
 		if _, err := tx.ExecContext(ctx, statement, userID); err != nil {
 			return err
 		}
 	}
-	_, err := tx.ExecContext(ctx, `DELETE FROM mcp_actions WHERE user_id = $1`, strconv.FormatInt(userID, 10))
-	return err
+	return mcpkit.ErasePending(ctx, tx, strconv.FormatInt(userID, 10))
 }

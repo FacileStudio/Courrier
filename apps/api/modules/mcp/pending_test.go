@@ -1,7 +1,7 @@
 package mcp
 
 import (
-	stdcontext "context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -29,13 +29,19 @@ func pendingSend(t *testing.T, f *fixture) actionOutput {
 // as a delegated token when actor is set.
 func confirmOnPage(f *fixture, confirmURL, actor string) *httptest.ResponseRecorder {
 	id := confirmURL[strings.LastIndex(confirmURL, "=")+1:]
-	req := httptest.NewRequest(http.MethodPost, "/api/mcp/pending/"+id+"/confirm", nil)
+	return onPage(f, http.MethodPost, "/"+id+"/confirm", actor)
+}
+
+// onPage serves one confirm page request as the signed-in person, or as a
+// delegated token when actor is set.
+func onPage(f *fixture, method, path, actor string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, path, nil)
 	ctx := kit.WithIdentity(req.Context(), kit.Identity{UserID: f.userID})
 	ctx = porte.WithIdentity(ctx, porte.Identity{UserID: f.userID, Actor: actor})
-	routes := chi.NewRouteContext()
-	routes.URLParams.Add("id", id)
+	router := chi.NewRouter()
+	f.service.page.Routes(router)
 	recorder := httptest.NewRecorder()
-	f.service.handleConfirm(recorder, req.WithContext(stdcontext.WithValue(ctx, chi.RouteCtxKey, routes)))
+	router.ServeHTTP(recorder, req.WithContext(ctx))
 	return recorder
 }
 
@@ -68,6 +74,22 @@ func TestAgentCannotConfirmItself(t *testing.T) {
 	})
 	if err != nil || !forged.IsError || f.mail.sentCount() != 0 {
 		t.Fatalf("a forged confirmation must fail and send nothing, got %v %+v and %d sent", err, forged, f.mail.sentCount())
+	}
+}
+
+// TestPendingListDescribesDraft checks the confirm page lists the open
+// send with its mailbox and its draft as it is now.
+func TestPendingListDescribesDraft(t *testing.T) {
+	f := newFixture(t)
+	out := pendingSend(t, f)
+	got := onPage(f, http.MethodGet, "/", "")
+	var list mcpkit.PendingList[PendingItem]
+	if err := json.Unmarshal(got.Body.Bytes(), &list); err != nil || got.Code != http.StatusOK || len(list.Actions) != 1 {
+		t.Fatalf("want one open action, got %d %s", got.Code, got.Body)
+	}
+	item := list.Actions[0]
+	if item.Kind != kindSend || item.AccountID != f.accountID || item.AccountEmail == "" || item.Draft == nil || item.Draft.ID != out.DraftID || item.State != "ready" {
+		t.Fatalf("want the send described with its mailbox and draft, got %+v", item)
 	}
 }
 

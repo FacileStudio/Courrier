@@ -2,8 +2,6 @@ package mcp
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -91,6 +89,5 @@ func digest(draft schemas.Email) string {
 		draft.ToAddresses, draft.CcAddresses, draft.BccAddresses, draft.Subject,
 		draft.BodyText, draft.BodyHTML, draft.InReplyTo, fmt.Sprint(draft.HasAttachments),
 	}
-	sum := sha256.Sum256([]byte(strings.Join(fields, "\x00")))
-	return hex.EncodeToString(sum[:16])
+	return mcpkit.Digest(fields...)
 }
