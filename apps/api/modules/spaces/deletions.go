@@ -27,11 +27,13 @@ type Deletions struct {
 // DeletionsConfig is what the receiver needs besides the database.
 // EraseAccount is porte/kit's (*Store).EraseAccount, which deletes the users
 // row and what it owns; EraseIdentity is porte's own rows eraser,
-// pg.Store.EraseIdentity.
+// pg.Store.EraseIdentity; HoldsIdentity is pg.Store.HoldsIdentity, which
+// lets a re-pushed or re-polled notice erase an account that came back.
 type DeletionsConfig struct {
 	Client        directory.Client
 	EraseAccount  func(context.Context, string, string) error
 	EraseIdentity func(context.Context, string, string) error
+	HoldsIdentity func(context.Context, string, string) (bool, error)
 	StorageDir    string
 	Logger        *slog.Logger
 }
@@ -43,6 +45,7 @@ func NewDeletions(orm *gorm.DB, cfg DeletionsConfig) *Deletions {
 		Client:          cfg.Client,
 		OnPersonDeleted: d.ErasePerson,
 		Erase:           cfg.EraseIdentity,
+		Holds:           cfg.HoldsIdentity,
 		State:           deletionState{orm: orm},
 		Logger:          cfg.Logger,
 	}
@@ -57,6 +60,14 @@ func (d *Deletions) Run(ctx context.Context) {
 // Handler verifies and applies Registre's signed user.deleted push.
 func (d *Deletions) Handler() http.Handler {
 	return d.receiver.Handler()
+}
+
+// Erased reports whether Courrier already erased the person behind
+// (provider, subject), read from the saved receiver state on every call, so
+// sign-in, bearer provisioning and the space sync can refuse to give that
+// identity an account again: porte.ErasedSubjects.
+func (d *Deletions) Erased(ctx context.Context, provider, subject string) (bool, error) {
+	return d.receiver.Erased(ctx, provider, subject)
 }
 
 // ErasePerson deletes the account behind a Registre identity and what it owns,

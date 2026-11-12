@@ -54,10 +54,7 @@ func buildServices(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogge
 	if svc.plans, err = newPlans(ctx, db, appEnv, appLogger); err != nil {
 		return services{}, err
 	}
-	svc.directory = newDirectory(db, appEnv, svc.plans, appLogger)
-	if svc.deletions, err = newDeletions(db, svc.users, appEnv, appLogger); err != nil {
-		return services{}, err
-	}
+	svc.directory = newDirectory(db, appEnv, svc.plans, svc.deletions, appLogger)
 	if svc.mcp, err = newMCP(ctx, db, appEnv, svc, appLogger); err != nil {
 		return services{}, err
 	}

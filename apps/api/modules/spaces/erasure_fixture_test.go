@@ -80,7 +80,7 @@ func referencing(t *testing.T, userID int64) map[string]int64 {
 }
 
 // newErasureDeletions builds the receiver as main.go does: porte/kit's
-// EraseAccount, porte's identity eraser, and a Registre that lists sub-gone.
+// EraseAccount, porte's identity eraser and holder check, and a Registre that lists sub-gone.
 func newErasureDeletions(t *testing.T) *Deletions {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -96,6 +96,7 @@ func newErasureDeletions(t *testing.T) *Deletions {
 		Client:        directory.Client{Issuer: testIssuer, HTTP: &http.Client{Transport: registreErased("sub-gone")}},
 		EraseAccount:  users.EraseAccount,
 		EraseIdentity: portepg.New(sqlDB).EraseIdentity,
+		HoldsIdentity: portepg.New(sqlDB).HoldsIdentity,
 		StorageDir:    t.TempDir(),
 		Logger:        logger,
 	})
