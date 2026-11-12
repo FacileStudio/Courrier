@@ -90,12 +90,28 @@ func (d *Directory) resolveMember(tx *gorm.DB, member directory.Member) (int64, 
 	if err != nil || userID != 0 || member.Subject == "" || strings.TrimSpace(member.Email) == "" {
 		return userID, err
 	}
+	if erased, err := d.isErased(tx.Statement.Context, member.Subject); err != nil || erased {
+		return 0, err
+	}
 	userID, err = d.userByEmail(tx, member)
 	if err != nil || userID == 0 {
 		return 0, err
 	}
 	return userID, tx.Exec(`INSERT INTO porte_identities (user_id, provider, subject) VALUES (?, ?, ?)
 		ON CONFLICT (provider, subject) DO NOTHING`, userID, d.issuer, member.Subject).Error
+}
+
+// isErased reports whether Courrier already erased the member's identity, and
+// logs the skip. Without WithErased nothing is erased.
+func (d *Directory) isErased(ctx context.Context, subject string) (bool, error) {
+	if d.erased == nil {
+		return false, nil
+	}
+	erased, err := d.erased.Erased(ctx, d.issuer, subject)
+	if erased {
+		d.logger.Warn("registre: member was erased here, skipped", slog.String("subject", subject))
+	}
+	return erased, err
 }
 
 // userByEmail returns the user with the member's address, or a new one. A user

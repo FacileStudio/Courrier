@@ -77,7 +77,8 @@ func referenceConfig() apiref.Config {
 }
 
 // buildAuth constructs porte: one session manager, porte/kit's store over
-// Courrier's users table, and the OIDC kit over the identity tables. Sign-in
+// Courrier's users table, the Registre deletion receiver, and the OIDC kit
+// over the identity tables, which refuses identities the receiver erased. Sign-in
 // goes through Registre only; there is no local password kit. Discovery runs
 // here, so an unreachable or half-configured issuer fails at boot rather than
 // on somebody's first login.
@@ -101,14 +102,19 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 	if err != nil {
 		return services{}, err
 	}
-	oidcKit, err := oidc.New(ctx, cfg, oidc.Deps{
+	deletions := newDeletions(db, users, store, appEnv, appLogger)
+	deps := oidc.Deps{
 		Users: users, Identities: store.Identities(), Sessions: sessions, Codes: store.LoginCodes(), Logger: appLogger,
-	})
+	}
+	if deletions != nil {
+		deps.Erased = deletions
+	}
+	oidcKit, err := oidc.New(ctx, cfg, deps)
 	if err != nil {
 		return services{}, err
 	}
 	return services{
-		sessions: sessions, kit: oidcKit, users: users,
+		sessions: sessions, kit: oidcKit, users: users, deletions: deletions,
 		assist: newAssist(appEnv, store.Identities()), identity: store.Identities(),
 	}, nil
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/FacileStudio/porte"
 	"github.com/FacileStudio/porte/directory"
 
 	"gorm.io/gorm"
@@ -29,6 +30,7 @@ type Directory struct {
 	issuer string
 	logger *slog.Logger
 	syncer *directory.Syncer
+	erased porte.ErasedSubjects
 }
 
 // NewDirectory builds the Directory for the OIDC client Courrier signs users
@@ -37,6 +39,14 @@ type Directory struct {
 func NewDirectory(orm *gorm.DB, client directory.Client, logger *slog.Logger) *Directory {
 	d := &Directory{orm: orm, issuer: client.Issuer, logger: logger}
 	d.syncer = &directory.Syncer{Client: client, Apply: d.Apply, Logger: logger}
+	return d
+}
+
+// WithErased makes the sync skip, rather than pre-provision, a member whose
+// Registre identity Courrier already erased, so a snapshot pulled before the
+// erasure cannot give that person an account again.
+func (d *Directory) WithErased(erased porte.ErasedSubjects) *Directory {
+	d.erased = erased
 	return d
 }
 

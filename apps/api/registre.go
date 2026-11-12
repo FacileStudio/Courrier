@@ -20,8 +20,9 @@ import (
 
 // newDirectory builds the Registre space sync over the OIDC client Courrier
 // already signs users in with, feeding every snapshot to the plan gate too,
-// or nil when SSO is off and Courrier manages its own spaces.
-func newDirectory(db *gorm.DB, appEnv env.Config, gate *plans.Gate, appLogger *slog.Logger) *spaces.Directory {
+// skipping members Courrier already erased, or nil when SSO is off and
+// Courrier manages its own spaces.
+func newDirectory(db *gorm.DB, appEnv env.Config, gate *plans.Gate, deletions *spaces.Deletions, appLogger *slog.Logger) *spaces.Directory {
 	if appEnv.OIDC == nil {
 		return nil
 	}
@@ -29,19 +30,16 @@ func newDirectory(db *gorm.DB, appEnv env.Config, gate *plans.Gate, appLogger *s
 		Issuer:       appEnv.OIDC.Issuer,
 		ClientID:     appEnv.OIDC.ClientID,
 		ClientSecret: appEnv.OIDC.ClientSecret,
-	}, appLogger).WithEntitlements(gate.Apply)
+	}, appLogger).WithEntitlements(gate.Apply).WithErased(deletions)
 }
 
 // newDeletions builds the GDPR deletion receiver over the same client
 // credentials as the snapshot sync, or nil when SSO is off. The kit store
-// erases the account and what it owns.
-func newDeletions(db *gorm.DB, users *kit.Store, appEnv env.Config, appLogger *slog.Logger) (*spaces.Deletions, error) {
+// erases the account and what it owns; porte's store erases its own rows and
+// tells a re-sent notice whether the identity holds an account again.
+func newDeletions(db *gorm.DB, users *kit.Store, store *portepg.Store, appEnv env.Config, appLogger *slog.Logger) *spaces.Deletions {
 	if appEnv.OIDC == nil {
-		return nil, nil
-	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		return nil, err
+		return nil
 	}
 	client := directory.Client{
 		Issuer:       appEnv.OIDC.Issuer,
@@ -51,10 +49,11 @@ func newDeletions(db *gorm.DB, users *kit.Store, appEnv env.Config, appLogger *s
 	return spaces.NewDeletions(db, spaces.DeletionsConfig{
 		Client:        client,
 		EraseAccount:  users.EraseAccount,
-		EraseIdentity: portepg.New(sqlDB).EraseIdentity,
+		EraseIdentity: store.EraseIdentity,
+		HoldsIdentity: store.HoldsIdentity,
 		StorageDir:    appEnv.StorageDir,
 		Logger:        appLogger,
-	}), nil
+	})
 }
 
 // newPlans builds the plan gate and restores the plan values saved before the
