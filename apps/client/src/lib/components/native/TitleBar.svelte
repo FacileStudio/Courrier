@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getCurrentWindow } from '@tauri-apps/api/window';
+	import { Tooltip } from '@facile/muse';
 	import type { AppKey } from '$lib/i18n/messages';
 	import { hasNativeTrafficLights } from '$lib/platform';
 	import { t } from '$lib/i18n/index.svelte';
@@ -23,17 +24,18 @@
 	{#if drawn}
 		<div class="group flex items-center gap-2" role="group" aria-label={t('window.label')}>
 			{#each controls as control (control.labelKey)}
-				<button
-					type="button"
-					aria-label={t(control.labelKey)}
-					title={t(control.labelKey)}
-					onclick={() => void control.run()}
-					class="flex size-3 items-center justify-center rounded-full {control.color} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fc-ring"
-				>
-					<svg viewBox="0 0 12 12" class="size-2 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true">
-						<path d={control.glyph} stroke="rgb(0 0 0 / 0.6)" stroke-width="1.3" stroke-linecap="round" fill="none" />
-					</svg>
-				</button>
+				<Tooltip text={t(control.labelKey)} describe={false} class="contents">
+					<button
+						type="button"
+						aria-label={t(control.labelKey)}
+						onclick={() => void control.run()}
+						class="flex size-3 items-center justify-center rounded-full {control.color} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fc-ring"
+					>
+						<svg viewBox="0 0 12 12" class="size-2 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true">
+							<path d={control.glyph} stroke="rgb(0 0 0 / 0.6)" stroke-width="1.3" stroke-linecap="round" fill="none" />
+						</svg>
+					</button>
+				</Tooltip>
 			{/each}
 		</div>
 	{/if}

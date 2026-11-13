@@ -14,6 +14,7 @@
 		Modal,
 		Select,
 		Textarea,
+		Tooltip,
 		icons,
 		toast
 	} from '@facile/muse';
@@ -334,7 +335,6 @@
 				<IconButton
 					variant="ghost"
 					aria-label={t('compose.useTemplate')}
-					title={t('compose.useTemplate')}
 					onclick={() => (templatesOpen = true)}
 				>
 					<iconify-icon icon={mailIcons.template} width="18" height="18" class="block size-4.5"
@@ -344,7 +344,6 @@
 			<IconButton
 				variant="ghost"
 				aria-label={plainTextMode ? t('compose.toRich') : t('compose.toPlain')}
-				title={plainTextMode ? t('compose.toRich') : t('compose.toPlain')}
 				onclick={togglePlainText}
 			>
 				<iconify-icon
@@ -357,7 +356,6 @@
 			<IconButton
 				variant="ghost"
 				aria-label={t('compose.attach')}
-				title={t('compose.attach')}
 				onclick={() => fileInput.click()}
 			>
 				<iconify-icon icon={mailIcons.paperclip} width="18" height="18" class="block size-4.5"
@@ -437,15 +435,17 @@
 					<Badge tone="neutral" class="max-w-full pr-1">
 						<span class="max-w-48 truncate">{file.name}</span>
 						<span>({formatBytes(file.size)})</span>
-						<button
-							type="button"
-							aria-label={t('compose.removeFile', { name: file.name })}
-							class="flex size-4 shrink-0 items-center justify-center rounded-fc-pill text-fc-fg-muted transition-colors hover:bg-fc-component hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fc-ring"
-							onclick={() => removeFile(i)}
-						>
-							<iconify-icon icon={icons.close} width="12" height="12" class="block size-3"
-							></iconify-icon>
-						</button>
+						<Tooltip text={t('compose.removeFile', { name: file.name })} describe={false} class="contents">
+							<button
+								type="button"
+								aria-label={t('compose.removeFile', { name: file.name })}
+								class="flex size-4 shrink-0 items-center justify-center rounded-fc-pill text-fc-fg-muted transition-colors hover:bg-fc-component hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fc-ring"
+								onclick={() => removeFile(i)}
+							>
+								<iconify-icon icon={icons.close} width="12" height="12" class="block size-3"
+								></iconify-icon>
+							</button>
+						</Tooltip>
 					</Badge>
 				{/each}
 			</div>

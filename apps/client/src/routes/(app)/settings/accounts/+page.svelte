@@ -10,6 +10,7 @@
 		EmptyState,
 		SettingsSection,
 		StatusDot,
+		Tooltip,
 		icons
 	} from '@facile/muse';
 	import { ApiError, backend, type CheckResult, type MailAccount } from '$lib/backend';
@@ -244,27 +245,29 @@
 						{/each}
 
 						<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-							<Button
-								variant="ghost"
-								size="sm"
-								icon={icons.plug}
-								title={t('accounts.checkHint')}
-								disabled={checkDisabled}
-								onclick={() => check(account)}
-							>
-								{t('accounts.checkConnection')}
-							</Button>
-							{#if !account.is_default}
+							<Tooltip text={t('accounts.checkHint')} class="contents">
 								<Button
 									variant="ghost"
 									size="sm"
-									icon={icons.check}
-									title={t('accounts.makeDefaultHint')}
-									disabled={promoting === account.id}
-									onclick={() => makeDefault(account)}
+									icon={icons.plug}
+									disabled={checkDisabled}
+									onclick={() => check(account)}
 								>
-									{t('accounts.makeDefault')}
+									{t('accounts.checkConnection')}
 								</Button>
+							</Tooltip>
+							{#if !account.is_default}
+								<Tooltip text={t('accounts.makeDefaultHint')} class="contents">
+									<Button
+										variant="ghost"
+										size="sm"
+										icon={icons.check}
+										disabled={promoting === account.id}
+										onclick={() => makeDefault(account)}
+									>
+										{t('accounts.makeDefault')}
+									</Button>
+								</Tooltip>
 							{/if}
 							<Button
 								variant="ghost"

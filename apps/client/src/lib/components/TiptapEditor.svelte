@@ -98,7 +98,6 @@
 						variant={active ? 'secondary' : 'ghost'}
 						aria-label={mark.label}
 						aria-pressed={active}
-						title={mark.label}
 						onclick={mark.run}
 					>
 						<iconify-icon icon={mark.icon} width="18" height="18" class="block size-4.5"
