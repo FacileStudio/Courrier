@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-13
+
 ### Changed
 
 - refactor(client): API calls go through `@facile/client` v0.2.0. The web build uses `createApi` (relative `/api`, the session cookie, `X-Facile-CSRF` on writes, the tronc error envelope); the installed apps use `@facile/client/native`'s `createNativeApi` (the bearer token to production, no cookie, no CSRF header, the token forgotten on a 401). Every call keeps its method, path, headers and body; Courrier's `ApiError` keeps `retryAfter` and `planLimit`, read from the kernel's error.
