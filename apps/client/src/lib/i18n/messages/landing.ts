@@ -20,12 +20,6 @@ export const landing = {
 		'Todas tus cuentas IMAP en una bandeja tranquila. Sin anuncios ni rastreo.',
 		'Alle IMAP-Konten in einem ruhigen Posteingang. Ohne Werbung, ohne Tracking.'
 	],
-	'landing.downloadCta': [
-		'Desktop, Android and terminal',
-		'Bureau, Android et terminal',
-		'Escritorio, Android y terminal',
-		'Desktop, Android und Terminal'
-	],
 	'landing.featuresTitle': [
 		'Mail, minus the noise',
 		'Le courrier, sans le bruit',

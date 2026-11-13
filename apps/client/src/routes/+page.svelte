@@ -116,7 +116,7 @@
 					<DownloadCta
 						href="/downloads"
 						platforms={['macos', 'windows', 'linux', 'android']}
-						label={t('landing.downloadCta')}
+						label={t('landing.navApps')}
 					/>
 				</div>
 				<div class="mt-12 w-full sm:mt-16"><InboxDemo /></div>

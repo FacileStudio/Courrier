@@ -72,8 +72,8 @@
 
 <Stage
 	width={960}
-	height={470}
-	compact={{ below: 640, width: 358, height: 470 }}
+	height={500}
+	compact={{ below: 640, width: 358, height: 430 }}
 	{script}
 	{reset}
 	{poster}
@@ -81,7 +81,7 @@
 >
 	{#snippet children({ compact })}
 		{#if compact}
-			<Window style="top:12px;left:12px;width:334px;height:446px">
+			<Window style="top:12px;left:12px;width:334px;height:376px">
 				<div class="id-compact">
 					{#if opened}{@render thread()}{:else}{@render list()}{/if}
 				</div>
