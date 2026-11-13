@@ -38,7 +38,7 @@ type Gate struct {
 // from and the origin of every upgrade link.
 func New(orm *gorm.DB, issuer string, logger *slog.Logger) *Gate {
 	store := forfait.NewStore(
-		forfait.Feature{Key: Mailboxes, Kind: forfait.Limit, Default: json.RawMessage("1")},
+		forfait.Feature{Key: Mailboxes, Kind: forfait.Limit, Default: json.RawMessage("-1")},
 		forfait.Feature{Key: AIAccess, Kind: forfait.Bool, Default: json.RawMessage("false")},
 	)
 	store.Issuer = issuer

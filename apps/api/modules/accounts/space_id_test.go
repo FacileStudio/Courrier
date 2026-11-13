@@ -2,11 +2,14 @@ package accounts
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"strings"
 	"testing"
 
+	"github.com/FacileStudio/Courrier/apps/api/internal/plans"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
+	"github.com/FacileStudio/porte/directory"
 	"github.com/FacileStudio/porte/forfait"
 	"github.com/FacileStudio/tronc/errors"
 )
@@ -16,6 +19,17 @@ import (
 func TestEmptySpaceIDIsPersonal(t *testing.T) {
 	service, userID, _ := planFixture(t)
 	ctx := context.Background()
+	subject := "sub-" + strings.ToLower(t.Name())
+	if err := testORM.Exec(`INSERT INTO porte_identities (user_id, provider, subject) VALUES (?, ?, ?)`,
+		userID, planIssuer, subject).Error; err != nil {
+		t.Fatal(err)
+	}
+	snap := directory.Snapshot{Version: 2, EntitlementsRevision: 2, People: []directory.Person{
+		{Subject: subject, Entitlements: map[string]json.RawMessage{plans.Mailboxes: json.RawMessage("1")}},
+	}}
+	if err := service.plans.Apply(ctx, snap); err != nil {
+		t.Fatal(err)
+	}
 	empty := ""
 	for i := range 4 {
 		account, err := service.Create(ctx, userID, mailbox(&empty))
@@ -23,7 +37,7 @@ func TestEmptySpaceIDIsPersonal(t *testing.T) {
 			t.Fatalf("first personal account: %v, space %v", err, account.SpaceID)
 		}
 		if i > 0 && !stderrors.Is(err, forfait.ErrLimit) {
-			t.Fatalf("personal account %d over the default of 1: %v", i, err)
+			t.Fatalf("personal account %d over the personal plan of 1: %v", i, err)
 		}
 	}
 }

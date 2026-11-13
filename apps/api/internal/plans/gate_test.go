@@ -49,17 +49,17 @@ func TestLimitPerScope(t *testing.T) {
 	addAccounts(t, alice, nil, 2)
 	expectAllowed(t, check(gate, alice, &pro), "pro space with room")
 	expectAllowed(t, check(gate, alice, &free), "free space empty")
-	addAccounts(t, alice, &free, 1)
-	expectLimit(t, check(gate, bob, &free), 1, testIssuer+"/spaces/spc_free", "free space at its default")
+	addAccounts(t, alice, &free, 5)
+	expectAllowed(t, check(gate, bob, &free), "free space at its unlimited default")
 	addAccounts(t, alice, &pro, 1)
 	expectLimit(t, check(gate, alice, &pro), 2, testIssuer+"/spaces/spc_pro", "pro space at its ceiling")
 	expectAllowed(t, check(gate, alice, nil), "alice personal under 3")
 	expectAllowed(t, check(gate, bob, nil), "bob personal empty")
-	addAccounts(t, bob, nil, 1)
-	expectLimit(t, check(gate, bob, nil), 1, testIssuer+"/spaces", "bob personal default")
+	addAccounts(t, bob, nil, 5)
+	expectAllowed(t, check(gate, bob, nil), "bob personal at the unlimited default")
 	password := newUser(t, "carol@facile.studio", "")
-	addAccounts(t, password, nil, 1)
-	expectLimit(t, check(gate, password, nil), 1, testIssuer+"/spaces", "user without identity")
+	addAccounts(t, password, nil, 5)
+	expectAllowed(t, check(gate, password, nil), "user without identity")
 }
 
 // TestUnlinkedSpaceRefused refuses a space Registre does not know once
@@ -102,7 +102,8 @@ func TestStateSurvivesRestart(t *testing.T) {
 }
 
 // TestCorruptRowFailsClosed enforces the defaults when the saved row cannot
-// be imported, and the next real snapshot replaces them.
+// be imported, which leave mailboxes unlimited, and the next real snapshot
+// replaces them.
 func TestCorruptRowFailsClosed(t *testing.T) {
 	requireDB(t)
 	if err := testORM.Exec(`INSERT INTO forfait_state (id, document) VALUES (1, '{"version":9}')`).Error; err != nil {
@@ -114,9 +115,9 @@ func TestCorruptRowFailsClosed(t *testing.T) {
 	if err := gate.Load(context.Background()); err != nil || !gate.Active() {
 		t.Fatalf("Load = %v, active = %v", err, gate.Active())
 	}
-	expectLimit(t, check(gate, alice, nil), 1, testIssuer+"/spaces", "corrupt row")
-	apply(t, gate, entitled(1, nil, map[string]int{"alice": 5}))
-	expectAllowed(t, check(gate, alice, nil), "first snapshot after a corrupt row")
+	expectAllowed(t, check(gate, alice, nil), "corrupt row at the unlimited default")
+	apply(t, gate, entitled(1, nil, map[string]int{"alice": 1}))
+	expectLimit(t, check(gate, alice, nil), 1, testIssuer+"/spaces", "first snapshot after a corrupt row")
 }
 
 // expectAllowed fails when err is not nil.
