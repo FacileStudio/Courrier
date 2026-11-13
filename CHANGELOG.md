@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.19.2] - 2026-11-13
+
 ### Changed
 
 - fix(api): `courrier.mailboxes` defaults to -1 (unlimited) instead of 1. A person or space with no entitlements in the Registre snapshot (outside every Registre space, or before the first push) can now add any number of mail accounts, matching the free plan in Ardoise.
