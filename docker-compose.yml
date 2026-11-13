@@ -10,9 +10,11 @@ services:
     - db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
-      interval: 5s
+      interval: 30s
       timeout: 5s
       retries: 5
+      start_period: 30s
+      start_interval: 1s
     deploy:
       update_config:
         order: start-first
@@ -43,10 +45,11 @@ services:
       traefik.http.services.courrier-svc.loadbalancer.server.port: '4000'
     healthcheck:
       test: ["CMD", "/courrier", "healthcheck"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 60s
+      start_interval: 1s
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
