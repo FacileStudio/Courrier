@@ -15,30 +15,43 @@ export const landing = {
 		'Deine Mails. Dein Server.'
 	],
 	'landing.heroBody': [
-		'Courrier is a self-hosted email client. Connect your IMAP accounts, read and send from a clean interface. No cloud, no tracking, no compromise.',
-		'Courrier est un client de messagerie auto-hébergé. Connectez vos comptes IMAP, lisez et envoyez depuis une interface claire. Pas de cloud, pas de pistage, pas de compromis.',
-		'Courrier es un cliente de correo autoalojado. Conecta tus cuentas IMAP, lee y envía desde una interfaz limpia. Sin nube, sin rastreo, sin concesiones.',
-		'Courrier ist ein selbst gehosteter E-Mail-Client. Verbinde deine IMAP-Konten, lies und sende in einer aufgeräumten Oberfläche. Keine Cloud, kein Tracking, keine Kompromisse.'
+		'Every IMAP account in one quiet inbox. No ads, no tracking.',
+		'Tous vos comptes IMAP dans une seule boîte, au calme. Ni pub, ni pistage.',
+		'Todas tus cuentas IMAP en una bandeja tranquila. Sin anuncios ni rastreo.',
+		'Alle IMAP-Konten in einem ruhigen Posteingang. Ohne Werbung, ohne Tracking.'
 	],
 	'landing.downloadCta': [
-		'Get the desktop and Android apps',
-		'Obtenir les applications bureau et Android',
-		'Descargar las apps de escritorio y Android',
-		'Desktop- und Android-Apps herunterladen'
+		'Desktop, Android and terminal',
+		'Bureau, Android et terminal',
+		'Escritorio, Android y terminal',
+		'Desktop, Android und Terminal'
+	],
+	'landing.featuresTitle': [
+		'Mail, minus the noise',
+		'Le courrier, sans le bruit',
+		'El correo, sin el ruido',
+		'E-Mail ohne Lärm'
 	],
 	'landing.imapTitle': ['Any IMAP account', 'Tout compte IMAP', 'Cualquier cuenta IMAP', 'Jedes IMAP-Konto'],
 	'landing.imapBody': [
-		'Point Courrier at your IMAP and SMTP servers. Credentials are encrypted at rest.',
-		'Indiquez à Courrier vos serveurs IMAP et SMTP. Les identifiants sont chiffrés au repos.',
-		'Indica a Courrier tus servidores IMAP y SMTP. Las credenciales se cifran en reposo.',
-		'Gib Courrier deine IMAP- und SMTP-Server an. Zugangsdaten werden verschlüsselt gespeichert.'
+		'Plug in any IMAP and SMTP server. Courrier encrypts the passwords at rest.',
+		'Branchez n’importe quel serveur IMAP et SMTP. Courrier chiffre les mots de passe au repos.',
+		'Conecta cualquier servidor IMAP y SMTP. Courrier cifra las contraseñas en reposo.',
+		'Verbinde jeden IMAP- und SMTP-Server. Courrier speichert die Passwörter verschlüsselt.'
+	],
+	'landing.tabsTitle': ['People first', 'Les humains d’abord', 'Primero las personas', 'Menschen zuerst'],
+	'landing.tabsBody': [
+		'Newsletters and notifications land in their own tabs.',
+		'Newsletters et notifications rangées dans leurs propres onglets.',
+		'Los boletines y las notificaciones van a sus propias pestañas.',
+		'Newsletter und Benachrichtigungen landen in eigenen Tabs.'
 	],
 	'landing.spacesTitle': ['Shared spaces', 'Espaces partagés', 'Espacios compartidos', 'Gemeinsame Bereiche'],
 	'landing.spacesBody': [
-		'Group accounts into spaces and invite the people who need to read the same inbox.',
-		'Regroupez des comptes dans des espaces et invitez les personnes qui doivent lire la même boîte.',
-		'Agrupa cuentas en espacios e invita a quienes necesitan leer la misma bandeja.',
-		'Fasse Konten in Bereichen zusammen und lade die Personen ein, die denselben Posteingang lesen müssen.'
+		'Share an inbox with the people who answer it.',
+		'Partagez une boîte avec les personnes qui y répondent.',
+		'Comparte una bandeja con quienes la responden.',
+		'Teile einen Posteingang mit den Leuten, die ihn beantworten.'
 	],
 	'landing.selfHostedTitle': ['Self-hosted', 'Auto-hébergé', 'Autoalojado', 'Selbst gehostet'],
 	'landing.selfHostedBody': [
@@ -47,26 +60,60 @@ export const landing = {
 		'Un solo binario y una base de datos Postgres. Tu correo se queda en tu servidor.',
 		'Eine Binärdatei und eine Postgres-Datenbank. Deine Mails bleiben auf deinem Server.'
 	],
+	'landing.downloadTitle': ['Get the apps', 'Les applications', 'Las apps', 'Die Apps'],
+	'landing.downloadBody': [
+		'The same mailboxes on every device, with one Facile sign-in.',
+		'Les mêmes boîtes sur chaque appareil, avec une seule connexion Facile.',
+		'Los mismos buzones en cada dispositivo, con un solo inicio de sesión Facile.',
+		'Dieselben Postfächer auf jedem Gerät, mit einer Facile-Anmeldung.'
+	],
 	'landing.pricing': ['Pricing', 'Tarifs', 'Precios', 'Preise'],
-	'landing.ctaTitle': ['Ready to start?', 'Prêt à commencer ?', '¿Listo para empezar?', 'Bereit loszulegen?'],
+	'landing.ctaTitle': ['Open your inbox', 'Ouvrez votre boîte', 'Abre tu bandeja', 'Öffne deinen Posteingang'],
 	'landing.ctaBody': [
-		'Sign in with your Facile account to open Courrier.',
-		'Connectez-vous avec votre compte Facile pour ouvrir Courrier.',
-		'Inicia sesión con tu cuenta de Facile para abrir Courrier.',
-		'Melde dich mit deinem Facile-Konto an, um Courrier zu öffnen.'
+		'Sign in with your Facile account.',
+		'Connectez-vous avec votre compte Facile.',
+		'Inicia sesión con tu cuenta de Facile.',
+		'Melde dich mit deinem Facile-Konto an.'
 	],
 	'landing.navFeatures': ['Features', 'Fonctionnalités', 'Funciones', 'Funktionen'],
 	'landing.navPricing': ['Pricing', 'Tarifs', 'Precios', 'Preise'],
 	'landing.navApps': ['Get the apps', 'Les applications', 'Las apps', 'Die Apps'],
-	'downloads.title': ['Get the app — Courrier', 'Obtenir l’application — Courrier', 'Descargar la app — Courrier', 'App herunterladen — Courrier'],
-	'downloads.description': [
-		'Download Courrier for Android, or use it in any browser.',
-		'Téléchargez Courrier pour Android, ou utilisez-le dans n’importe quel navigateur.',
-		'Descarga Courrier para Android o úsalo en cualquier navegador.',
-		'Lade Courrier für Android herunter oder nutze es in jedem Browser.'
+	'landing.demoLabel': [
+		'A new message arrives in the Courrier inbox, opens as a thread and gets a reply.',
+		'Un message arrive dans la boîte Courrier, s’ouvre en fil et reçoit une réponse.',
+		'Llega un mensaje a la bandeja de Courrier, se abre como hilo y recibe una respuesta.',
+		'Eine Nachricht kommt im Courrier-Posteingang an, öffnet sich als Verlauf und wird beantwortet.'
 	],
-	'downloads.home': ['Courrier home', 'Accueil Courrier', 'Inicio de Courrier', 'Courrier Startseite'],
-	'downloads.open': ['Open Courrier', 'Ouvrir Courrier', 'Abrir Courrier', 'Courrier öffnen'],
+	'landing.demoInbox': ['Inbox', 'Réception', 'Recibidos', 'Posteingang'],
+	'landing.demoPrimary': ['Primary', 'Principal', 'Principal', 'Allgemein'],
+	'landing.demoNewsletters': ['Newsletters', 'Newsletters', 'Boletines', 'Newsletter'],
+	'landing.demoSubject': [
+		'Feedback on the mockup',
+		'Retours sur la maquette',
+		'Comentarios sobre la maqueta',
+		'Feedback zum Entwurf'
+	],
+	'landing.demoBody': [
+		'The new layout works. Can we keep the darker header?',
+		'La nouvelle mise en page fonctionne. On garde l’en-tête plus sombre ?',
+		'El nuevo diseño funciona. ¿Mantenemos la cabecera más oscura?',
+		'Das neue Layout passt. Behalten wir den dunkleren Kopfbereich?'
+	],
+	'landing.demoReply': [
+		'Yes, the darker one. New version tomorrow.',
+		'Oui, la plus sombre. Nouvelle version demain.',
+		'Sí, la oscura. Nueva versión mañana.',
+		'Ja, den dunkleren. Neue Version morgen.'
+	],
+	'landing.demoYou': ['You', 'Vous', 'Tú', 'Du'],
+	'landing.demoSend': ['Send', 'Envoyer', 'Enviar', 'Senden'],
+	'downloads.title': ['Get the apps · Courrier', 'Les applications · Courrier', 'Las apps · Courrier', 'Die Apps · Courrier'],
+	'downloads.description': [
+		'Download Courrier for macOS, Windows, Linux, Android and the terminal.',
+		'Téléchargez Courrier pour macOS, Windows, Linux, Android et le terminal.',
+		'Descarga Courrier para macOS, Windows, Linux, Android y la terminal.',
+		'Lade Courrier für macOS, Windows, Linux, Android und das Terminal herunter.'
+	],
 	'downloads.heading': ['Get Courrier', 'Obtenir Courrier', 'Descargar Courrier', 'Courrier herunterladen'],
 	'downloads.intro': [
 		'The apps read the same mailboxes as the web. Sign in once with your Facile account.',
@@ -74,73 +121,12 @@ export const landing = {
 		'Las apps leen los mismos buzones que la web. Inicia sesión una vez con tu cuenta de Facile.',
 		'Die Apps lesen dieselben Postfächer wie das Web. Melde dich einmal mit deinem Facile-Konto an.'
 	],
-	'downloads.desktop': ['Desktop', 'Bureau', 'Escritorio', 'Desktop'],
-	'downloads.desktopBody': [
-		'Its own window, signed installers, and it updates itself.',
-		'Sa propre fenêtre, des installateurs signés, et des mises à jour automatiques.',
-		'Su propia ventana, instaladores firmados y se actualiza solo.',
-		'Ein eigenes Fenster, signierte Installationsprogramme und automatische Updates.'
-	],
-	'downloads.detailMacos': ['Apple silicon and Intel', 'Apple silicon et Intel', 'Apple silicon e Intel', 'Apple Silicon und Intel'],
-	'downloads.detailWindows': [
-		'Windows 10 or later, 64-bit',
-		'Windows 10 ou plus récent, 64 bits',
-		'Windows 10 o posterior, 64 bits',
-		'Windows 10 oder neuer, 64 Bit'
-	],
-	'downloads.detailLinux': ['AppImage, x86-64', 'AppImage, x86-64', 'AppImage, x86-64', 'AppImage, x86-64'],
-	'downloads.download': ['Download', 'Télécharger', 'Descargar', 'Herunterladen'],
-	'downloads.debNote': [
-		'On Debian or Ubuntu, the {link} installs Courrier system-wide. To check a file, compare it with the {checksums}.',
-		'Sur Debian ou Ubuntu, le {link} installe Courrier pour tout le système. Pour vérifier un fichier, comparez-le aux {checksums}.',
-		'En Debian o Ubuntu, el {link} instala Courrier para todo el sistema. Para comprobar un archivo, compáralo con las {checksums}.',
-		'Unter Debian oder Ubuntu installiert das {link} Courrier systemweit. Um eine Datei zu prüfen, vergleiche sie mit den {checksums}.'
-	],
-	'downloads.debLink': ['.deb package', 'paquet .deb', 'paquete .deb', '.deb-Paket'],
-	'downloads.checksumsLink': ['published checksums', 'sommes de contrôle publiées', 'sumas de verificación publicadas', 'veröffentlichten Prüfsummen'],
-	'downloads.android': ['Android', 'Android', 'Android', 'Android'],
-	'downloads.androidBody': [
-		'Signed APK, Android 7 or later.',
-		'APK signé, Android 7 ou plus récent.',
-		'APK firmado, Android 7 o posterior.',
-		'Signierte APK, Android 7 oder neuer.'
-	],
-	'downloads.apk': ['Download the APK', 'Télécharger l’APK', 'Descargar el APK', 'APK herunterladen'],
-	'downloads.step1Title': ['Download the APK', 'Télécharger l’APK', 'Descargar el APK', 'APK herunterladen'],
-	'downloads.step1Body': [
-		'Tap the button above on your phone. The file is about 4 MB.',
-		'Touchez le bouton ci-dessus sur votre téléphone. Le fichier pèse environ 4 Mo.',
-		'Toca el botón de arriba en tu teléfono. El archivo pesa unos 4 MB.',
-		'Tippe auf dem Telefon auf die Schaltfläche oben. Die Datei ist etwa 4 MB groß.'
-	],
-	'downloads.step2Title': ['Allow this source', 'Autoriser cette source', 'Permitir este origen', 'Diese Quelle erlauben'],
-	'downloads.step2Body': [
-		'Android asks once. Allow your browser to install unknown apps, then come back.',
-		'Android le demande une seule fois. Autorisez votre navigateur à installer des applications inconnues, puis revenez.',
-		'Android lo pide una sola vez. Permite que tu navegador instale apps desconocidas y vuelve.',
-		'Android fragt nur einmal. Erlaube deinem Browser, unbekannte Apps zu installieren, und komm zurück.'
-	],
-	'downloads.step3Title': ['Open and sign in', 'Ouvrir et se connecter', 'Abrir e iniciar sesión', 'Öffnen und anmelden'],
-	'downloads.step3Body': [
-		'Open the downloaded file, install it, and sign in with your Facile account.',
-		'Ouvrez le fichier téléchargé, installez-le et connectez-vous avec votre compte Facile.',
-		'Abre el archivo descargado, instálalo e inicia sesión con tu cuenta de Facile.',
-		'Öffne die heruntergeladene Datei, installiere sie und melde dich mit deinem Facile-Konto an.'
-	],
-	'downloads.apkNote': [
-		'To check the file, compare {command} with the {checksum}. Older versions are on the {releases}.',
-		'Pour vérifier le fichier, comparez {command} avec la {checksum}. Les versions précédentes sont sur la {releases}.',
-		'Para comprobar el archivo, compara {command} con la {checksum}. Las versiones anteriores están en la {releases}.',
-		'Um die Datei zu prüfen, vergleiche {command} mit der {checksum}. Ältere Versionen findest du auf der {releases}.'
-	],
-	'downloads.checksumLink': ['published checksum', 'somme de contrôle publiée', 'suma de verificación publicada', 'veröffentlichten Prüfsumme'],
-	'downloads.releasesLink': ['releases page', 'page des versions', 'página de versiones', 'Seite mit den Versionen'],
 	'downloads.browser': ['Any browser', 'N’importe quel navigateur', 'Cualquier navegador', 'Jeder Browser'],
 	'downloads.browserBody': [
-		'No install needed: Courrier works in any modern browser, on any computer or phone.',
-		'Aucune installation : Courrier fonctionne dans tout navigateur récent, sur ordinateur comme sur téléphone.',
-		'No hace falta instalar nada: Courrier funciona en cualquier navegador moderno, en ordenador o teléfono.',
-		'Keine Installation nötig: Courrier läuft in jedem modernen Browser, auf Computer und Telefon.'
+		'Nothing to install. Courrier runs in any recent browser.',
+		'Rien à installer. Courrier tourne dans tout navigateur récent.',
+		'Nada que instalar. Courrier funciona en cualquier navegador reciente.',
+		'Nichts zu installieren. Courrier läuft in jedem aktuellen Browser.'
 	],
 	'downloads.openWeb': ['Open the web app', 'Ouvrir l’application web', 'Abrir la aplicación web', 'Web-App öffnen']
 } satisfies Record<string, Row>;
