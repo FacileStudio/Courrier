@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.19.3] - 2026-11-13
+
+### Changed
+
+- chore(deploy): healthchecks run every 30 s with a 1 s start interval.
+
 ## [0.19.2] - 2026-11-13
 
 ### Changed
