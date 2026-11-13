@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { Editor } from '@tiptap/core';
 	import { Blob } from '@facile/blob';
-	import { Button, Input, Spinner, toast } from '@facile/muse';
+	import { Button, Input, Spinner, Tooltip, toast } from '@facile/muse';
 	import { backend, type AssistAction, type AssistRequest } from '$lib/backend';
 	import { assistStatus } from '$lib/assist/status.svelte';
 	import { reasonText, textToHtml } from '$lib/assist/text';
@@ -115,21 +115,22 @@
 <svelte:window onclick={outside} />
 
 <div class="relative ml-auto" bind:this={root}>
-	<button
-		type="button"
-		class="flex h-8 items-center gap-1.5 rounded-fc-pill px-2 text-fc-xs font-medium text-fc-fg-muted hover:bg-fc-surface hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-fc-ring"
-		aria-haspopup="menu"
-		aria-expanded={open}
-		title={available ? t('assist.askAbout', { scope }) : reasonText(status)}
-		onclick={() => (open = !open)}
-	>
-		{#if busy}
-			<Spinner size="sm" />
-		{:else}
-			<Blob name="Bulle" size={20} class="size-5" />
-		{/if}
-		<span>Bulle</span>
-	</button>
+	<Tooltip text={available ? t('assist.askAbout', { scope }) : reasonText(status)} class="contents">
+		<button
+			type="button"
+			class="flex h-8 items-center gap-1.5 rounded-fc-pill px-2 text-fc-xs font-medium text-fc-fg-muted hover:bg-fc-surface hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-fc-ring"
+			aria-haspopup="menu"
+			aria-expanded={open}
+			onclick={() => (open = !open)}
+		>
+			{#if busy}
+				<Spinner size="sm" />
+			{:else}
+				<Blob name="Bulle" size={20} class="size-5" />
+			{/if}
+			<span>Bulle</span>
+		</button>
+	</Tooltip>
 
 	{#if open}
 		<div

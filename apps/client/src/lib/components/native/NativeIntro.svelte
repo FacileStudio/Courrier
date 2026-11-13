@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button, icons } from '@facile/muse';
+	import { Button, Tooltip, icons } from '@facile/muse';
 	import AppMark from './AppMark.svelte';
 	import Ambient from './Ambient.svelte';
 	import { t } from '$lib/i18n/index.svelte';
@@ -83,20 +83,22 @@
 	<footer class="relative z-10 flex flex-col items-center gap-6 px-6 pt-4 pb-6">
 		<div class="flex items-center gap-1" role="tablist" aria-label={t('intro.slides')}>
 			{#each SLIDES as slide, i (slide.title)}
-				<button
-					type="button"
-					role="tab"
-					aria-selected={i === index}
-					aria-label={t('intro.goTo', { index: i + 1 })}
-					class="flex size-11 items-center justify-center"
-					onclick={() => show(i)}
-				>
-					<span
-						class="h-1.5 rounded-fc-pill transition-all duration-300 motion-reduce:transition-none {i === index
-							? 'w-6 bg-fc-fg'
-							: 'w-1.5 bg-fc-fg/25'}"
-					></span>
-				</button>
+				<Tooltip text={t('intro.goTo', { index: i + 1 })} describe={false} class="contents">
+					<button
+						type="button"
+						role="tab"
+						aria-selected={i === index}
+						aria-label={t('intro.goTo', { index: i + 1 })}
+						class="flex size-11 items-center justify-center"
+						onclick={() => show(i)}
+					>
+						<span
+							class="h-1.5 rounded-fc-pill transition-all duration-300 motion-reduce:transition-none {i === index
+								? 'w-6 bg-fc-fg'
+								: 'w-1.5 bg-fc-fg/25'}"
+						></span>
+					</button>
+				</Tooltip>
 			{/each}
 		</div>
 		<Button size="lg" class="h-12 w-full max-w-sm rounded-fc-md" iconRight={icons.arrow} onclick={next}>

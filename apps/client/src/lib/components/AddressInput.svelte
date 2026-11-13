@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { backend } from '$lib/backend';
-	import { Badge, getFieldContext, icons } from '@facile/muse';
+	import { Badge, Tooltip, getFieldContext, icons } from '@facile/muse';
 	import { t } from '$lib/i18n/index.svelte';
 
 	type Contact = { name: string; email: string; count: number };
@@ -161,14 +161,16 @@
 		{#each chips as chip, i (`${chip}-${i}`)}
 			<Badge tone="neutral" class="max-w-full pr-1">
 				<span class="truncate">{chip}</span>
-				<button
-					type="button"
-					aria-label={t('address.remove', { chip })}
-					class="flex size-4 shrink-0 items-center justify-center rounded-fc-pill text-fc-fg-muted transition-colors hover:bg-fc-component hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fc-ring"
-					onclick={() => removeChip(i)}
-				>
-					<iconify-icon icon={icons.close} width="12" height="12" class="block size-3"></iconify-icon>
-				</button>
+				<Tooltip text={t('address.remove', { chip })} describe={false} class="contents">
+					<button
+						type="button"
+						aria-label={t('address.remove', { chip })}
+						class="flex size-4 shrink-0 items-center justify-center rounded-fc-pill text-fc-fg-muted transition-colors hover:bg-fc-component hover:text-fc-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fc-ring"
+						onclick={() => removeChip(i)}
+					>
+						<iconify-icon icon={icons.close} width="12" height="12" class="block size-3"></iconify-icon>
+					</button>
+				</Tooltip>
 			</Badge>
 		{/each}
 		<input

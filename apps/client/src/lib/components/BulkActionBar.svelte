@@ -35,7 +35,6 @@
 			<IconButton
 				variant="ghost"
 				aria-label={t('mail.archive')}
-				title={t('mail.archive')}
 				disabled={loading}
 				onclick={onarchive}
 			>
@@ -45,7 +44,6 @@
 			<IconButton
 				variant="ghost"
 				aria-label={t('mail.markRead')}
-				title={t('mail.markRead')}
 				disabled={loading}
 				onclick={onmarkread}
 			>
@@ -55,7 +53,6 @@
 			<IconButton
 				variant="ghost"
 				aria-label={t('mail.markUnread')}
-				title={t('mail.markUnread')}
 				disabled={loading}
 				onclick={onmarkunread}
 			>
@@ -65,7 +62,6 @@
 			<IconButton
 				variant="ghost-danger"
 				aria-label={t('mail.delete')}
-				title={t('mail.delete')}
 				disabled={loading}
 				onclick={ondelete}
 			>

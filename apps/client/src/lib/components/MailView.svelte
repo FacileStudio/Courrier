@@ -567,7 +567,6 @@
 					<IconButton
 						variant="ghost"
 						aria-label={t('mail.refresh')}
-						title={t('mail.refresh')}
 						disabled={syncing}
 						onclick={syncAndLoad}
 					>
@@ -682,7 +681,6 @@
 						<IconButton
 							variant="ghost"
 							aria-label={t('mail.reply')}
-							title={t('mail.reply')}
 							onclick={() => goto(`/mail/compose?reply=${replyTarget!.id}&accountId=${app.activeAccountId}`)}
 						>
 							<iconify-icon icon={mailIcons.reply} width="18" height="18" class="block size-4.5"
@@ -691,7 +689,6 @@
 						<IconButton
 							variant="ghost"
 							aria-label={t('mail.replyAll')}
-							title={t('mail.replyAll')}
 							onclick={() => goto(`/mail/compose?replyall=${replyTarget!.id}&accountId=${app.activeAccountId}`)}
 						>
 							<iconify-icon icon={mailIcons.replyAll} width="18" height="18" class="block size-4.5"
@@ -700,7 +697,6 @@
 						<IconButton
 							variant="ghost"
 							aria-label={t('mail.forward')}
-							title={t('mail.forward')}
 							onclick={() => goto(`/mail/compose?forward=${replyTarget!.id}&accountId=${app.activeAccountId}`)}
 						>
 							<iconify-icon icon={mailIcons.forward} width="18" height="18" class="block size-4.5"
@@ -721,7 +717,6 @@
 							<IconButton
 								variant="ghost"
 								aria-label={t('mail.archive')}
-								title={t('mail.archive')}
 								onclick={() => handleSingleArchive(selected!.id)}
 							>
 								<iconify-icon icon={mailIcons.archive} width="18" height="18" class="block size-4.5"
@@ -731,7 +726,6 @@
 						<IconButton
 							variant="ghost-danger"
 							aria-label={t('mail.delete')}
-							title={t('mail.delete')}
 							onclick={() => handleSingleDelete(selected!.id)}
 						>
 							<iconify-icon icon={icons.remove} width="18" height="18" class="block size-4.5"
