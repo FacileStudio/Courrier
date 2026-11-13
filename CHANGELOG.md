@@ -4,6 +4,17 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.19.5] - 2026-11-13
+
+### Changed
+
+- build(client): muse v0.21.0 (was v0.18.0). Icon-only controls in muse components now show a muse tooltip.
+
+### Fixed
+
+- fix(client): every icon-only control shows a muse tooltip, and no control uses the native `title`: the mail and compose toolbars, the editor marks, the desktop title bar, the chip remove buttons, the intro dots, the Bulle assist trigger and the account check and default buttons.
+- test(client): the updater test loads its module before its timed tests, so a slow cold import no longer fails it.
+
 ## [0.19.3] - 2026-11-13
 
 ### Changed
