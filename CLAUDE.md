@@ -24,7 +24,8 @@ apps/
     main.go               Entrypoint: env, DB, migrations, router, static file serving, graceful shutdown
     modules/              Domain modules (auth, accounts, users, settings, spaces)
     internal/             Shared infra (database, middleware, logger, env, errors, etc.)
-    schemas/              GORM models and migrations (auto-run on startup)
+    migrations/           Ordered goose SQL, embedded and applied at boot by tronc/migrate
+    schemas/              GORM models (query layer only) and the idempotent boot data steps
     vendor/               Vendored Go dependencies
   desktop/                Tauri 2 desktop shell (own Cargo workspace) around ../client/build
   client/                 SvelteKit frontend (android/ is the Capacitor app)
@@ -107,7 +108,13 @@ unknown `/api/*` path return 404 instead of falling through to the SPA catch-all
 
 - **Single binary architecture** -- In production, the Go binary serves the SvelteKit static build from `CLIENT_DIR`. No Nginx, no CORS, no separate client container.
 - **Go modules are vendored** -- run `go mod vendor` after changing dependencies.
-- **Migrations run on startup** via `schemas.Migrate(db)`. No separate migration tool.
+- **Migrations are ordered goose SQL** in `apps/api/migrations/`, embedded in the binary and applied at boot by
+  `tronc/migrate` behind an advisory lock, then `schemas.Reconcile` runs the idempotent data steps. GORM is a
+  query layer: `AutoMigrate` never runs and `scripts/check.sh` fails on one outside a test. A schema change is a
+  new numbered file with `-- +goose Up` and `-- +goose Down`, plus the struct in `schemas/` by hand.
+  `00001_baseline.sql` is production's schema as AutoMigrate left it; a database from before v0.17.0 is stamped
+  at version 1 on its first boot. `docker run <image> migrate status` (also `up`, `version`, `baseline <n>`)
+  answers without a shell.
 - **Client uses static adapter** -- output is plain HTML/CSS/JS served by the Go binary in production.
 - **shadcn-svelte** provides the UI component primitives in `src/lib/components/ui/`.
 - **Svelte 5 runes** are enforced (`$state`, `$props`, `$derived`, `$effect`).

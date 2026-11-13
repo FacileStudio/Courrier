@@ -50,7 +50,8 @@ the old `/files/` prefix on every boot.
 | Entrypoint | `apps/api/main.go` | Config, DB, migrations, thread backfill, credential migrations, router, graceful shutdown |
 | Router | `tronc/httpx.NewRouter` | Chi router with the suite's logging, recovery, and CORS middleware |
 | Modules | `apps/api/modules/*` | `auth`, `accounts`, `mail`, `users`, `settings`, `spaces` |
-| Schemas | `apps/api/schemas` | Twelve GORM models, `AutoMigrate`, the trigram indexes, and the avatar backfill |
+| Migrations | `apps/api/migrations` | Ordered goose SQL applied at boot by `tronc/migrate`; `00001_baseline.sql` is the schema AutoMigrate built |
+| Schemas | `apps/api/schemas` | Twelve GORM models used as a query layer, and `Reconcile`, the idempotent boot data steps |
 | Internal | `apps/api/internal/*` | `database`, `middleware`, `env`, `crypto`, `authcrypto`, `resourcetoken`, `documentation`; the request identity, user store and erasure come from `porte/kit` |
 | Client | `apps/client` | SvelteKit 5 with `adapter-static` and `fallback: index.html` |
 
@@ -188,18 +189,19 @@ message bodies into memory.
 | `attachments` | `id`, `email_id`, `filename`, `mime_type`, `size`, `part_id` | Metadata only; bytes stay on the IMAP server |
 | `email_templates` | `id`, `user_id`, `space_id`, `name`, `subject`, `body_html`, `body_text` | |
 
-`schemas.Migrate` runs `AutoMigrate` over all twelve, then `ensureSearchIndexes`, then the
-avatar backfill.
+`schemas.MigrateWithIssuer` applies the pending files under `apps/api/migrations/` and then
+`schemas.Reconcile`: the email class backfill, the avatar backfills and the porte credential
+adoption. `TestGORMModelsMatchTheMigratedSchema` fails when a struct names a column the
+migrations do not create.
 
 ### Search indexes
 
-`ensureSearchIndexes` creates the `pg_trgm` extension and seven GIN and B-tree indexes:
-trigram indexes on `emails.subject`, `from_name`, `from_address`, and `body_text`, plus
-`(account_id, thread_id)` and `(account_id, folder_id, thread_id, date DESC, id DESC)` on
-`emails` and `(account_id, thread_id)` on `thread_links`. Every statement is
-`IF NOT EXISTS`, and the whole function returns early and silently if `CREATE EXTENSION`
-fails — a database user without the privilege gets a working app with slow search rather
-than a failed boot.
+The baseline migration creates the `pg_trgm` extension in `public` and seven GIN and B-tree
+indexes: trigram indexes on `emails.subject`, `from_name`, `from_address`, and `body_text`,
+plus `(account_id, thread_id)` and `(account_id, folder_id, thread_id, date DESC, id DESC)` on
+`emails` and `(account_id, thread_id)` on `thread_links`. Since v0.17.0 a database user that
+cannot create the extension fails the first boot of a fresh install instead of getting slow
+search; `pg_trgm` is a trusted extension, so the database owner can create it.
 
 ## Cross-app integration
 

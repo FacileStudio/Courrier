@@ -143,21 +143,33 @@ succeeds, but push registration crashes, which is why the app only registers whi
 
 There is no migration step to run. On every boot, in order:
 
-1. `schemas.Migrate` — GORM `AutoMigrate` over the twelve models. A failure aborts startup
-   and the container exits 1.
-2. `ensureSearchIndexes` — `CREATE EXTENSION IF NOT EXISTS pg_trgm` plus seven
-   `CREATE INDEX IF NOT EXISTS` statements. It returns early and silently if the extension
-   cannot be created, so a database user without the privilege gets slow search rather than
-   a failed deploy.
-3. `backfillAvatarURLs` — rewrites any `users.avatar_url` still on the legacy `/files/`
-   prefix to `/api/files/`. Idempotent.
-4. `crypto.MigrateAccountPasswords` and `crypto.MigrateOIDCTokens` — encrypt any plaintext
+1. The pending files under `apps/api/migrations/`, applied by `tronc/migrate` behind a
+   Postgres advisory lock. A failure aborts startup and the container exits 1. A database
+   built before v0.17.0 (Courrier's tables, no applied migration) is first stamped at
+   version 1: `00001_baseline.sql` is recorded as applied without running, then the later
+   files run.
+2. `schemas.Reconcile`: the idempotent data steps that used to follow AutoMigrate: NULL
+   email class columns to `''`, avatar URL and source backfills, and the porte credential
+   adoption. A failure aborts startup.
+3. `crypto.MigrateAccountPasswords` and `crypto.MigrateOIDCTokens` — encrypt any plaintext
    credential found. Best-effort: a failure logs a warning and startup continues.
-5. `mail.BackfillThreads`, in a background goroutine — assigns thread ids to emails stored
+4. `mail.BackfillThreads`, in a background goroutine — assigns thread ids to emails stored
    before threading existed. Idempotent and batched, so it does not delay serving.
 
-The first boot after a large mailbox already exists will spend a while on step 5 in the
+The first boot after a large mailbox already exists will spend a while on step 4 in the
 background. The app is serving throughout.
+
+The image answers the migration subcommands without a shell:
+
+```sh
+docker run --rm -e DATABASE_URL=... -e ENCRYPTION_KEY=... <image> migrate status
+docker run --rm -e DATABASE_URL=... -e ENCRYPTION_KEY=... <image> migrate up
+```
+
+Rolling back to v0.16.x or earlier runs GORM `AutoMigrate` again, which drops the column
+defaults `00002_column_defaults.sql` added while `goose_db_version` still records version 2.
+Before deploying v0.17.0 or later again after such a rollback, run
+`DELETE FROM goose_db_version WHERE version_id = 2` so the defaults come back.
 
 ## Verifying a deploy
 

@@ -4,6 +4,23 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- feat(api): the schema is ordered goose SQL under `apps/api/migrations/`, applied at boot by `tronc/migrate` v0.1.1 behind a Postgres advisory lock. GORM `AutoMigrate` and the hand-written `CREATE TABLE IF NOT EXISTS` (push devices, plan state, deletion state, the MCP actions table, porte's tables) are gone from the boot path; the GORM structs stay as the query layer. `scripts/check.sh` fails on an `.AutoMigrate(` call outside a test file.
+- feat(api): `00001_baseline.sql` is production's schema as `pg_dump --schema-only` printed it on 2026-11-13, leftover tables and columns included. A database built before this release (Courrier's tables, no applied migration) is stamped at version 1 on its first boot, so the baseline is recorded without running. A database built from the baseline dumps identical to production. `pg_trgm` is created in `public` and its operator class is qualified, so a fresh install that cannot create the extension now fails its first boot instead of silently skipping the search indexes.
+- feat(api): the data steps that ran at every boot still run at every boot, after the migrations and in the same order (`schemas.Reconcile`): NULL email class columns to `''`, the avatar URL and source backfills, the porte identity re-key, the pre-porte session and API token carry-over, and the password and OIDC subject adoption with the Registre picture backfill. `crypto.MigrateAccountPasswords`, `crypto.MigrateOIDCTokens` and the thread backfill are unchanged.
+- build: `github.com/FacileStudio/tronc/migrate` v0.1.1 with `pressly/goose/v3` v3.27.3; goose raises `segmentio/asm` from v1.1.3 to v1.2.1. Re-vendored.
+
+### Added
+
+- feat(api): `docker run <image> migrate status` (also `up`, `version`, `baseline <n>`) answers without a shell.
+- feat(api): `00002_column_defaults.sql` gives the timestamps GORM stamped at insert a `now()` default, and the users columns porte/kit does not write the values `fillNewAccount` writes (`''` and `0001-01-01 00:00:00+00`), so a row inserted outside GORM no longer gets NULL there. It has a Down.
+- test: the GORM structs are checked against the migrated schema, and `tronc/mcp.PendingSchema` and porte/pg's identity, session and login code tables are pinned by drift tests.
+
+### Rollback
+
+- Rolling back to v0.16.x runs `AutoMigrate` again, which drops the defaults `00002_column_defaults.sql` added while `goose_db_version` still records version 2. Before deploying this release again after such a rollback, run `DELETE FROM goose_db_version WHERE version_id = 2`. Rehearsed: old, new, old, new boots on one database all succeed and keep every row.
+
 ## [0.16.5] - 2026-11-12
 
 ### Security

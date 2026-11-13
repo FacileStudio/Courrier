@@ -60,9 +60,10 @@ calls the API cross-origin at `VITE_API_BASE_URL`, which is why the API needs th
 origin in its CORS list. CORS runs with `AllowCredentials: true` so the session cookie
 survives the hop.
 
-Migrations run at startup via `schemas.Migrate`, followed by the trigram index creation,
-the avatar-URL backfill, the credential and OIDC token migrations, and — in a background
-goroutine — `mail.BackfillThreads`.
+At startup the API applies the pending migrations under `apps/api/migrations/`, then
+`schemas.Reconcile` (email class, avatar and porte credential backfills), the credential and
+OIDC token migrations, and, in a background goroutine, `mail.BackfillThreads`. A schema change
+is a new numbered goose file with Up and Down; `AutoMigrate` is refused outside tests.
 
 ## Tasks
 

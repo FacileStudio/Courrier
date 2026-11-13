@@ -75,6 +75,13 @@ for dir in $GO_MODULES; do
     # SQLite builds a different schema from the GORM struct tags and then
     # passes, proving nothing about the Postgres DDL that actually ships — and
     # it cannot run what does ship: SELECT ... FOR UPDATE, pg_trgm, LATERAL.
+    automigrate="$(grep -rn --include='*.go' --exclude='*_test.go' --exclude-dir=vendor -E '\.AutoMigrate\(' . || true)"
+    if [ -n "$automigrate" ]; then
+      echo "AutoMigrate found outside a test; schema changes go in apps/api/migrations/ as a numbered goose file:"
+      echo "$automigrate"
+      s=1
+    fi
+
     drivers="$(grep -nE 'gorm\.io/driver/(sqlite|mysql|sqlserver|clickhouse)|mattn/go-sqlite3|modernc\.org/sqlite' go.mod || true)"
     if [ -n "$drivers" ]; then
       echo "non-Postgres database driver in go.mod; use github.com/FacileStudio/tronc/testdb (see Wiki/MIGRATIONS.md):"

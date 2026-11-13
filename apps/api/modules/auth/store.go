@@ -10,8 +10,8 @@ import (
 
 // columns maps porte/kit onto Courrier's users table. The SSO photo lives in
 // oidc_picture_url; avatar_url is an unread legacy column. Courrier has no
-// admin flag, and created_at, which GORM created without a default, is
-// adopted by kit.NewStore.
+// admin flag. created_at takes the database default 00002_column_defaults
+// sets; where a rollback stripped it, kit.NewStore adopts the column instead.
 func columns() kit.Columns {
 	return kit.Columns{Picture: "oidc_picture_url"}
 }
@@ -25,7 +25,9 @@ const fillNewAccountSQL = `UPDATE users SET
 // fillNewAccount writes the values GORM wrote on every account it created, so
 // an account the kit creates reads exactly like an older one. oidc_subject
 // stays NULL: it is unique, so an empty string would collide on the second
-// account.
+// account. 00002_column_defaults writes the same values as defaults; this
+// keeps them on a database where a rollback to the AutoMigrate release
+// stripped those defaults.
 func fillNewAccount(ctx context.Context, tx *sql.Tx, userID int64) error {
 	_, err := tx.ExecContext(ctx, fillNewAccountSQL, userID)
 	return err

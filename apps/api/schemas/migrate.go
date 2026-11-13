@@ -1,70 +1,52 @@
 package schemas
 
-import "gorm.io/gorm"
+import (
+	"context"
+	"log/slog"
 
-// Migrate brings the schema up to date and then hands authentication to
-// porte. AdoptPorte runs last because it repoints foreign keys at users(id)
-// and reads the columns AutoMigrate has just guaranteed exist.
+	"github.com/FacileStudio/Courrier/apps/api/migrations"
+	"gorm.io/gorm"
+)
+
+// Migrate applies the migrations and then the boot data steps, with no OIDC
+// issuer. The tests build their schemas through it, so they run exactly the
+// SQL production runs.
 func Migrate(db *gorm.DB) error {
-	return MigrateWithIssuer(db, "")
+	return MigrateWithIssuer(context.Background(), db, "", slog.Default())
 }
 
-// MigrateWithIssuer is Migrate with the OIDC issuer, which the identity
-// backfill needs: porte matches an account on (provider, subject) and the
-// provider is the issuer, so backfilling with a placeholder would leave every
-// existing SSO user unmatched and quietly fall through to the email path.
-func MigrateWithIssuer(db *gorm.DB, issuer string) error {
-	if err := db.AutoMigrate(
-		&User{},
-		&AppSetting{},
-		&Account{},
-		&Folder{},
-		&Email{},
-		&ThreadLink{},
-		&Attachment{},
-		&Contact{},
-		&EmailTemplate{},
-		&Space{},
-		&SpaceMember{},
-		&SenderRule{},
-	); err != nil {
+// MigrateWithIssuer applies the ordered migrations under migrations/ and then
+// Reconcile. The issuer is what the identity backfill needs: porte matches an
+// account on (provider, subject) and the provider is the issuer, so
+// backfilling with a placeholder would leave every existing SSO user
+// unmatched and quietly fall through to the email path.
+func MigrateWithIssuer(ctx context.Context, db *gorm.DB, issuer string, logger *slog.Logger) error {
+	sqlDB, err := db.DB()
+	if err != nil {
 		return err
 	}
+	if err := migrations.Up(ctx, migrations.Config(sqlDB, logger)); err != nil {
+		return err
+	}
+	return Reconcile(db, issuer)
+}
 
+// Reconcile runs the idempotent data steps that ran at every boot before the
+// schema moved to migrations, in the same order. It changes rows, never the
+// schema: the email class columns, the avatar columns, and the credentials
+// porte reads. AdoptPorte runs last because it repoints identities at users.
+func Reconcile(db *gorm.DB, issuer string) error {
 	if err := backfillEmailClassColumns(db); err != nil {
 		return err
 	}
-
-	if err := ensureRawTables(db); err != nil {
-		return err
-	}
-
-	ensureSearchIndexes(db)
-
 	if err := backfillAvatarURLs(db); err != nil {
 		return err
 	}
-
 	if err := backfillAvatarSources(db); err != nil {
 		return err
 	}
-
-	if err := db.Exec(directoryDeletionState).Error; err != nil {
-		return err
-	}
-
 	return AdoptPorte(db, issuer)
 }
-
-// directoryDeletionState holds the GDPR deletion receiver's cursor and handled
-// subjects in a single row, so a restart never replays or skips a notice.
-const directoryDeletionState = `
-CREATE TABLE IF NOT EXISTS directory_deletion_state (
-	id         smallint PRIMARY KEY CHECK (id = 1),
-	state      bytea NOT NULL,
-	updated_at timestamptz NOT NULL DEFAULT now()
-);
-`
 
 // backfillEmailClassColumns turns the NULL category and bulk_reason that
 // AutoMigrate leaves on every row cached before those columns existed into the
@@ -75,26 +57,6 @@ func backfillEmailClassColumns(db *gorm.DB) error {
 		    SET category = coalesce(category, ''),
 		        bulk_reason = coalesce(bulk_reason, '')
 		  WHERE category IS NULL OR bulk_reason IS NULL`).Error
-}
-
-func ensureSearchIndexes(db *gorm.DB) {
-	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS pg_trgm").Error; err != nil {
-		return
-	}
-
-	statements := []string{
-		"CREATE INDEX IF NOT EXISTS idx_emails_subject_trgm ON emails USING gin (subject gin_trgm_ops)",
-		"CREATE INDEX IF NOT EXISTS idx_emails_from_name_trgm ON emails USING gin (from_name gin_trgm_ops)",
-		"CREATE INDEX IF NOT EXISTS idx_emails_from_address_trgm ON emails USING gin (from_address gin_trgm_ops)",
-		"CREATE INDEX IF NOT EXISTS idx_emails_body_text_trgm ON emails USING gin (body_text gin_trgm_ops)",
-		"CREATE INDEX IF NOT EXISTS idx_emails_account_thread ON emails (account_id, thread_id)",
-		"CREATE INDEX IF NOT EXISTS idx_emails_folder_thread_date ON emails (account_id, folder_id, thread_id, date DESC, id DESC)",
-		"CREATE INDEX IF NOT EXISTS idx_thread_links_account_thread ON thread_links (account_id, thread_id)",
-	}
-
-	for _, stmt := range statements {
-		db.Exec(stmt)
-	}
 }
 
 // backfillAvatarURLs repoints avatars stored before static files moved under

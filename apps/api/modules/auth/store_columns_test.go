@@ -9,18 +9,13 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 )
 
-// The kit's insert leaves these users columns out. Every one but oidc_subject
-// is filled by fillNewAccount; a new nullable column fails this test instead
-// of shipping NULL.
+// The kit's insert leaves only oidc_subject NULL: 00002_column_defaults gives
+// every other users column it does not name a default. A new nullable column
+// with no default fails this test instead of shipping NULL.
 func TestUnwrittenColumnsArePinned(t *testing.T) {
 	store := newStore(t, openTestDatabase(t))
-	want := []string{
-		"avatar_url", "avatar_source", "avatar_upload_path", "oidc_subject", "oidc_access_token",
-		"oidc_refresh_token", "oidc_token_expiry", "profile_synced_at", "password_hash",
-	}
+	want := []string{"oidc_subject"}
 	got := store.Unwritten()
-	slices.Sort(got)
-	slices.Sort(want)
 	if !slices.Equal(got, want) {
 		t.Fatalf("Unwritten() = %v, want %v", got, want)
 	}
