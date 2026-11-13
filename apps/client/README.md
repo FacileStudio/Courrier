@@ -28,6 +28,6 @@ bun run check
 
 ## Configuration
 
-- `VITE_API_BASE_URL`: API base URL used by the frontend, default `http://localhost:4000`
+- `VITE_API_BASE_URL`: points the installed apps (desktop, Android) at another API in development. The web build ignores it and calls `/api` on its own origin; `bun run dev` proxies `/api` to `127.0.0.1:4000`.
 
-The production Docker build injects `VITE_API_BASE_URL` at build time and serves the static output with Nginx.
+The production image is built from the repository's root `Dockerfile`; the Go binary serves this static build.

@@ -67,7 +67,7 @@ The desktop app runs against that dev server with `cd apps/desktop && mise run d
 On Linux it needs the WebKitGTK 4.1 development packages.
 
 The API does not read a `.env` file — it takes everything from the process environment.
-The client runs on <http://localhost:5173> and calls the API at `VITE_API_BASE_URL`.
+The client runs on <http://localhost:5173> and proxies `/api` to the API on :4000.
 
 ## Configuration
 

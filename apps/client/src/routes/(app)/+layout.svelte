@@ -211,7 +211,7 @@
 		subscription: { href: SPACES_URL },
 		helpHref: 'https://facile.studio/docs/courrier',
 		onSignOut: signOut,
-		theme: theme.preference,
+		theme: theme.mode,
 		onThemeChange: (next: ThemePreference) => theme.set(next),
 		onLocaleChange: rememberLocale,
 		invitations

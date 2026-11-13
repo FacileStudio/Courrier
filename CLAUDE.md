@@ -34,7 +34,7 @@ apps/
         (app)/            Authenticated layout group (mail, settings, profile)
         login/            Login page
       lib/
-        backend.ts        API client (fetch wrapper)
+        backend.ts        API client on @facile/client's fetch kernel
         components/       App components + shadcn-svelte ui/ primitives
 ```
 
@@ -53,7 +53,7 @@ go build -o bin/api .       # Production binary
 
 ```sh
 bun install                 # Install dependencies
-bun run dev                 # Dev server on :5173 (needs VITE_API_BASE_URL in .env)
+bun run dev                 # Dev server on :5173, proxies /api to the API on :4000
 bun run build               # Static build to build/
 bun run preview             # Preview production build
 bun run check               # Svelte type checking
@@ -83,7 +83,7 @@ Core variables (see `.env.example` for full list):
 
 Client dev only (in `apps/client/.env`):
 
-- `VITE_API_BASE_URL` -- API URL for local dev (set to `http://localhost:4000`); not needed in production since everything is same-origin
+- `VITE_API_BASE_URL` -- points the installed apps at another API in development (`http://localhost:4000`). The web build ignores it: it always calls `/api` same-origin, and the Vite dev server proxies `/api` to `127.0.0.1:4000`
 
 ## Key Endpoints
 
@@ -145,7 +145,12 @@ unknown `/api/*` path return 404 instead of falling through to the SPA catch-all
 - **Database-backed tests need Postgres.** `TEST_DATABASE_URL` points at a scratch database
   (`github.com/FacileStudio/tronc/testdb` gives each test binary its own schema); without it
   those tests skip loudly. SQLite is not an option here — the gate rejects the driver.
-- **Local dev** still uses two processes: `go run .` (API on :4000) + `bun run dev` (client on :5173 with `VITE_API_BASE_URL=http://localhost:4000`).
+- **Local dev** still uses two processes: `go run .` (API on :4000) + `bun run dev` (client on :5173, which proxies `/api` to :4000).
+- **Client API calls** go through `@facile/client` (`apps/client/src/lib/backend.ts`): `createApi` on the web (relative
+  `/api`, cookie, `X-Facile-CSRF` on writes, a 401 not marked quiet goes to `/login`), `createNativeApi` in the installed
+  apps (bearer token to production, the token is forgotten on a 401). `me()` is quiet because the layouts handle a
+  signed-out session themselves, including the `/pending` return path. Call sites keep Courrier's `ApiError`
+  (`retryAfter`, `planLimit`). The theme store is `createTheme('courrier.theme', { resolveSystem: true })`.
 - **Installed apps** -- `isNative()` is the Capacitor Android app, `isDesktop()` the Tauri app,
   `isApp()` either. Both sign in with porte's `flow=mobile` (system browser, then the
   `studio.facile.courrier://auth` deep link) and send a bearer token instead of the cookie.

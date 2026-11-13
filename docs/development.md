@@ -55,10 +55,10 @@ cp .env.example .env
 bun run dev
 ```
 
-The API listens on `:4000` and the client on `:5173`. There is no Vite proxy: the client
-calls the API cross-origin at `VITE_API_BASE_URL`, which is why the API needs the dev
-origin in its CORS list. CORS runs with `AllowCredentials: true` so the session cookie
-survives the hop.
+The API listens on `:4000` and the client on `:5173`. The Vite dev server proxies `/api` to
+`127.0.0.1:4000`, so the browser stays same-origin as in production and needs no CORS entry.
+`VITE_API_BASE_URL` in `apps/client/.env` only points the desktop and Android apps at a local
+API.
 
 At startup the API applies the pending migrations under `apps/api/migrations/`, then
 `schemas.Reconcile` (email class, avatar and porte credential backfills), the credential and

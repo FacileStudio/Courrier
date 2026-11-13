@@ -4,6 +4,13 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- refactor(client): API calls go through `@facile/client` v0.2.0. The web build uses `createApi` (relative `/api`, the session cookie, `X-Facile-CSRF` on writes, the tronc error envelope); the installed apps use `@facile/client/native`'s `createNativeApi` (the bearer token to production, no cookie, no CSRF header, the token forgotten on a 401). Every call keeps its method, path, headers and body; Courrier's `ApiError` keeps `retryAfter` and `planLimit`, read from the kernel's error.
+- feat(client): on the web, a 401 from any call other than the session probe (`me()`, which is quiet) sends the person to `/login`, as across the suite. The layouts still handle a signed-out session themselves, so the `/pending` confirm-link return path is unchanged.
+- refactor(client): the theme store is `@facile/client/theme`'s `createTheme('courrier.theme', { resolveSystem: true })`, under the same storage key, still writing `.dark` or `.light` in system mode.
+- build(client): `bun run dev` proxies `/api` to `127.0.0.1:4000`, so development is same-origin like production. `VITE_API_BASE_URL` now only points the installed apps at another API.
+
 ## [0.18.0] - 2026-11-13
 
 ### Security

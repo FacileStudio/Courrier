@@ -38,12 +38,13 @@ export function isApp(): boolean {
 
 /**
  * The origin every API path is appended to. Paths already start with /api, so the web build
- * stays same-origin and the installed apps, served from their own origin, talk to production.
+ * stays same-origin (Vite proxies /api in development) and the installed apps, served from their
+ * own origin, talk to production, or to VITE_API_BASE_URL when a developer points them elsewhere.
  */
 export function apiBase(): string {
+	if (!isApp()) return '';
 	const override = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
-	if (override) return override;
-	return isApp() ? APP_API_ORIGIN : '';
+	return override || APP_API_ORIGIN;
 }
 
 async function readSecure(): Promise<string | null> {

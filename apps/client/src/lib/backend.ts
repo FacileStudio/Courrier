@@ -1,8 +1,14 @@
+import { ApiError as KernelError, CSRF_HEADER, createApi, redirectToLogin, type CallOptions } from '@facile/client';
+import { createNativeApi } from '@facile/client/native';
 import { apiBase, clearToken, getToken, isApp } from '$lib/platform';
 import { planLimitFrom, type PlanLimit } from '$lib/plan-limit';
 import { setSessionLocale, t } from '$lib/i18n/index.svelte';
 
 const backendBaseUrl = apiBase();
+
+const kernel = isApp()
+	? createNativeApi({ origin: backendBaseUrl, base: '/', token: getToken, onUnauthorized: clearToken })
+	: createApi({ base: '/', onUnauthorized: redirectToLogin });
 
 /** An inbox tab: where the classifier, jev or a sender pin filed a conversation. */
 /** A Bulle helper action, as POST /api/assist takes it. */
@@ -182,10 +188,6 @@ export type ApiTokenCreated = {
 	created_at: string;
 };
 
-type ApiErrorPayload = {
-	error?: { message?: string };
-};
-
 /**
  * Carries the status alongside the message, because the two say different things and a
  * caller usually needs both: a 429 from the rate limiter and a 502 from a refused IMAP
@@ -207,21 +209,7 @@ export class ApiError extends Error {
 	}
 }
 
-// Methods that cannot change anything, and so do not need the CSRF header.
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-
-// porte authenticates the cookie in preference to the Authorization header,
-// and refuses a cookie-authenticated *mutating* request that does not carry
-// X-Facile-CSRF. Any non-empty value counts: the header's presence is the whole
-// signal, because a browser will not attach a custom header to a cross-site
-// form post. Without this every write returns 403 while every read succeeds,
-// which is a failure mode that looks like "the app is fine, saving is broken".
-function withCSRF(headers: Headers, method: string): Headers {
-	if (!SAFE_METHODS.has(method.toUpperCase())) {
-		headers.set('X-Facile-CSRF', '1');
-	}
-	return headers;
-}
+const SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
  * Adds the credential to a request. The installed apps hold no cookie for the API's origin, so
@@ -235,7 +223,8 @@ export async function authed(options: RequestInit = {}): Promise<RequestInit> {
 		if (token) headers.set('Authorization', `Bearer ${token}`);
 		return { ...options, headers };
 	}
-	return { ...options, headers: withCSRF(headers, options.method ?? 'GET'), credentials: 'include' };
+	if (!SAFE_METHODS.has((options.method ?? 'GET').toUpperCase())) headers.set(CSRF_HEADER, '1');
+	return { ...options, headers, credentials: 'include' };
 }
 
 export type IdeaSource = { label: string; ref: string };
@@ -302,29 +291,29 @@ async function send(path: string, options: RequestInit = {}): Promise<Response> 
 	return response;
 }
 
-async function apiFetch<T>(path: string, options: RequestInit = {}) {
-	const headers = new Headers(options.headers);
-	if (!headers.has('Content-Type') && options.body) {
-		headers.set('Content-Type', 'application/json');
+/** Turns the kernel's error into Courrier's, which call sites read for the 429 wait and the 402 plan. */
+function toApiError(error: KernelError): ApiError {
+	const message = typeof error.details.message === 'string' ? error.details.message : '';
+	const seconds = error.retryAfterSeconds;
+	return new ApiError(
+		message || t('error.requestFailed', { status: error.status }),
+		error.status,
+		seconds !== null && seconds > 0 ? seconds : undefined,
+		planLimitFrom(error.status, { error: error.details })
+	);
+}
+
+/**
+ * Calls the API through @facile/client's kernel. The web app sends its cookie and the CSRF header
+ * on writes, and a 401 not marked quiet goes to the login page. The installed apps send the bearer
+ * token to production and forget it on a 401. A JSON body gets its Content-Type either way.
+ */
+async function apiFetch<T>(path: string, options: RequestInit = {}, call?: CallOptions): Promise<T> {
+	try {
+		return await kernel<T>(path, options, call);
+	} catch (error) {
+		throw error instanceof KernelError ? toApiError(error) : error;
 	}
-	const response = await send(path, { ...options, headers });
-	if (!response.ok) {
-		let payload: ApiErrorPayload | undefined;
-		try {
-			payload = (await response.json()) as ApiErrorPayload;
-		} catch {
-			payload = undefined;
-		}
-		const seconds = Number(response.headers.get('Retry-After'));
-		throw new ApiError(
-			payload?.error?.message || t('error.requestFailed', { status: response.status }),
-			response.status,
-			Number.isFinite(seconds) && seconds > 0 ? seconds : undefined,
-			planLimitFrom(response.status, payload)
-		);
-	}
-	if (response.status === 204) return undefined as T;
-	return (await response.json()) as T;
 }
 
 function resolveFileUrl(path: string) {
@@ -383,7 +372,7 @@ export const backend = {
 			.catch(() => null);
 	},
 	me() {
-		return apiFetch<MeResponse>('/api/users/me').then((r) => {
+		return apiFetch<MeResponse>('/api/users/me', {}, { quiet: true }).then((r) => {
 			setSessionLocale(r.user.locale ?? null);
 			return { user: normalizeUser(r.user) };
 		});
@@ -505,18 +494,8 @@ export const backend = {
 		);
 	},
 
-	async sendEmailWithAttachments(accountId: number, data: FormData): Promise<{ sent: boolean }> {
-		const response = await send(`/api/accounts/${accountId}/mail/send`, { method: 'POST', body: data });
-		if (!response.ok) {
-			let payload: ApiErrorPayload | undefined;
-			try {
-				payload = (await response.json()) as ApiErrorPayload;
-			} catch {
-				payload = undefined;
-			}
-			throw new Error(payload?.error?.message || t('error.requestFailed', { status: response.status }));
-		}
-		return (await response.json()) as { sent: boolean };
+	sendEmailWithAttachments(accountId: number, data: FormData): Promise<{ sent: boolean }> {
+		return apiFetch<{ sent: boolean }>(`/api/accounts/${accountId}/mail/send`, { method: 'POST', body: data });
 	},
 
 	saveDraft(accountId: number, data: { to: string[]; cc?: string[]; subject: string; body: string; body_html?: string; in_reply_to?: string; references?: string[] }) {

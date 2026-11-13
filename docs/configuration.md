@@ -142,9 +142,8 @@ assembles them into the `DATABASE_URL` it passes to the container.
 
 ## Client
 
-`apps/client/src/lib/backend.ts` reads `VITE_API_BASE_URL` at build time and falls back to
-the empty string — meaning same-origin. The production image never sets it, because the Go
-binary serves the SPA. In development, `apps/client/.env.example` sets it to
-`http://localhost:4000`, and the API then needs `http://localhost:5173` in its CORS origin
-list. CORS is configured with `AllowCredentials: true` so the session cookie survives the
-cross-origin hop.
+The web build always calls `/api` on its own origin through `@facile/client`'s `createApi`;
+the Go binary serves the SPA in production, and in development the Vite dev server proxies
+`/api` to `127.0.0.1:4000`. `VITE_API_BASE_URL` only redirects the installed apps, which call
+production (`https://courrier.facile.studio`) otherwise; `apps/client/.env.example` sets it to
+`http://localhost:4000` for desktop development.

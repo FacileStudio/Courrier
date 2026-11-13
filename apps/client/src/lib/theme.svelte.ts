@@ -1,63 +1,9 @@
-import { browser } from '$app/environment';
+import { createTheme } from '@facile/client/theme';
 
-export type ThemePreference = 'light' | 'dark' | 'system';
+export type { Theme as ThemePreference } from '@facile/client/theme';
 
-const STORAGE_KEY = 'courrier.theme';
-
-function isPreference(value: string | null): value is ThemePreference {
-	return value === 'light' || value === 'dark' || value === 'system';
-}
-
-class ThemeState {
-	preference = $state<ThemePreference>('system');
-	resolved = $state<'light' | 'dark'>('light');
-
-	/** Reads the stored preference and starts tracking the OS setting. */
-	restore() {
-		if (!browser) return;
-
-		let stored: string | null = null;
-		try {
-			stored = localStorage.getItem(STORAGE_KEY);
-		} catch {
-			stored = null;
-		}
-		this.preference = isPreference(stored) ? stored : 'system';
-		this.apply();
-
-		const query = window.matchMedia('(prefers-color-scheme: dark)');
-		query.addEventListener('change', () => {
-			if (this.preference === 'system') this.apply();
-		});
-	}
-
-	set(next: ThemePreference) {
-		this.preference = next;
-		if (!browser) return;
-		try {
-			localStorage.setItem(STORAGE_KEY, next);
-		} catch {
-			return this.apply();
-		}
-		this.apply();
-	}
-
-	/**
-	 * Sets both classes, never just `dark`. muse paints dark from
-	 * `@media (prefers-color-scheme: dark)` scoped to `:root:not(.light)`, so on a
-	 * dark-preferring OS removing `dark` is not enough to get light back — only an
-	 * explicit `light` class escapes the media block. Courrier also ships 17 `dark:`
-	 * Tailwind utilities that only fire on an explicit `.dark` class, so this MUST
-	 * always write one class or the other — never leave both off.
-	 */
-	private apply() {
-		if (!browser) return;
-		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		const dark = this.preference === 'dark' || (this.preference === 'system' && prefersDark);
-		this.resolved = dark ? 'dark' : 'light';
-		document.documentElement.classList.toggle('dark', dark);
-		document.documentElement.classList.toggle('light', !dark);
-	}
-}
-
-export const theme = new ThemeState();
+/**
+ * The persisted theme. Courrier's `dark:` Tailwind utilities need an explicit `.dark` and muse needs
+ * an explicit `.light` to escape its media block, so system mode resolves to one class as well.
+ */
+export const theme = createTheme('courrier.theme', { resolveSystem: true });
