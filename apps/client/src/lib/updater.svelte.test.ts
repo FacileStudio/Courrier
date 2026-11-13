@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import pkg from '../../package.json';
 
 const mockIsTauri = vi.fn(() => false);
@@ -18,6 +18,10 @@ vi.mock('@tauri-apps/plugin-process', () => ({
 }));
 
 describe('UpdaterStore', () => {
+	beforeAll(async () => {
+		await import('./updater.svelte');
+	}, 60_000);
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockIsTauri.mockReturnValue(false);
