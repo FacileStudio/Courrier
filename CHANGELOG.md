@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Security
+
+- feat(client): the installed apps keep their bearer token in the platform's secure store instead of `@capacitor/preferences`, which is plain storage (SharedPreferences on Android, `localStorage` in the desktop webview). Android uses `capacitor-secure-storage-plugin` 0.13.0 (Keystore); the desktop app uses the OS keychain through the `keyring` crate (Keychain, Credential Manager, Secret Service) behind the `token_get`, `token_set` and `token_clear` commands. The web build is unchanged.
+- feat(client): on first launch the app moves a token an older release kept in Preferences into the secure store and deletes the Preferences copy, so nobody is signed out. If the secure store refuses the write, the old copy stays and keeps working. Signing out clears both.
+- build(desktop): the Linux build installs `libdbus-1-dev` for the keychain.
+
 ## [0.17.0] - 2026-11-13
 
 ### Changed

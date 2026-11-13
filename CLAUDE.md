@@ -149,6 +149,11 @@ unknown `/api/*` path return 404 instead of falling through to the SPA catch-all
 - **Installed apps** -- `isNative()` is the Capacitor Android app, `isDesktop()` the Tauri app,
   `isApp()` either. Both sign in with porte's `flow=mobile` (system browser, then the
   `studio.facile.courrier://auth` deep link) and send a bearer token instead of the cookie.
+  The token lives in the platform's secure store: `capacitor-secure-storage-plugin` (Android
+  Keystore) and, on the desktop, the OS keychain through the `keyring` crate (`apps/desktop/src/token.rs`,
+  commands `token_get`, `token_set`, `token_clear`; Linux builds need `libdbus-1-dev`). `getToken` moves a
+  token an older release kept in `@capacitor/preferences` on first launch and deletes that copy only once the
+  secure store holds it.
   The desktop version is read from `apps/client/package.json`; the updater key lives in tiroir
   as `COURRIER_TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)` and in GitHub secrets
   `TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)`. Never rotate it, or installed apps stop updating.
