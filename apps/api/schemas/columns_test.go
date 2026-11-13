@@ -99,67 +99,67 @@ func TestGORMModelsMatchTheMigratedSchema(t *testing.T) {
 func tableShape(t *testing.T, db *gorm.DB, table string, withIndexes bool) []string {
 	t.Helper()
 	query := `SELECT column_name || ' ' || data_type || ' ' || is_nullable || ' ' || coalesce(column_default, '')
-		FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ?`
-	args := []any{table}
+		FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = @table`
 	if withIndexes {
-		query += ` UNION ALL SELECT indexdef FROM pg_indexes WHERE schemaname = current_schema() AND tablename = ?`
-		args = append(args, table)
+		query += ` UNION ALL SELECT replace(indexdef, ' ON ' || schemaname || '.', ' ON ')
+		FROM pg_indexes WHERE schemaname = current_schema() AND tablename = @table`
 	}
 	var shape []string
-	if err := db.Raw(query+` ORDER BY 1`, args...).Scan(&shape).Error; err != nil {
+	if err := db.Raw(query+` ORDER BY 1`, map[string]any{"table": table}).Scan(&shape).Error; err != nil {
 		t.Fatalf("read the shape of %s: %v", table, err)
 	}
 	return shape
 }
 
-// TestLibrarySchemaIsInTheMigrations checks the migrations already hold
-// tronc/mcp's PendingSchema, which Courrier used to execute at every boot. A
-// tronc bump that changes it makes this fail, and the change then needs a
+// assertMatchesLibrary builds a library's own DDL in a scratch schema, inside
+// a transaction that is rolled back, and compares each table's shape with the
+// one the migrations built. Running the DDL over the migrated schema instead
+// proves nothing, since its CREATE TABLE IF NOT EXISTS skips a table that
+// already exists. A library bump that adds or changes a column, or an index
+// when withIndexes is set, makes it fail, and the change then needs a
 // numbered migration of its own.
-func TestLibrarySchemaIsInTheMigrations(t *testing.T) {
-	db := openTestDatabase(t)
-	before := tableShape(t, db, "mcp_actions", true)
-	if err := db.Exec(mcp.PendingSchema).Error; err != nil {
-		t.Fatalf("run PendingSchema: %v", err)
-	}
-	if after := tableShape(t, db, "mcp_actions", true); !slices.Equal(before, after) {
-		t.Fatalf("PendingSchema changed mcp_actions:\nbefore %v\nafter  %v", before, after)
-	}
-}
-
-// TestPorteTablesMatchPorteSchema builds porte/pg's Schema in a throwaway
-// schema and checks the three porte tables Courrier keeps, as a private copy
-// pointed at its own users, have the same columns. A porte bump that adds or
-// changes a column there fails here and needs a numbered migration.
-func TestPorteTablesMatchPorteSchema(t *testing.T) {
-	db := openTestDatabase(t)
-	tables := []string{"porte_identities", "porte_login_codes", "porte_sessions"}
+func assertMatchesLibrary(t *testing.T, db *gorm.DB, ddl string, tables []string, withIndexes bool) {
+	t.Helper()
 	migrated := map[string][]string{}
 	for _, table := range tables {
-		migrated[table] = tableShape(t, db, table, false)
+		migrated[table] = tableShape(t, db, table, withIndexes)
 	}
-	library := map[string][]string{}
 	err := db.Transaction(func(tx *gorm.DB) error {
-		statements := []string{`CREATE SCHEMA courrier_porte_drift`, `SET LOCAL search_path TO courrier_porte_drift`, portepg.Schema}
-		for _, statement := range statements {
+		for _, statement := range []string{`CREATE SCHEMA courrier_library_drift`, `SET LOCAL search_path TO courrier_library_drift`, ddl} {
 			if err := tx.Exec(statement).Error; err != nil {
-				return err
+				t.Fatalf("build the library schema: %v", err)
 			}
 		}
 		for _, table := range tables {
-			library[table] = tableShape(t, tx, table, false)
+			want := tableShape(t, tx, table, withIndexes)
+			if len(want) == 0 {
+				t.Errorf("the library no longer creates %s", table)
+			} else if !slices.Equal(migrated[table], want) {
+				t.Errorf("%s drifted from the library:\nmigrations %s\nlibrary    %s", table,
+					strings.Join(migrated[table], ", "), strings.Join(want, ", "))
+			}
 		}
 		return errRollback
 	})
 	if !errors.Is(err, errRollback) {
-		t.Fatalf("build porte/pg's Schema: %v", err)
+		t.Fatalf("transaction: %v", err)
 	}
-	for _, table := range tables {
-		if !slices.Equal(migrated[table], library[table]) {
-			t.Errorf("%s drifted from porte/pg:\nmigrations %s\nporte      %s", table,
-				strings.Join(migrated[table], ", "), strings.Join(library[table], ", "))
-		}
-	}
+}
+
+// TestLibrarySchemaIsInTheMigrations checks the migrations build mcp_actions
+// exactly as tronc/mcp's PendingSchema does, column for column and index for
+// index, since Courrier used to execute it at every boot.
+func TestLibrarySchemaIsInTheMigrations(t *testing.T) {
+	assertMatchesLibrary(t, openTestDatabase(t), mcp.PendingSchema, []string{"mcp_actions"}, true)
+}
+
+// TestPorteTablesMatchPorteSchema compares the columns of the three porte
+// tables Courrier keeps, as a private copy pointed at its own users, with
+// porte/pg's own Schema. A porte bump that adds or changes a column there
+// fails here and needs a numbered migration.
+func TestPorteTablesMatchPorteSchema(t *testing.T) {
+	tables := []string{"porte_identities", "porte_login_codes", "porte_sessions"}
+	assertMatchesLibrary(t, openTestDatabase(t), portepg.Schema, tables, false)
 }
 
 var errRollback = errors.New("rollback")
