@@ -4,6 +4,19 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-14
+
+### Added
+
+- feat(client): the landing shows a looping inbox demo built with `@facile/mise-en-scene` v0.2.1: a mail arrives, opens as a thread and gets a reply. Phones get a compact layout.
+- feat(client): the landing download section lists only the visitor's platform (muse `DownloadSection mode="device"`), with a link to `/downloads` for the rest.
+
+### Changed
+
+- build(client): muse v0.23.0 (was v0.21.0). Titles and body text use Magnetik, and the landing footer starts at the left edge on phones.
+- feat(client): `/downloads` uses muse `DownloadSection` and `LandingHeader`/`LandingFooter`, with the same release URLs plus the CLI install commands.
+- feat(client): shorter landing copy in en, fr, es and de, and a fourth feature block for the inbox tabs.
+
 ## [0.19.7] - 2026-11-14
 
 ### Added
