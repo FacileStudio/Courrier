@@ -23,8 +23,13 @@ func (s *Service) handleStatus(w http.ResponseWriter, req *http.Request) {
 	httpjson.WriteJSON(w, http.StatusOK, s.Status(req.Context(), uid))
 }
 
+// writeBudget outlasts Bulle's 90 s completion, which the server's 15 s
+// write timeout would otherwise cut.
+const writeBudget = 100 * time.Second
+
 func (s *Service) handleRun(w http.ResponseWriter, req *http.Request) {
 	uid := middleware.UserID(req)
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(writeBudget))
 	req.Body = http.MaxBytesReader(w, req.Body, 256<<10)
 	var body Request
 	if err := httpjson.DecodeJSON(w, req, &body); err != nil {

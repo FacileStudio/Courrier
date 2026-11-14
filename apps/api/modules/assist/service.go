@@ -2,12 +2,14 @@ package assist
 
 import (
 	"context"
-	"errors"
+	stderrors "errors"
+	"net/http"
 	"slices"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/bulle"
+	"github.com/FacileStudio/porte/exchange"
+	"github.com/FacileStudio/tronc/bulle"
 	troncerrors "github.com/FacileStudio/tronc/errors"
 )
 
@@ -15,7 +17,9 @@ const (
 	maxText      = 20000
 	maxContext   = 40000
 	maxNote      = 500
+	maxInput     = 64 << 10
 	answerTokens = 1500
+	planMessage  = "The Bulle helper needs a plan with AI access."
 )
 
 // Request is one helper call from the composer or a thread.
@@ -32,36 +36,64 @@ type Response struct {
 	Text string `json:"text"`
 }
 
-// Status says whether the helper can run for this user and, when it cannot, why.
+// Status says whether the helper can run for this user and, when it cannot,
+// why. UpgradeURL is where to get a plan with AI access, set with the
+// plan_required reason.
 type Status struct {
-	Available bool     `json:"available"`
-	Reason    string   `json:"reason,omitempty"`
-	Actions   []string `json:"actions"`
-	BulleURL  string   `json:"bulle_url,omitempty"`
+	Available  bool     `json:"available"`
+	Reason     string   `json:"reason,omitempty"`
+	Actions    []string `json:"actions"`
+	BulleURL   string   `json:"bulle_url,omitempty"`
+	UpgradeURL string   `json:"upgrade_url,omitempty"`
 }
 
-// Service runs helper actions through Bulle. A nil client means BULLE_URL or
-// Registre is not configured, and every call answers "off".
+// Completer is Bulle's completion call, as tronc/bulle's Client makes it for
+// the user on the context.
+type Completer interface {
+	Complete(ctx context.Context, req bulle.CompleteRequest) (bulle.Completion, error)
+}
+
+// Config wires the helper. A nil Bulle means BULLE_URL or Registre is not
+// configured, and every call answers "off". Linked returns the user's Bulle
+// token, or why there is none; AIAccess reads the user's personal plan.
+type Config struct {
+	Bulle      Completer
+	Linked     bulle.TokenSource
+	AIAccess   func(ctx context.Context, userID int64) (bool, error)
+	BulleURL   string
+	UpgradeURL string
+}
+
+// Service runs helper actions through Bulle's /api/ai/complete.
 type Service struct {
-	bulle    *bulle.Client
-	bulleURL string
+	cfg Config
 }
 
-// NewService builds the helper over a Bulle client, which may be nil, and the
-// Bulle URL the client links to for "Ask Bulle".
-func NewService(client *bulle.Client, bulleURL string) *Service {
-	return &Service{bulle: client, bulleURL: bulleURL}
+// NewService builds the helper over cfg.
+func NewService(cfg Config) *Service {
+	return &Service{cfg: cfg}
 }
 
-// Status probes Bulle for the user's model offer.
+// Status checks the user's plan here, then that Courrier can act for them
+// in Bulle.
 func (s *Service) Status(ctx context.Context, userID int64) Status {
-	if s.bulle == nil {
+	if s.cfg.Bulle == nil {
 		return Status{Reason: "off", Actions: Actions}
 	}
-	if _, err := s.bulle.Offer(ctx, userID); err != nil {
-		return Status{Reason: reason(err), Actions: Actions, BulleURL: s.bulleURL}
+	status := Status{Actions: Actions, BulleURL: s.cfg.BulleURL}
+	if err := s.admit(ctx, userID); err != nil {
+		status.Reason = reason(err)
+		if status.Reason == "plan_required" {
+			status.UpgradeURL = s.cfg.UpgradeURL
+		}
+		return status
 	}
-	return Status{Available: true, Actions: Actions, BulleURL: s.bulleURL}
+	if _, err := s.cfg.Linked(ctx); err != nil {
+		status.Reason = reason(err)
+		return status
+	}
+	status.Available = true
+	return status
 }
 
 // Run validates the request and returns Bulle's text.
@@ -69,19 +101,38 @@ func (s *Service) Run(ctx context.Context, userID int64, req Request) (Response,
 	if err := validate(&req); err != nil {
 		return Response{}, err
 	}
-	if s.bulle == nil {
+	if s.cfg.Bulle == nil {
 		return Response{}, troncerrors.Failed("off: the Bulle helper is not configured on this server")
 	}
-	offer, err := s.bulle.Offer(ctx, userID)
-	if err != nil {
-		return Response{}, failure(err)
+	if err := s.admit(ctx, userID); err != nil {
+		return Response{}, s.failure(err)
 	}
-	system, user := buildPrompt(req, offer.Persona)
-	text, err := s.bulle.Complete(ctx, userID, offer, bulle.Prompt{System: system, User: user, MaxTokens: answerTokens})
+	call := buildPrompt(req)
+	if len(call.Input) > maxInput {
+		return Response{}, troncerrors.TooLarge("text too long for the helper")
+	}
+	out, err := s.cfg.Bulle.Complete(ctx, call)
 	if err != nil {
-		return Response{}, failure(err)
+		return Response{}, s.failure(err)
+	}
+	text := strings.TrimSpace(out.Text)
+	if text == "" {
+		return Response{}, troncerrors.Unavailable("unreachable: Bulle did not answer")
 	}
 	return Response{Text: text}, nil
+}
+
+// admit refuses a user whose plan has no ai.access before any mail leaves
+// for Bulle.
+func (s *Service) admit(ctx context.Context, userID int64) error {
+	allowed, err := s.cfg.AIAccess(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return &bulle.PlanRequired{Message: planMessage}
+	}
+	return nil
 }
 
 func validate(req *Request) error {
@@ -103,21 +154,40 @@ func validate(req *Request) error {
 }
 
 func reason(err error) string {
+	var plan *bulle.PlanRequired
+	var refused *exchange.RefusedError
 	switch {
-	case errors.Is(err, bulle.ErrNotLinked):
+	case stderrors.As(err, &plan):
+		return "plan_required"
+	case stderrors.Is(err, exchange.ErrReconnect), stderrors.Is(err, exchange.ErrNoUser), stderrors.As(err, &refused):
 		return "not_linked"
-	case errors.Is(err, bulle.ErrNoKey):
-		return "no_key"
-	case errors.Is(err, bulle.ErrUnsupported):
-		return "unsupported"
 	}
 	return "unreachable"
 }
 
-func failure(err error) error {
-	r := reason(err)
-	if r == "unreachable" {
-		return troncerrors.Unavailable("unreachable: Bulle did not answer")
+// failure maps a Bulle or exchange error to the answer the client shows: a
+// plan refusal as a 402 with the upgrade link, a dead Registre grant as the
+// reconnect message, the daily cap as a 429.
+func (s *Service) failure(err error) error {
+	var plan *bulle.PlanRequired
+	var refused *bulle.StatusError
+	var envelope *troncerrors.Error
+	switch {
+	case stderrors.As(err, &plan):
+		return troncerrors.PaymentRequired(orDefault(plan.Message, planMessage)).WithUpgradeURL(orDefault(plan.UpgradeURL, s.cfg.UpgradeURL))
+	case stderrors.As(err, &refused) && refused.Status == http.StatusTooManyRequests:
+		return troncerrors.RateLimited(orDefault(refused.Message, "Bulle's daily limit is reached. Try again tomorrow."))
+	case reason(err) == "not_linked":
+		return troncerrors.Failed("not_linked: " + exchange.ErrReconnect.Message)
+	case stderrors.As(err, &envelope):
+		return envelope
 	}
-	return troncerrors.Failed(r + ": " + err.Error())
+	return troncerrors.Unavailable("unreachable: Bulle did not answer")
+}
+
+func orDefault(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }

@@ -1,4 +1,4 @@
-import { backend, type AssistStatus } from '$lib/backend';
+import { ApiError, backend, type AssistStatus } from '$lib/backend';
 
 let status = $state<AssistStatus | null>(null);
 let pending: Promise<void> | null = null;
@@ -18,5 +18,10 @@ export const assistStatus = {
 			}
 		);
 		return pending;
+	},
+	/** Records a helper run refused for the plan, so every blob shows the upgrade link. */
+	refused(err: unknown): void {
+		if (!(err instanceof ApiError) || !err.planLimit) return;
+		status = { available: false, reason: 'plan_required', actions: status?.actions ?? [], bulle_url: status?.bulle_url, upgrade_url: err.planLimit.upgradeUrl };
 	}
 };

@@ -74,7 +74,6 @@ services:
       BULLE_URL: ${BULLE_URL:-}
       COURRIER_ADMINS: ${COURRIER_ADMINS:-}
       MCP_RESOURCE: ${MCP_RESOURCE:-https://courrier.facile.studio/mcp}
-      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
       MAIL_POLL_INTERVAL: ${MAIL_POLL_INTERVAL:-2m}
       JOURNAL_URL: ${JOURNAL_URL:-}
       JOURNAL_TOKEN: ${JOURNAL_TOKEN:-}

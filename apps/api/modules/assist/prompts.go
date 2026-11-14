@@ -3,6 +3,8 @@ package assist
 import (
 	"fmt"
 	"strings"
+
+	"github.com/FacileStudio/tronc/bulle"
 )
 
 const baseSystem = "You help the user write email inside their mail client. " +
@@ -24,25 +26,28 @@ var actionPrompts = map[string]string{
 // Actions lists the helper's actions in menu order.
 var Actions = []string{"rewrite", "shorten", "expand", "fix", "formal", "friendly", "translate", "reply", "summarize"}
 
-func buildPrompt(req Request, persona string) (string, string) {
-	system := baseSystem
-	if persona != "" {
-		system = persona + "\n\n" + system
-	}
+// buildPrompt is the Bulle call for one action: the task and the user's own
+// note as the prompt, the thread and the text as untrusted input.
+func buildPrompt(req Request) bulle.CompleteRequest {
 	task := actionPrompts[req.Action]
 	if req.Action == "translate" {
 		task = fmt.Sprintf(task, req.Language)
 	}
-	var user strings.Builder
-	user.WriteString(task)
+	var prompt strings.Builder
+	prompt.WriteString(task)
 	if req.Instructions != "" {
-		user.WriteString("\n\nThe user adds: " + req.Instructions)
+		prompt.WriteString("\n\nThe user adds: " + req.Instructions)
 	}
+	prompt.WriteString("\n\nThe input holds the email thread in <thread> and the user's text in <text>, when there are any.")
+	var input strings.Builder
 	if req.Context != "" {
-		user.WriteString("\n\n<thread>\n" + req.Context + "\n</thread>")
+		input.WriteString("<thread>\n" + req.Context + "\n</thread>")
 	}
 	if req.Text != "" {
-		user.WriteString("\n\n<text>\n" + req.Text + "\n</text>")
+		if input.Len() > 0 {
+			input.WriteString("\n\n")
+		}
+		input.WriteString("<text>\n" + req.Text + "\n</text>")
 	}
-	return system, user.String()
+	return bulle.CompleteRequest{System: baseSystem, Prompt: prompt.String(), Input: input.String(), MaxTokens: answerTokens}
 }

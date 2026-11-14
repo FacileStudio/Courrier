@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/FacileStudio/Courrier/apps/api/modules/assist"
 	"log/slog"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
 	"github.com/FacileStudio/Courrier/apps/api/internal/plans"
 	"github.com/FacileStudio/Courrier/apps/api/internal/push"
+	"github.com/FacileStudio/Courrier/apps/api/modules/assist"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mcp"
 	"github.com/FacileStudio/Courrier/apps/api/modules/spaces"
@@ -58,8 +58,14 @@ func buildServices(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogge
 	if svc.mcp, err = newMCP(ctx, db, appEnv, svc, appLogger); err != nil {
 		return services{}, err
 	}
-	if svc.ideas, err = newIdeasOptions(appEnv, svc.identity, appLogger); err != nil {
+	link, err := newBulle(appEnv, svc.identity, appLogger)
+	if err != nil {
 		return services{}, err
+	}
+	svc.ideas = link.ideas
+	svc.assist = newAssist(db, appEnv, link, svc.plans)
+	if link.client != nil {
+		svc.mail.WithTriage(mail.Triage{Bulle: link.client, AIAccess: personalAIAccess(db, svc.plans)})
 	}
 	reportSpaceIDs(db, appLogger)
 	return svc, nil

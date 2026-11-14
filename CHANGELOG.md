@@ -4,6 +4,15 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- fix(api): the writing helper calls Bulle's `/api/ai/complete` through `tronc/bulle` on the token exchange the Ideas routes use. `internal/bulle`, its second RFC 8693 exchange and the `/api/llm` proxy calls are gone. The helper checks `ai.access` on the personal plan: `GET /api/assist` answers `plan_required` with `upgrade_url`, and a Bulle 402 is a 402 with the upgrade link instead of "Bulle did not answer". The `no_key` and `unsupported` reasons are gone. Bulle's persona no longer prefixes the helper's prompt.
+- fix(api): the inbox triage of mail the headers could not sort goes through Bulle `/api/ai/complete` with a JSON schema, as the mailbox owner, one call per pass, and only when the owner's plan has `ai.access`. Without it only the header and sender rules sort mail. New verdicts carry `bulk_reason` `bulle`; older ones keep `jev`. `TYPESAFE_API_KEY` and `TYPESAFE_URL` are no longer read.
+- fix(api): the confirm page API accepts only the person's own browser session (`mcpauth.RequireOwnSession`): a bearer, CLI or API token is refused. People sign in once after the upgrade before they can confirm.
+- fix(api): `courrier_draft` is annotated destructive, since replacing a draft by `draft_id` overwrites it.
+- build(api): tronc v0.23.0, porte v0.20.0, porte/mcpauth v0.3.0, porte/forfait v0.1.3, tronc/testdb v0.1.2. The MCP state key comes from `mcpkit.StateKey` (same bytes), the confirm page mounts with `PendingPage.Mount`, pending-action texts come from the kit, and `mcp_actions` rows resolved or expired over 30 days ago are pruned hourly.
+- build: mise pins Go 1.26.11, as go.mod and the Dockerfile do.
+
 ## [0.20.0] - 2026-11-14
 
 ### Added

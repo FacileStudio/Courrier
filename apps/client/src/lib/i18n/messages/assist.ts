@@ -24,17 +24,11 @@ export const assist = {
 		'Inicia sesión con tu cuenta de Facile para usar Bulle aquí.',
 		'Melde dich mit deinem Facile-Konto an, um Bulle hier zu nutzen.'
 	],
-	'assist.noKey': [
-		'Add a model key in Bulle to use the helper.',
-		'Ajoutez une clé de modèle dans Bulle pour utiliser l’assistant.',
-		'Añade una clave de modelo en Bulle para usar el asistente.',
-		'Füge in Bulle einen Modellschlüssel hinzu, um den Assistenten zu nutzen.'
-	],
-	'assist.unsupported': [
-		'Bulle’s model is not supported here yet.',
-		'Le modèle de Bulle n’est pas encore pris en charge ici.',
-		'El modelo de Bulle aún no es compatible aquí.',
-		'Das Modell von Bulle wird hier noch nicht unterstützt.'
+	'assist.planRequired': [
+		'The Bulle helper needs a plan with AI access.',
+		'L’assistant Bulle demande un forfait avec l’IA.',
+		'El asistente Bulle necesita un plan con IA.',
+		'Der Bulle-Assistent braucht einen Tarif mit KI.'
 	],
 	'assist.unreachable': [
 		'Bulle is not answering right now.',

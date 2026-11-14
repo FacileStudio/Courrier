@@ -5,7 +5,7 @@
 	import { Button, Input, Spinner, Tooltip, toast } from '@facile/muse';
 	import { backend, type AssistAction, type AssistRequest } from '$lib/backend';
 	import { assistStatus } from '$lib/assist/status.svelte';
-	import { reasonText, textToHtml } from '$lib/assist/text';
+	import { reasonText, textToHtml, upgradeLink } from '$lib/assist/text';
 	import { t } from '$lib/i18n/index.svelte';
 
 	let { editor, context = '' }: { editor: Editor; context?: string } = $props();
@@ -38,6 +38,7 @@
 
 	const status = $derived(assistStatus.current);
 	const available = $derived(status?.available ?? false);
+	const upgrade = $derived(upgradeLink(status));
 	let hasSelection = $state(false);
 	const scope = $derived(hasSelection ? t('assist.scopeSelection') : t('assist.scopeAll'));
 
@@ -80,6 +81,7 @@
 			const out = await backend.assist(full);
 			result = { text: out.text, range: picked.range, request: full };
 		} catch (err) {
+			assistStatus.refused(err);
 			toast.danger(err instanceof Error ? err.message : t('assist.failed'));
 		}
 		busy = false;
@@ -139,6 +141,9 @@
 		>
 			{#if !available}
 				<p class="px-2 py-2 text-fc-fg-muted">{reasonText(status)}</p>
+				{#if upgrade}
+					<a role="menuitem" class="menu-item font-medium" href={upgrade} target="_blank" rel="noopener">{t('plan.upgrade')}</a>
+				{/if}
 			{:else}
 				<p class="px-2 pb-1 pt-0.5 text-fc-xs text-fc-fg-muted">{t('assist.worksOn', { scope })}</p>
 				{#if context}

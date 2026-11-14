@@ -1,6 +1,7 @@
 import type { AssistStatus } from '$lib/backend';
 import { t } from '$lib/i18n/index.svelte';
 import type { AppKey } from '$lib/i18n/messages';
+import { isSafeUpgradeUrl } from '$lib/plan-limit';
 
 function escapeHtml(text: string): string {
 	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -31,9 +32,8 @@ export function plainOf(html: string, max = 8000): string {
 
 const REASONS: Record<NonNullable<AssistStatus['reason']>, AppKey> = {
 	off: 'assist.off',
+	plan_required: 'assist.planRequired',
 	not_linked: 'assist.notLinked',
-	no_key: 'assist.noKey',
-	unsupported: 'assist.unsupported',
 	unreachable: 'assist.unreachable'
 };
 
@@ -41,4 +41,10 @@ const REASONS: Record<NonNullable<AssistStatus['reason']>, AppKey> = {
 export function reasonText(status: AssistStatus | null): string {
 	if (!status) return t('assist.checking');
 	return status.reason ? t(REASONS[status.reason]) : '';
+}
+
+/** Where to get a plan with AI access, when the plan is why the helper is unavailable. */
+export function upgradeLink(status: AssistStatus | null): string | undefined {
+	if (status?.reason !== 'plan_required') return undefined;
+	return isSafeUpgradeUrl(status.upgrade_url) ? status.upgrade_url : undefined;
 }

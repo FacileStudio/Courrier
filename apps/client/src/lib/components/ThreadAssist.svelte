@@ -4,7 +4,7 @@
 	import { Button, Spinner, toast } from '@facile/muse';
 	import { backend, type EmailMessage } from '$lib/backend';
 	import { assistStatus } from '$lib/assist/status.svelte';
-	import { plainOf, reasonText } from '$lib/assist/text';
+	import { plainOf, reasonText, upgradeLink } from '$lib/assist/text';
 	import { t } from '$lib/i18n/index.svelte';
 
 	let { accountId, messages }: { accountId: number; messages: EmailMessage[] } = $props();
@@ -14,6 +14,7 @@
 
 	const status = $derived(assistStatus.current);
 	const available = $derived(status?.available ?? false);
+	const upgrade = $derived(upgradeLink(status));
 
 	onMount(() => {
 		void assistStatus.load();
@@ -41,6 +42,7 @@
 		try {
 			summary = (await backend.assist({ action: 'summarize', context: await threadText() })).text;
 		} catch (err) {
+			assistStatus.refused(err);
 			toast.danger(err instanceof Error ? err.message : t('assist.failed'));
 		}
 		busy = false;
@@ -54,7 +56,9 @@
 				{#if busy}<Spinner size="sm" />{:else}<Blob name="Bulle" size={16} class="size-4" />{/if}
 				{t('assist.summarize')}
 			</Button>
-			{#if status.bulle_url}
+			{#if upgrade}
+				<Button size="sm" variant="ghost" href={upgrade} target="_blank" rel="noopener">{t('plan.upgrade')}</Button>
+			{:else if status.bulle_url}
 				<Button size="sm" variant="ghost" href={status.bulle_url} target="_blank" rel="noopener">{t('assist.askBulle')}</Button>
 			{/if}
 		</div>

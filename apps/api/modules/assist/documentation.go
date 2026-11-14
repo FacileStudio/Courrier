@@ -7,15 +7,16 @@ var unauthenticated = documentation.Error{Status: 401, Code: "unauthenticated", 
 // Documentation describes the writing helper routes for the API reference.
 var Documentation = documentation.Module{
 	Name: "assist",
-	Description: "The Bulle writing helper. Courrier trades the user's Registre session for a Bulle token and runs " +
-		"the user's own Bulle model and persona; Courrier holds no model key. Off until BULLE_URL and OIDC are set.",
+	Description: "The Bulle writing helper. Courrier trades the user's Registre session for a Bulle token and calls " +
+		"Bulle's /api/ai/complete as the user; Courrier holds no model key. It needs a personal plan with ai.access. " +
+		"Off until BULLE_URL and OIDC are set.",
 	Routes: []documentation.Route{
 		{
 			Method:  "GET",
 			Path:    "/assist",
 			Summary: "Say whether the helper can run",
-			Description: "available is false with reason off (not configured), not_linked (no Registre session or no " +
-				"exchange grant), no_key (Bulle has no model key), unsupported or unreachable.",
+			Description: "available is false with reason off (not configured), plan_required (the plan has no ai.access; " +
+				"upgrade_url says where to get it), not_linked (no Registre session or no exchange grant) or unreachable.",
 			Auth:         "session cookie or bearer token",
 			ResponseBody: Status{},
 			Errors:       []documentation.Error{unauthenticated},
@@ -33,9 +34,10 @@ var Documentation = documentation.Module{
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Unknown action, empty text, or missing language or context."},
 				unauthenticated,
-				{Status: 412, Code: "failed_precondition", Description: "The helper is off, the account is not linked, or Bulle has no key."},
+				{Status: 402, Code: "payment_required", Description: "The plan has no ai.access; upgrade_url says where to get it."},
+				{Status: 412, Code: "failed_precondition", Description: "The helper is off, or the account is not linked."},
 				{Status: 413, Code: "resource_exhausted", Description: "Text or context too long."},
-				{Status: 429, Code: "rate_limited", Description: "Too many helper calls."},
+				{Status: 429, Code: "rate_limited", Description: "Too many helper calls, or Bulle's daily limit is reached."},
 				{Status: 503, Code: "unavailable", Description: "Bulle did not answer."},
 			},
 		},
