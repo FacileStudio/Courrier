@@ -8,6 +8,7 @@
 	import PendingCard from '$lib/components/PendingCard.svelte';
 	import { t } from '$lib/i18n/index.svelte';
 	import { isApp } from '$lib/platform';
+	import { refusesOwnSession } from '$lib/session-refusal';
 
 	let actions = $state<PendingAction[]>([]);
 	let loading = $state(true);
@@ -28,8 +29,9 @@
 		loading = true;
 		try {
 			actions = (await backend.listPending()).actions;
+			notOwnSession = false;
 		} catch (err) {
-			if (!refusedSession(err)) toast.danger(t('pending.loadFailed'));
+			if (!refusedSession(err)) toast.danger(reason(err, t('pending.loadFailed')));
 		}
 		loading = false;
 	}
@@ -63,11 +65,16 @@
 		busy = '';
 	}
 
-	/** A 403 means this is not the person's own browser session, which alone may confirm. */
+	/** Flags porte's refusal of a session that is not the person's own browser session. */
 	function refusedSession(err: unknown): boolean {
-		if (!(err instanceof ApiError) || err.status !== 403) return false;
+		if (!refusesOwnSession(err)) return false;
 		notOwnSession = true;
 		return true;
+	}
+
+	/** The server's own words for any other 403, else the fallback text. */
+	function reason(err: unknown, fallback: string): string {
+		return err instanceof ApiError && err.status === 403 ? err.message : fallback;
 	}
 
 	/** Ends the old session and comes back here after a fresh browser sign-in. */
