@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/mail"
 	"strconv"
@@ -37,6 +38,7 @@ type Service struct {
 	triage        *Triage
 	gate          *triageGate
 	judging       sync.Map
+	poll          func(context.Context, *slog.Logger)
 }
 
 // NewService builds a mail Service over the database and the app's encryption
