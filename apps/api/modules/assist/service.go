@@ -24,8 +24,11 @@ const (
 	tooLong      = "text too long for the helper"
 )
 
-// Request is one helper call from the composer or a thread.
+// Request is one helper call from the composer or a thread. AccountID names
+// the mailbox the text comes from, so a space mailbox runs on the space's
+// plan when the user's own has no AI.
 type Request struct {
+	AccountID    int64  `json:"account_id,omitempty"`
 	Action       string `json:"action"`
 	Text         string `json:"text,omitempty"`
 	Context      string `json:"context,omitempty"`
@@ -57,11 +60,14 @@ type Completer interface {
 
 // Config wires the helper. A nil Bulle means BULLE_URL or Registre is not
 // configured, and every call answers "off". Linked returns the user's Bulle
-// token, or why there is none; AIAccess reads the user's personal plan.
+// token, or why there is none. Mailbox checks the user may use a mail
+// account and returns its space's Registre id, empty for a personal one;
+// AIAccess reads whether the user's plan, or that space's, includes AI.
 type Config struct {
 	Bulle      Completer
 	Linked     bulle.TokenSource
-	AIAccess   func(ctx context.Context, userID int64) (bool, error)
+	Mailbox    func(ctx context.Context, userID, accountID int64) (string, error)
+	AIAccess   func(ctx context.Context, userID int64, link string) (bool, error)
 	BulleURL   string
 	UpgradeURL string
 }
@@ -76,14 +82,14 @@ func NewService(cfg Config) *Service {
 	return &Service{cfg: cfg}
 }
 
-// Status checks the user's plan here, then that Courrier can act for them
-// in Bulle.
-func (s *Service) Status(ctx context.Context, userID int64) Status {
+// Status checks the plan of the user, or of the space of mail account
+// accountID (0 for none), then that Courrier can act for them in Bulle.
+func (s *Service) Status(ctx context.Context, userID, accountID int64) Status {
 	if s.cfg.Bulle == nil {
 		return Status{Reason: "off", Actions: Actions}
 	}
 	status := Status{Actions: Actions, BulleURL: s.cfg.BulleURL}
-	if err := s.admit(ctx, userID); err != nil {
+	if _, err := s.admit(ctx, userID, accountID); err != nil {
 		status.Reason = reason(err)
 		if status.Reason == "plan_required" {
 			status.UpgradeURL = s.cfg.UpgradeURL
@@ -106,10 +112,12 @@ func (s *Service) Run(ctx context.Context, userID int64, req Request) (Response,
 	if s.cfg.Bulle == nil {
 		return Response{}, troncerrors.Failed("off: the Bulle helper is not configured on this server")
 	}
-	if err := s.admit(ctx, userID); err != nil {
+	link, err := s.admit(ctx, userID, req.AccountID)
+	if err != nil {
 		return Response{}, s.failure(err)
 	}
 	call := buildPrompt(req)
+	call.SpaceID = link
 	if tooLarge(call) {
 		return Response{}, troncerrors.TooLarge(tooLong)
 	}
@@ -124,17 +132,25 @@ func (s *Service) Run(ctx context.Context, userID int64, req Request) (Response,
 	return Response{Text: text}, nil
 }
 
-// admit refuses a user whose plan has no ai.access before any mail leaves
-// for Bulle.
-func (s *Service) admit(ctx context.Context, userID int64) error {
-	allowed, err := s.cfg.AIAccess(ctx, userID)
+// admit refuses, before any mail leaves for Bulle, a user who may not use
+// mail account accountID, or whose plan and whose mailbox's space plan both
+// lack ai.access. It returns the space's Registre id Bulle checks.
+func (s *Service) admit(ctx context.Context, userID, accountID int64) (string, error) {
+	link := ""
+	if accountID != 0 && s.cfg.Mailbox != nil {
+		var err error
+		if link, err = s.cfg.Mailbox(ctx, userID, accountID); err != nil {
+			return "", err
+		}
+	}
+	allowed, err := s.cfg.AIAccess(ctx, userID, link)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if !allowed {
-		return &bulle.PlanRequired{Message: planMessage}
+		return "", &bulle.PlanRequired{Message: planMessage}
 	}
-	return nil
+	return link, nil
 }
 
 func validate(req *Request) error {

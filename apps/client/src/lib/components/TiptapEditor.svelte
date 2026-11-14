@@ -14,13 +14,15 @@
 		onchange,
 		placeholder = '',
 		assist = false,
-		assistContext = ''
+		assistContext = '',
+		accountId
 	}: {
 		content?: string;
 		onchange?: (html: string) => void;
 		placeholder?: string;
 		assist?: boolean;
 		assistContext?: string;
+		accountId?: number;
 	} = $props();
 
 	let element: HTMLDivElement;
@@ -106,7 +108,7 @@
 				{/if}
 			{/each}
 			{#if assist && editor}
-				<BulleAssist {editor} context={assistContext} />
+				<BulleAssist {editor} context={assistContext} {accountId} />
 			{/if}
 		</div>
 	{/if}

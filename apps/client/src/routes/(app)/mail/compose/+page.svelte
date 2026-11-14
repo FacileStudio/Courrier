@@ -466,6 +466,7 @@
 				<TiptapEditor
 					assist
 					{assistContext}
+					accountId={fromId ?? undefined}
 					content={initialContent}
 					onchange={(html) => {
 						bodyHtml = html;

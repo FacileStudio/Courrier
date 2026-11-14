@@ -88,7 +88,7 @@ func TestGrayZoneFailureReachesBulleOnce(t *testing.T) {
 	env := newTriageEnv(t)
 	seedGray(t, env)
 	down := &fakeBulle{err: bulle.ErrUnreachable}
-	env.svc.WithTriage(Triage{Bulle: down, AIAccess: func(context.Context, int64) (bool, error) { return true, nil }})
+	env.svc.WithTriage(Triage{Bulle: down, AIAccess: func(context.Context, int64, string) (bool, error) { return true, nil }})
 	env.svc.judgeGrayZone(env.inboxA)
 	env.svc.judgeGrayZone(env.inboxA)
 	if down.calls != 1 {
@@ -100,21 +100,23 @@ func TestSpaceMailboxTriageNeedsAMember(t *testing.T) {
 	env := newTriageEnv(t)
 	seedGray(t, env)
 	testORM.Exec("DELETE FROM users WHERE email LIKE 'triage-owner-%'")
-	space := schemas.Space{Name: "Triage " + t.Name()}
+	link := "registre-" + time.Now().Format(time.RFC3339Nano)
+	space := schemas.Space{Name: "Triage " + t.Name(), RegistreSpaceID: &link}
 	owner := schemas.User{Email: "triage-owner-" + t.Name() + "@facile.studio"}
 	if testORM.Create(&space).Error != nil || testORM.Create(&owner).Error != nil {
 		t.Fatal("seed space")
 	}
 	testORM.Model(&schemas.Account{}).Where("id = ?", env.a.ID).Updates(map[string]any{"space_id": space.ID, "user_id": owner.ID})
 	fake := &fakeBulle{}
-	env.svc.WithTriage(Triage{Bulle: fake, AIAccess: func(context.Context, int64) (bool, error) { return true, nil }})
+	spacePlanOnly := func(_ context.Context, _ int64, got string) (bool, error) { return got == link, nil }
+	env.svc.WithTriage(Triage{Bulle: fake, AIAccess: spacePlanOnly})
 	env.svc.judgeGrayZone(env.inboxA)
 	if fake.calls != 0 {
 		t.Fatalf("a former member's mailbox reached Bulle %d times", fake.calls)
 	}
 	testORM.Create(&schemas.SpaceMember{SpaceID: space.ID, UserID: owner.ID})
 	env.svc.judgeGrayZone(env.inboxA)
-	if fake.calls != 1 || fake.userID != owner.ID {
-		t.Fatalf("member: calls = %d as user %d", fake.calls, fake.userID)
+	if fake.calls != 1 || fake.userID != owner.ID || fake.spaceID != link {
+		t.Fatalf("member: calls = %d as user %d in space %q", fake.calls, fake.userID, fake.spaceID)
 	}
 }

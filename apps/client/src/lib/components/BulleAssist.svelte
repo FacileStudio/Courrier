@@ -8,7 +8,7 @@
 	import { reasonText, textToHtml, upgradeLink } from '$lib/assist/text';
 	import { t } from '$lib/i18n/index.svelte';
 
-	let { editor, context = '' }: { editor: Editor; context?: string } = $props();
+	let { editor, context = '', accountId }: { editor: Editor; context?: string; accountId?: number } = $props();
 
 	type Range = { from: number; to: number };
 	type Result = { text: string; range: Range; request: AssistRequest };
@@ -42,8 +42,11 @@
 	let hasSelection = $state(false);
 	const scope = $derived(hasSelection ? t('assist.scopeSelection') : t('assist.scopeAll'));
 
+	$effect(() => {
+		void assistStatus.load(accountId);
+	});
+
 	onMount(() => {
-		void assistStatus.load();
 		const place = () => {
 			const { from, to, empty } = editor.state.selection;
 			hasSelection = !empty;
@@ -73,7 +76,7 @@
 
 	async function run(request: Omit<AssistRequest, 'text' | 'context'>, range?: Range) {
 		const picked = range ? { text: editor.state.doc.textBetween(range.from, range.to, '\n\n'), range } : target();
-		const full: AssistRequest = { ...request, text: picked.text, context: context || undefined };
+		const full: AssistRequest = { ...request, account_id: accountId || undefined, text: picked.text, context: context || undefined };
 		open = false;
 		bubble = null;
 		busy = true;

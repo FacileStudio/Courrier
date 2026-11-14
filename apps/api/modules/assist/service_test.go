@@ -36,7 +36,7 @@ func TestValidateAndPrompt(t *testing.T) {
 
 func TestOffServiceSaysSo(t *testing.T) {
 	s := NewService(Config{})
-	if st := s.Status(context.Background(), 1); st.Available || st.Reason != "off" {
+	if st := s.Status(context.Background(), 1, 0); st.Available || st.Reason != "off" {
 		t.Fatalf("status = %+v", st)
 	}
 	if _, err := s.Run(context.Background(), 1, Request{Action: "fix", Text: "x"}); err == nil || !strings.Contains(err.Error(), "off") {
@@ -45,13 +45,15 @@ func TestOffServiceSaysSo(t *testing.T) {
 }
 
 type fakeBulle struct {
-	calls int
-	out   bulle.Completion
-	err   error
+	calls   int
+	spaceID string
+	out     bulle.Completion
+	err     error
 }
 
-func (f *fakeBulle) Complete(context.Context, bulle.CompleteRequest) (bulle.Completion, error) {
+func (f *fakeBulle) Complete(_ context.Context, req bulle.CompleteRequest) (bulle.Completion, error) {
 	f.calls++
+	f.spaceID = req.SpaceID
 	return f.out, f.err
 }
 
@@ -59,22 +61,22 @@ func service(fake *fakeBulle, access bool, linked error) *Service {
 	return NewService(Config{
 		Bulle:      fake,
 		Linked:     func(context.Context) (string, error) { return "token", linked },
-		AIAccess:   func(context.Context, int64) (bool, error) { return access, nil },
+		AIAccess:   func(context.Context, int64, string) (bool, error) { return access, nil },
 		UpgradeURL: "https://sso.example.test/spaces",
 	})
 }
 
 func TestStatusFollowsThePlanAndTheLink(t *testing.T) {
 	ctx := context.Background()
-	free := service(&fakeBulle{}, false, nil).Status(ctx, 1)
+	free := service(&fakeBulle{}, false, nil).Status(ctx, 1, 0)
 	if free.Available || free.Reason != "plan_required" || free.UpgradeURL != "https://sso.example.test/spaces" {
 		t.Fatalf("free = %+v", free)
 	}
-	unlinked := service(&fakeBulle{}, true, exchange.ErrReconnect).Status(ctx, 1)
+	unlinked := service(&fakeBulle{}, true, exchange.ErrReconnect).Status(ctx, 1, 0)
 	if unlinked.Available || unlinked.Reason != "not_linked" {
 		t.Fatalf("unlinked = %+v", unlinked)
 	}
-	if paid := service(&fakeBulle{}, true, nil).Status(ctx, 1); !paid.Available {
+	if paid := service(&fakeBulle{}, true, nil).Status(ctx, 1, 0); !paid.Available {
 		t.Fatalf("paid = %+v", paid)
 	}
 }
@@ -129,5 +131,38 @@ func TestRunMeasuresTheEncodedRequest(t *testing.T) {
 	huge := &fakeBulle{err: &bulle.StatusError{Status: 413, Message: "request body too large"}}
 	if _, err := service(huge, true, nil).Run(context.Background(), 1, Request{Action: "fix", Text: "helo"}); codeOf(err) != "resource_exhausted" {
 		t.Fatalf("huge: err = %v", err)
+	}
+}
+
+func TestSpaceMailboxRunsOnTheSpacePlan(t *testing.T) {
+	ctx := context.Background()
+	fake := &fakeBulle{out: bulle.Completion{Text: "hello"}}
+	s := NewService(Config{
+		Bulle:  fake,
+		Linked: func(context.Context) (string, error) { return "token", nil },
+		Mailbox: func(_ context.Context, _ int64, accountID int64) (string, error) {
+			switch accountID {
+			case 7:
+				return "reg-space", nil
+			case 8:
+				return "", nil
+			}
+			return "", troncerrors.NotFound("account not found")
+		},
+		AIAccess: func(_ context.Context, _ int64, link string) (bool, error) { return link == "reg-space", nil },
+	})
+	if _, err := s.Run(ctx, 1, Request{AccountID: 7, Action: "fix", Text: "helo"}); err != nil || fake.calls != 1 || fake.spaceID != "reg-space" {
+		t.Fatalf("space mailbox: err = %v, calls = %d, space = %q", err, fake.calls, fake.spaceID)
+	}
+	if st := s.Status(ctx, 1, 7); !st.Available {
+		t.Fatalf("space mailbox status = %+v", st)
+	}
+	for _, account := range []int64{0, 8} {
+		if _, err := s.Run(ctx, 1, Request{AccountID: account, Action: "fix", Text: "helo"}); codeOf(err) != "payment_required" || fake.calls != 1 {
+			t.Fatalf("personal mailbox %d: err = %v, calls = %d", account, err, fake.calls)
+		}
+	}
+	if _, err := s.Run(ctx, 1, Request{AccountID: 9, Action: "fix", Text: "helo"}); codeOf(err) != "not_found" || fake.calls != 1 {
+		t.Fatalf("foreign mailbox: err = %v, calls = %d", err, fake.calls)
 	}
 }

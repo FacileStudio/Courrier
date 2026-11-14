@@ -80,6 +80,25 @@ func (s *Service) getAccount(ctx context.Context, userID, accountID int64) (sche
 	return account, nil
 }
 
+// MailboxSpace is the Registre id of the space a mail account belongs to,
+// empty for a personal mailbox or a space not linked to Registre yet, after
+// the same ownership and membership check every mail route makes.
+func (s *Service) MailboxSpace(ctx context.Context, userID, accountID int64) (string, error) {
+	account, err := s.getAccount(ctx, userID, accountID)
+	if err != nil || account.SpaceID == nil || *account.SpaceID == "" {
+		return "", err
+	}
+	var links []string
+	if err := s.orm.WithContext(ctx).Raw(`SELECT coalesce(registre_space_id, '') FROM spaces WHERE id::text = ?`,
+		*account.SpaceID).Scan(&links).Error; err != nil {
+		return "", errors.Internal("failed to load the space", err)
+	}
+	if len(links) == 0 {
+		return "", nil
+	}
+	return links[0], nil
+}
+
 func (s *Service) getAccountDecrypted(ctx context.Context, userID, accountID int64) (schemas.Account, error) {
 	account, err := s.getAccount(ctx, userID, accountID)
 	if err != nil {
