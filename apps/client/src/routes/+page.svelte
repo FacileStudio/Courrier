@@ -114,7 +114,7 @@
 				<div class="mt-8 flex flex-col items-center gap-3">
 					<SignInWithFacile href={signInHref} size="lg" data-sveltekit-reload />
 					<DownloadCta
-						href="/downloads"
+						href="#download"
 						platforms={['macos', 'windows', 'linux', 'android']}
 						label={t('landing.navApps')}
 					/>
@@ -150,6 +150,8 @@
 					releasesHref={RELEASES_URL}
 					checksumsHref={DESKTOP_CHECKSUMS_URL}
 					headingLevel={3}
+					mode="device"
+					allHref="/downloads"
 				/>
 			</section>
 

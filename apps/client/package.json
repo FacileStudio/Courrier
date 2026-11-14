@@ -39,7 +39,7 @@
 		"@facile/blob": "github:FacileStudio/blob#v0.1.0",
 		"@facile/client": "github:FacileStudio/facile-client#v0.2.0",
 		"@facile/mise-en-scene": "github:FacileStudio/mise-en-scene#v0.2.1",
-		"@facile/muse": "github:FacileStudio/muse#v0.22.0",
+		"@facile/muse": "github:FacileStudio/muse#v0.23.0",
 		"@tauri-apps/api": "^2.12.4",
 		"@tauri-apps/plugin-deep-link": "^2.6.3",
 		"@tauri-apps/plugin-notification": "^2.8.1",
