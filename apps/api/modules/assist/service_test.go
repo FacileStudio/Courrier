@@ -116,3 +116,18 @@ func codeOf(err error) string {
 	}
 	return ""
 }
+
+func TestRunMeasuresTheEncodedRequest(t *testing.T) {
+	quotes := &fakeBulle{}
+	req := Request{Action: "reply", Context: strings.Repeat(`"`, 39000), Text: strings.Repeat("<", 19000)}
+	if len(buildPrompt(req).Input) > maxInput {
+		t.Fatalf("the input alone is already past the cap")
+	}
+	if _, err := service(quotes, true, nil).Run(context.Background(), 1, req); codeOf(err) != "resource_exhausted" || quotes.calls != 0 {
+		t.Fatalf("err = %v, calls = %d, want a local 413", err, quotes.calls)
+	}
+	huge := &fakeBulle{err: &bulle.StatusError{Status: 413, Message: "request body too large"}}
+	if _, err := service(huge, true, nil).Run(context.Background(), 1, Request{Action: "fix", Text: "helo"}); codeOf(err) != "resource_exhausted" {
+		t.Fatalf("huge: err = %v", err)
+	}
+}

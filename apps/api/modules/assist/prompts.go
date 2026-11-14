@@ -1,6 +1,7 @@
 package assist
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -50,4 +51,12 @@ func buildPrompt(req Request) bulle.CompleteRequest {
 		input.WriteString("<text>\n" + req.Text + "\n</text>")
 	}
 	return bulle.CompleteRequest{System: baseSystem, Prompt: prompt.String(), Input: input.String(), MaxTokens: answerTokens}
+}
+
+// tooLarge says whether Bulle would refuse call for its size: the input past
+// its input cap, or the request past its body cap once encoded, where every
+// quote and angle bracket in the text grows.
+func tooLarge(call bulle.CompleteRequest) bool {
+	encoded, err := json.Marshal(call)
+	return err != nil || len(call.Input) > maxInput || len(encoded) > maxBody
 }

@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
 	"github.com/FacileStudio/porte"
@@ -16,8 +14,10 @@ import (
 const (
 	grayFloor      = 0.8
 	grayBatch      = 25
+	grayWindow     = 200
 	grayBodyBytes  = 1500
 	grayInputBytes = 60 << 10
+	grayWireBytes  = 88 << 10
 	grayTokens     = 2048
 	grayJudgedNone = "judged"
 	grayJudgedBy   = "bulle"
@@ -65,6 +65,7 @@ type Triage struct {
 // service. Without it only the header and sender rules sort mail.
 func (s *Service) WithTriage(triage Triage) *Service {
 	s.triage = &triage
+	s.gate = &triageGate{}
 	return s
 }
 
@@ -86,9 +87,12 @@ type grayVerdict struct {
 // the headers could not sort belong: no list headers, no sender rule, and a
 // sender the user has never written to (contacts holds everyone the user sent
 // mail to). It runs only when the owner's plan includes ai.access, in one
-// call per pass. Only a confident answer moves a message; every message with
-// a verdict is marked so it is asked about once, and a failed call leaves
-// them for the next pass.
+// call per pass over mail from one sender domain, so a mail can only steer
+// the verdicts of mail from its own domain. The owner's triage gate bounds
+// the calls: a daily budget, and a backoff after a failure. Only a
+// confident answer moves a message; every message with a verdict is marked
+// so it is asked about once, and a failed or skipped call leaves them for
+// the non-AI rules and a later pass.
 func (s *Service) judgeGrayZone(folderID int64) {
 	if s.triage == nil {
 		return
@@ -104,10 +108,11 @@ func (s *Service) judgeGrayZone(folderID int64) {
 		return
 	}
 	emails := s.grayCandidates(ctx, folderID)
-	if len(emails) == 0 {
+	if len(emails) == 0 || !s.gate.take(owner) {
 		return
 	}
 	verdicts, err := s.askBulle(porte.WithIdentity(ctx, porte.Identity{UserID: owner}), emails)
+	s.gate.settle(owner, err)
 	if err != nil {
 		slog.Warn("bulle inbox triage", "folder", folderID, "error", err)
 		return
@@ -129,19 +134,27 @@ func (s *Service) fileVerdicts(ctx context.Context, emails []schemas.Email, verd
 }
 
 // triageOwner is the user the folder's mail account belongs to, when their
-// plan includes ai.access.
+// plan includes ai.access and, for a space mailbox, they are still a member
+// of the space.
 func (s *Service) triageOwner(ctx context.Context, folderID int64) (int64, bool) {
-	var owners []int64
-	if err := s.orm.WithContext(ctx).Raw(`SELECT a.user_id FROM folders f JOIN accounts a ON a.id = f.account_id
+	var owners []struct {
+		UserID  int64
+		SpaceID *string
+	}
+	if err := s.orm.WithContext(ctx).Raw(`SELECT a.user_id, a.space_id FROM folders f JOIN accounts a ON a.id = f.account_id
 		WHERE f.id = ?`, folderID).Scan(&owners).Error; err != nil || len(owners) == 0 {
 		return 0, false
 	}
-	allowed, err := s.triage.AIAccess(ctx, owners[0])
+	owner := owners[0]
+	if owner.SpaceID != nil && *owner.SpaceID != "" && s.requireSpaceMember(ctx, *owner.SpaceID, owner.UserID) != nil {
+		return 0, false
+	}
+	allowed, err := s.triage.AIAccess(ctx, owner.UserID)
 	if err != nil {
 		slog.Warn("bulle inbox triage: plan check", "folder", folderID, "error", err)
 		return 0, false
 	}
-	return owners[0], allowed
+	return owner.UserID, allowed
 }
 
 // askBulle classifies emails in one completion and returns the verdicts by
@@ -172,27 +185,6 @@ func (s *Service) askBulle(ctx context.Context, emails []schemas.Email) (map[int
 	return verdicts, nil
 }
 
-// grayInput is the JSON list Bulle reads, dropping the oldest emails that
-// would push it past Bulle's input cap.
-func grayInput(emails []schemas.Email) (string, error) {
-	list := make([]grayEmail, 0, len(emails))
-	size := 2
-	for i, email := range emails {
-		item := grayEmail{N: i, From: email.FromAddress, Name: email.FromName, Subject: clampText(email.Subject, 300), Body: clampText(email.BodyText, grayBodyBytes)}
-		encoded, err := json.Marshal(item)
-		if err != nil {
-			return "", err
-		}
-		if size+len(encoded)+1 > grayInputBytes {
-			break
-		}
-		size += len(encoded) + 1
-		list = append(list, item)
-	}
-	data, err := json.Marshal(list)
-	return string(data), err
-}
-
 // grayOutcome is the category and reason a verdict files a message under:
 // only a confident newsletter or notification verdict moves it.
 func grayOutcome(verdict grayVerdict) (string, string) {
@@ -203,6 +195,8 @@ func grayOutcome(verdict grayVerdict) (string, string) {
 	return category, grayJudgedBy
 }
 
+// grayCandidates is the newest unjudged inbox mail from strangers, all from
+// the sender domain of the newest one.
 func (s *Service) grayCandidates(ctx context.Context, folderID int64) []schemas.Email {
 	var emails []schemas.Email
 	s.orm.WithContext(ctx).Raw(`
@@ -212,18 +206,6 @@ func (s *Service) grayCandidates(ctx context.Context, folderID int64) []schemas.
 		  AND NOT EXISTS (SELECT 1 FROM sender_rules r WHERE r.account_id = e.account_id AND r.address = LOWER(e.from_address))
 		  AND NOT EXISTS (SELECT 1 FROM contacts c WHERE c.account_id = e.account_id AND LOWER(c.email) = LOWER(e.from_address))
 		ORDER BY e.date DESC
-		LIMIT ?`, schemas.FolderTypeInbox, folderID, bulkReasonNone, grayBatch).Scan(&emails)
-	return emails
-}
-
-func clampText(text string, limit int) string {
-	text = strings.TrimSpace(text)
-	if len(text) <= limit {
-		return text
-	}
-	cut := limit
-	for cut > 0 && !utf8.RuneStart(text[cut]) {
-		cut--
-	}
-	return text[:cut]
+		LIMIT ?`, schemas.FolderTypeInbox, folderID, bulkReasonNone, grayWindow).Scan(&emails)
+	return sameSenderDomain(emails, grayBatch)
 }

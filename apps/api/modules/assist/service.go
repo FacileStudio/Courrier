@@ -18,8 +18,10 @@ const (
 	maxContext   = 40000
 	maxNote      = 500
 	maxInput     = 64 << 10
+	maxBody      = 96 << 10
 	answerTokens = 1500
 	planMessage  = "The Bulle helper needs a plan with AI access."
+	tooLong      = "text too long for the helper"
 )
 
 // Request is one helper call from the composer or a thread.
@@ -108,8 +110,8 @@ func (s *Service) Run(ctx context.Context, userID int64, req Request) (Response,
 		return Response{}, s.failure(err)
 	}
 	call := buildPrompt(req)
-	if len(call.Input) > maxInput {
-		return Response{}, troncerrors.TooLarge("text too long for the helper")
+	if tooLarge(call) {
+		return Response{}, troncerrors.TooLarge(tooLong)
 	}
 	out, err := s.cfg.Bulle.Complete(ctx, call)
 	if err != nil {
@@ -142,7 +144,7 @@ func validate(req *Request) error {
 	case !slices.Contains(Actions, req.Action):
 		return troncerrors.Invalid("unknown action")
 	case utf8.RuneCountInString(req.Text) > maxText, utf8.RuneCountInString(req.Context) > maxContext, utf8.RuneCountInString(req.Instructions) > maxNote:
-		return troncerrors.TooLarge("text too long for the helper")
+		return troncerrors.TooLarge(tooLong)
 	case req.Action == "translate" && (req.Language == "" || len(req.Language) > 40):
 		return troncerrors.Invalid("translate needs a language")
 	case (req.Action == "reply" || req.Action == "summarize") && req.Context == "":
@@ -167,7 +169,8 @@ func reason(err error) string {
 
 // failure maps a Bulle or exchange error to the answer the client shows: a
 // plan refusal as a 402 with the upgrade link, a dead Registre grant as the
-// reconnect message, the daily cap as a 429.
+// reconnect message, the daily cap as a 429, a body Bulle found too large
+// as a 413.
 func (s *Service) failure(err error) error {
 	var plan *bulle.PlanRequired
 	var refused *bulle.StatusError
@@ -177,6 +180,8 @@ func (s *Service) failure(err error) error {
 		return troncerrors.PaymentRequired(orDefault(plan.Message, planMessage)).WithUpgradeURL(orDefault(plan.UpgradeURL, s.cfg.UpgradeURL))
 	case stderrors.As(err, &refused) && refused.Status == http.StatusTooManyRequests:
 		return troncerrors.RateLimited(orDefault(refused.Message, "Bulle's daily limit is reached. Try again tomorrow."))
+	case stderrors.As(err, &refused) && refused.Status == http.StatusRequestEntityTooLarge:
+		return troncerrors.TooLarge(tooLong)
 	case reason(err) == "not_linked":
 		return troncerrors.Failed("not_linked: " + exchange.ErrReconnect.Message)
 	case stderrors.As(err, &envelope):

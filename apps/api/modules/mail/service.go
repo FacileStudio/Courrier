@@ -35,6 +35,7 @@ type Service struct {
 	notifier      *push.Hub
 	folderLocks   sync.Map
 	triage        *Triage
+	gate          *triageGate
 	judging       sync.Map
 }
 
