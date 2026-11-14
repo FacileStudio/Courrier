@@ -115,6 +115,12 @@ export const landing = {
 		'Conecta un cliente de IA a tu correo en https://courrier.facile.studio/mcp. Cada envío te pide confirmación.',
 		'Verbinden Sie einen KI-Client über https://courrier.facile.studio/mcp mit Ihren Mails. Jeder Versand fragt Sie vorher.'
 	],
+	'landing.devSelfHost': [
+		'https://suite.facile.studio/en/auto-hebergement',
+		'https://suite.facile.studio/auto-hebergement',
+		'https://suite.facile.studio/es/auto-hebergement',
+		'https://suite.facile.studio/de/auto-hebergement'
+	],
 	'landing.devSource': [
 		'IMAP and SMTP, a Go server and a Postgres database. Run it yourself if you like.',
 		'IMAP et SMTP, un serveur Go et une base Postgres. Installable chez vous si vous le souhaitez.',

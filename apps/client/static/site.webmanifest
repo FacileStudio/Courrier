@@ -1,7 +1,7 @@
 {
   "name": "Courrier",
   "short_name": "Courrier",
-  "description": "All your email addresses in one calm inbox.",
+  "description": "Bring your Gmail, OVH or own-domain addresses into one clear inbox, share it with your team and let Bulle sum up long threads. Free to start.",
   "icons": [
     {
       "src": "/icon-192.png",

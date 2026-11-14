@@ -3,12 +3,6 @@ import type { Row } from '../row';
 /** The sign-in screens, the welcome page and the plan limit. */
 export const auth = {
 	'login.title': ['Sign in — Courrier', 'Connexion — Courrier', 'Iniciar sesión — Courrier', 'Anmelden — Courrier'],
-	'login.tagline': [
-		'Your mail. Your server.',
-		'Votre courrier. Votre serveur.',
-		'Tu correo. Tu servidor.',
-		'Deine Mails. Dein Server.'
-	],
 	'login.failed': [
 		'Sign-in failed. Try again.',
 		'La connexion a échoué. Réessayez.',

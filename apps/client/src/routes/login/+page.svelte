@@ -42,7 +42,7 @@
 			<iconify-icon icon="solar:letter-opened-bold-duotone" width="40" height="40" class="block text-fc-fg"></iconify-icon>
 		{/snippet}
 		{#snippet tagline()}
-			{t('login.tagline')}
+			{t('landing.tagline')}
 		{/snippet}
 		{#snippet notice()}
 			{#if failed}

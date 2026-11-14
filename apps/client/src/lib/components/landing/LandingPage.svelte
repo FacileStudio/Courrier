@@ -116,7 +116,7 @@
 		/>
 
 		<div class="{WIDTH} py-16 sm:py-20">
-			<ForDevelopers rows={developer} description={t('landing.devLine')} />
+			<ForDevelopers rows={developer} description={t('landing.devLine')} selfHostHref={t('landing.devSelfHost')} />
 		</div>
 
 		<section class="{WIDTH} py-16 text-center sm:py-24">
