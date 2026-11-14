@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.19.6] - 2026-11-14
+
+### Fixed
+
+- fix(deploy): drop the swarm-only `update_config` and `restart_policy` from the compose services, so `restart: unless-stopped` applies under plain docker compose.
+
 ## [0.19.5] - 2026-11-13
 
 ### Changed
