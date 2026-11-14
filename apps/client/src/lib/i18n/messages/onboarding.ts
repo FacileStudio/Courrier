@@ -27,16 +27,16 @@ export const onboarding = {
 		'Newsletter und Roboter bleiben still. Eine Benachrichtigung heißt: Eine Person hat dir geschrieben.'
 	],
 	'intro.slide3Title': [
-		'Your server, your rules.',
-		'Votre serveur, vos règles.',
-		'Tu servidor, tus reglas.',
-		'Dein Server, deine Regeln.'
+		'Your mail stays with your provider.',
+		'Votre courrier reste chez votre fournisseur.',
+		'Tu correo se queda en tu proveedor.',
+		'Deine Mails bleiben bei deinem Anbieter.'
 	],
 	'intro.slide3Body': [
-		'Courrier is self-hosted. Your messages stay on your server, never on ours.',
-		'Courrier est auto-hébergé. Vos messages restent sur votre serveur, jamais sur le nôtre.',
-		'Courrier es autoalojado. Tus mensajes se quedan en tu servidor, nunca en el nuestro.',
-		'Courrier wird selbst gehostet. Deine Nachrichten bleiben auf deinem Server, nie auf unserem.'
+		'Courrier reads your mailboxes over IMAP and keeps a copy of your messages on the Courrier server so they open fast.',
+		'Courrier lit vos boîtes en IMAP et garde une copie de vos messages sur le serveur Courrier pour les afficher vite.',
+		'Courrier lee tus buzones por IMAP y guarda una copia de tus mensajes en el servidor de Courrier para abrirlos rápido.',
+		'Courrier liest deine Postfächer über IMAP und speichert eine Kopie deiner Nachrichten auf dem Courrier-Server, damit sie sich schnell öffnen.'
 	],
 	'intro.carousel': ['carousel', 'carrousel', 'carrusel', 'Karussell'],
 	'intro.slide': ['slide', 'diapositive', 'diapositiva', 'Folie'],
