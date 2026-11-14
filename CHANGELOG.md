@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.22.2] - 2026-11-14
+
+### Fixed
+
+- fix(client): the app's first-run intro no longer says "Votre serveur, vos règles" and "Courrier est auto-hébergé. Vos messages restent sur votre serveur, jamais sur le nôtre.", which was false on courrier.facile.studio. It now says "Votre courrier reste chez votre fournisseur." and "Courrier lit vos boîtes en IMAP et garde une copie de vos messages sur le serveur Courrier pour les afficher vite.", in fr, en, es and de.
+
 ## [0.22.1] - 2026-11-14
 
 ### Fixed
