@@ -196,18 +196,21 @@ export type ApiTokenCreated = {
  * handshake are the same `Error` otherwise, and a UI that cannot tell them apart ends up
  * blaming the mail server for the rate limiter. `retryAfter` is the header, in seconds.
  * `planLimit` is set on a 402: the scope's plan has no room, and where to upgrade it.
+ * `code` is the suite error envelope's code, such as `permission_denied`.
  */
 export class ApiError extends Error {
 	status: number;
 	retryAfter?: number;
 	planLimit?: PlanLimit;
+	code?: string;
 
-	constructor(message: string, status: number, retryAfter?: number, planLimit?: PlanLimit) {
+	constructor(message: string, status: number, retryAfter?: number, planLimit?: PlanLimit, code?: string) {
 		super(message);
 		this.name = 'ApiError';
 		this.status = status;
 		this.retryAfter = retryAfter;
 		this.planLimit = planLimit;
+		this.code = code;
 	}
 }
 
@@ -301,7 +304,8 @@ function toApiError(error: KernelError): ApiError {
 		message || t('error.requestFailed', { status: error.status }),
 		error.status,
 		seconds !== null && seconds > 0 ? seconds : undefined,
-		planLimitFrom(error.status, { error: error.details })
+		planLimitFrom(error.status, { error: error.details }),
+		typeof error.details.code === 'string' ? error.details.code : undefined
 	);
 }
 
