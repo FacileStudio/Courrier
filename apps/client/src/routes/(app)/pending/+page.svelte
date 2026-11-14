@@ -1,14 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { EmptyState, Skeleton, icons, toast } from '@facile/muse';
-	import { backend, type PendingAction } from '$lib/backend';
+	import { Alert, Button, EmptyState, Skeleton, icons, toast } from '@facile/muse';
+	import { rememberReturn } from '$lib/after-login';
+	import { ApiError, backend, type PendingAction } from '$lib/backend';
 	import PendingCard from '$lib/components/PendingCard.svelte';
 	import { t } from '$lib/i18n/index.svelte';
+	import { isApp } from '$lib/platform';
 
 	let actions = $state<PendingAction[]>([]);
 	let loading = $state(true);
 	let busy = $state('');
+	let notOwnSession = $state(false);
+	const native = isApp();
 
 	const focused = $derived(page.url.searchParams.get('action') ?? '');
 	const ordered = $derived([
@@ -23,8 +28,8 @@
 		loading = true;
 		try {
 			actions = (await backend.listPending()).actions;
-		} catch {
-			toast.danger(t('pending.loadFailed'));
+		} catch (err) {
+			if (!refusedSession(err)) toast.danger(t('pending.loadFailed'));
 		}
 		loading = false;
 	}
@@ -37,8 +42,10 @@
 			toast.success(action.kind === 'send' ? t('pending.sent') : t('pending.deleted'));
 			actions = actions.filter((item) => item.id !== action.id);
 		} catch (err) {
-			toast.danger(err instanceof Error ? err.message : t('pending.failed'));
-			await load();
+			if (!refusedSession(err)) {
+				toast.danger(err instanceof Error ? err.message : t('pending.failed'));
+				await load();
+			}
 		}
 		busy = '';
 	}
@@ -51,9 +58,23 @@
 			toast.success(t('pending.dismissed'));
 			actions = actions.filter((item) => item.id !== action.id);
 		} catch (err) {
-			toast.danger(err instanceof Error ? err.message : t('pending.failed'));
+			if (!refusedSession(err)) toast.danger(err instanceof Error ? err.message : t('pending.failed'));
 		}
 		busy = '';
+	}
+
+	/** A 403 means this is not the person's own browser session, which alone may confirm. */
+	function refusedSession(err: unknown): boolean {
+		if (!(err instanceof ApiError) || err.status !== 403) return false;
+		notOwnSession = true;
+		return true;
+	}
+
+	/** Ends the old session and comes back here after a fresh browser sign-in. */
+	async function signInAgain() {
+		rememberReturn(page.url);
+		await backend.logout().catch(() => undefined);
+		await goto('/login');
 	}
 </script>
 
@@ -68,7 +89,16 @@
 			<p class="text-fc-sm text-fc-fg-muted">{t('pending.intro')}</p>
 		</div>
 
-		{#if loading}
+		{#if notOwnSession}
+			<Alert tone="warning" title={t('pending.signInTitle')}>
+				<div class="flex flex-col gap-3">
+					<p>{native ? t('pending.appCannotConfirm') : t('pending.signInBody')}</p>
+					{#if !native}
+						<div><Button variant="secondary" class="min-h-11" onclick={signInAgain}>{t('pending.signInAgain')}</Button></div>
+					{/if}
+				</div>
+			</Alert>
+		{:else if loading}
 			<Skeleton class="h-48 w-full" />
 		{:else if actions.length === 0}
 			<EmptyState icon={icons.check} title={t('pending.none')} description={t('pending.noneBody')} />

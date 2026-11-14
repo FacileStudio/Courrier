@@ -34,14 +34,15 @@ type Service struct {
 	deliver       smtpDeliverer
 	notifier      *push.Hub
 	folderLocks   sync.Map
-	judge         *jevClient
+	triage        *Triage
+	gate          *triageGate
 	judging       sync.Map
 }
 
 // NewService builds a mail Service over the database and the app's encryption
 // key.
 func NewService(orm *gorm.DB, encryptionKey []byte) *Service {
-	return &Service{orm: orm, encryptionKey: encryptionKey, dial: connectIMAP, deliver: deliverSMTP, judge: jevFromEnv()}
+	return &Service{orm: orm, encryptionKey: encryptionKey, dial: connectIMAP, deliver: deliverSMTP}
 }
 
 func (s *Service) decryptPassword(cipher string) (string, error) {

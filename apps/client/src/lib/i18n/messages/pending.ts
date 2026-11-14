@@ -43,6 +43,25 @@ export const pending = {
 	'pending.deleted': ['Draft deleted', 'Brouillon supprimé', 'Borrador eliminado', 'Entwurf gelöscht'],
 	'pending.dismissed': ['Dismissed. The draft is kept.', 'Ignoré. Le brouillon est conservé.', 'Descartado. Se conserva el borrador.', 'Verworfen. Der Entwurf bleibt erhalten.'],
 	'pending.failed': ['That did not work', 'Cela n’a pas marché', 'No ha funcionado', 'Das hat nicht geklappt'],
+	'pending.signInTitle': [
+		'Sign in again to confirm',
+		'Reconnectez-vous pour confirmer',
+		'Vuelve a iniciar sesión para confirmar',
+		'Melde dich erneut an, um zu bestätigen'
+	],
+	'pending.signInBody': [
+		'Only a fresh sign-in in your browser can confirm what an AI client asked for. Sign in again, then come back to this page.',
+		'Seule une connexion récente dans votre navigateur peut confirmer ce qu’un client IA a demandé. Reconnectez-vous, puis revenez sur cette page.',
+		'Solo un inicio de sesión reciente en tu navegador puede confirmar lo que pidió un cliente de IA. Vuelve a iniciar sesión y regresa a esta página.',
+		'Nur eine frische Anmeldung in deinem Browser kann bestätigen, worum ein KI-Client gebeten hat. Melde dich erneut an und komm dann auf diese Seite zurück.'
+	],
+	'pending.appCannotConfirm': [
+		'The mobile and desktop apps cannot confirm what an AI client asked for. Open Courrier in your browser, sign in, and confirm there.',
+		'Les applications mobile et bureau ne peuvent pas confirmer ce qu’un client IA a demandé. Ouvrez Courrier dans votre navigateur, connectez-vous et confirmez-y.',
+		'Las aplicaciones móvil y de escritorio no pueden confirmar lo que pidió un cliente de IA. Abre Courrier en tu navegador, inicia sesión y confirma allí.',
+		'Die Mobil- und Desktop-Apps können nicht bestätigen, worum ein KI-Client gebeten hat. Öffne Courrier im Browser, melde dich an und bestätige dort.'
+	],
+	'pending.signInAgain': ['Sign in again', 'Se reconnecter', 'Volver a iniciar sesión', 'Erneut anmelden'],
 	'pending.loadFailed': [
 		'Could not load pending actions',
 		'Impossible de charger les actions en attente',

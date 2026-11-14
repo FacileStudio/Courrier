@@ -10,7 +10,7 @@ const kernel = isApp()
 	? createNativeApi({ origin: backendBaseUrl, base: '/', token: getToken, onUnauthorized: clearToken })
 	: createApi({ base: '/', onUnauthorized: redirectToLogin });
 
-/** An inbox tab: where the classifier, jev or a sender pin filed a conversation. */
+/** An inbox tab: where the classifier, Bulle's triage or a sender pin filed a conversation. */
 /** A Bulle helper action, as POST /api/assist takes it. */
 export type AssistAction =
 	| 'rewrite'
@@ -33,9 +33,10 @@ export type AssistRequest = {
 
 export type AssistStatus = {
 	available: boolean;
-	reason?: 'off' | 'not_linked' | 'no_key' | 'unsupported' | 'unreachable';
+	reason?: 'off' | 'plan_required' | 'not_linked' | 'unreachable';
 	actions: AssistAction[];
 	bulle_url?: string;
+	upgrade_url?: string;
 };
 
 export type InboxTab = 'primary' | 'newsletters' | 'notifications';

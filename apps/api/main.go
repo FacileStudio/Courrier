@@ -116,8 +116,7 @@ func buildAuth(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogger *s
 		return services{}, err
 	}
 	return services{
-		sessions: sessions, kit: oidcKit, users: users, deletions: deletions,
-		assist: newAssist(appEnv, store.Identities()), identity: store.Identities(),
+		sessions: sessions, kit: oidcKit, users: users, deletions: deletions, identity: store.Identities(),
 	}, nil
 }
 
@@ -282,6 +281,7 @@ func run() int {
 	if svc.deletions != nil {
 		go svc.deletions.Run(shutdownSignal)
 	}
+	keepPendingPruned(shutdownSignal, sqlDB, svc, appLogger)
 
 	appLogger.Info("server starting", slog.String("addr", addr))
 	select {

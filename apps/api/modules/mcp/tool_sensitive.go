@@ -70,7 +70,7 @@ func (t *toolset) request(ctx context.Context, req *sdk.CallToolRequest, who cal
 	if result != nil {
 		return result, actionOutput{}, nil
 	}
-	return nil, actionOutput{Status: outcome.Status, DraftID: ref.DraftID, ConfirmURL: outcome.ConfirmURL, Message: waiting(kind)}, nil
+	return nil, actionOutput{Status: outcome.Status, DraftID: ref.DraftID, ConfirmURL: outcome.ConfirmURL, Message: outcome.Message}, nil
 }
 
 // resume handles the retry that carries the person's answer.
@@ -80,7 +80,7 @@ func (t *toolset) resume(ctx context.Context, req *sdk.CallToolRequest, kind str
 		return nil, actionOutput{}, mcpkit.Failure(err, "Call the tool again to ask the user afresh.")
 	}
 	if outcome.Status == mcpkit.StatusDeclined {
-		return nil, actionOutput{Status: mcpkit.StatusDeclined, Message: "The user declined. Nothing happened, and the draft is kept."}, nil
+		return nil, actionOutput{Status: mcpkit.StatusDeclined, Message: outcome.Message}, nil
 	}
 	_, ref, _ := refOf(outcome.Action)
 	return nil, actionOutput{Status: doneStatus(kind), DraftID: ref.DraftID, Message: doneMessage(kind)}, nil

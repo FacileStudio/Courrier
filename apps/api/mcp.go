@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/env"
@@ -70,4 +71,12 @@ func newMCP(ctx context.Context, db *gorm.DB, appEnv env.Config, svc services, a
 		Pending:  mcpkit.PostgresPending{DB: sqlDB},
 		Logger:   appLogger,
 	})
+}
+
+// keepPendingPruned deletes, hourly until ctx ends, the confirmations
+// resolved or expired more than 30 days ago, when MCP is on.
+func keepPendingPruned(ctx context.Context, sqlDB *sql.DB, svc services, appLogger *slog.Logger) {
+	if svc.mcp != nil {
+		go mcpkit.KeepPruned(ctx, mcpkit.PostgresPending{DB: sqlDB}, 0, 0, appLogger)
+	}
 }

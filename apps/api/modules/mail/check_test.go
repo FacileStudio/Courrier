@@ -16,7 +16,6 @@ import (
 var testORM *gorm.DB
 
 func TestMain(m *testing.M) {
-	os.Unsetenv("TYPESAFE_API_KEY")
 	url, configured := testdb.URL()
 	if !configured {
 		testdb.Announce("createdb courrier_test  # or point at any scratch database")

@@ -4,13 +4,13 @@ go 1.26.11
 
 require (
 	github.com/FacileStudio/Journal/sdk/journal v0.0.0-20260708221941-db985ad2b1ba
-	github.com/FacileStudio/porte v0.19.0
+	github.com/FacileStudio/porte v0.20.0
 	github.com/FacileStudio/porte/directory v0.5.0
-	github.com/FacileStudio/porte/forfait v0.1.1
-	github.com/FacileStudio/porte/mcpauth v0.2.0
-	github.com/FacileStudio/tronc v0.22.0
+	github.com/FacileStudio/porte/forfait v0.1.3
+	github.com/FacileStudio/porte/mcpauth v0.3.0
+	github.com/FacileStudio/tronc v0.23.0
 	github.com/FacileStudio/tronc/migrate v0.1.1
-	github.com/FacileStudio/tronc/testdb v0.1.1
+	github.com/FacileStudio/tronc/testdb v0.1.2
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/emersion/go-imap/v2 v2.0.0-beta.8
 	github.com/emersion/go-message v0.18.2

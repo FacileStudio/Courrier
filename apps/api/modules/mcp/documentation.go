@@ -21,7 +21,7 @@ var Documentation = documentation.Module{
 // pendingRoutes documents the three confirm page routes.
 func pendingRoutes() []documentation.Route {
 	return mcpkit.PendingRoutes[PendingItem](mcpkit.PendingDoc{
-		Auth: "session cookie or bearer token",
+		Auth: "the person's own browser session cookie (no bearer, CLI or API token)",
 		List: "Open actions, newest first, with their draft as it is now. state is ready, changed (the " +
 			"draft was edited after the request, so it cannot be confirmed) or missing.",
 		Confirm: "Sends or deletes the draft, once. A draft edited since the request is refused with 412 " +

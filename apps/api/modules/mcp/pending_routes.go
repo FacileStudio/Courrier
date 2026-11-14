@@ -5,22 +5,24 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
-	"github.com/FacileStudio/porte"
+	"github.com/FacileStudio/porte/mcpauth"
 	mcpkit "github.com/FacileStudio/tronc/mcp"
 )
 
 // webActor marks, in the audit, a confirmation made on the confirm page.
 const webActor = "courrier-web"
 
-// pendingUser is the signed-in person of a confirm page request. A delegated
-// token is refused: an agent must never confirm its own request.
+// pendingUser is the signed-in person of a confirm page request. Only the
+// person's own browser session confirms: a bearer token, a CLI or API token
+// and a delegated token are refused, so an agent never confirms its own
+// request.
 func pendingUser(r *http.Request) (string, error) {
-	if identity, ok := porte.From(r.Context()); ok && identity.Actor != "" {
-		return "", mcpkit.ErrDelegated
+	identity, err := mcpauth.RequireOwnSession(r)
+	if err != nil {
+		return "", err
 	}
-	return strconv.FormatInt(middleware.UserID(r), 10), nil
+	return strconv.FormatInt(identity.UserID, 10), nil
 }
 
 // describe adds an open action's mailbox and its draft as it is now.
