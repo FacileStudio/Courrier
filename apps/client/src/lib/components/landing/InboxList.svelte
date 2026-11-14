@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Bar, grow } from '@facile/mise-en-scene';
+	import { Bar } from '@facile/mise-en-scene';
 	import { Avatar } from '@facile/muse';
 	import { t } from '$lib/i18n/index.svelte';
 
@@ -23,27 +23,25 @@
 	<span class="il-tab">{t('landing.demoNewsletters')}</span>
 </div>
 <div class="il-rows">
-	{#if arrived}
-		<div transition:grow={{ duration: 340 }}>
-			<div bind:this={row} class="il-row" class:il-selected={opened}>
-				<Avatar name={sender} size="sm" />
-				<span class="il-text">
-					<span class="il-top">
-						<b class:il-read={opened}>{sender}</b>
-						<span class="il-muted il-time">09:41</span>
-					</span>
-					<span class="il-muted il-subject">{t('landing.demoSubject')}</span>
+	<div class="il-track" class:il-in={arrived}>
+		<div bind:this={row} class="il-row il-new" class:il-selected={opened}>
+			<Avatar name={sender} size="sm" />
+			<span class="il-text">
+				<span class="il-top">
+					<b class:il-read={opened}>{sender}</b>
+					<span class="il-muted il-time">09:41</span>
 				</span>
-				{#if !opened}<span class="il-dot"></span>{/if}
+				<span class="il-muted il-subject">{t('landing.demoSubject')}</span>
+			</span>
+			<span class="il-dot" class:il-gone={opened}></span>
+		</div>
+		{#each FILLER as item (item.id)}
+			<div class="il-row">
+				<span class="il-avatar"></span>
+				<span class="il-text il-gap"><Bar w={item.w} /><Bar w={item.s} h={6} /></span>
 			</div>
-		</div>
-	{/if}
-	{#each FILLER as item (item.id)}
-		<div class="il-row">
-			<span class="il-avatar"></span>
-			<span class="il-text il-gap"><Bar w={item.w} /><Bar w={item.s} h={6} /></span>
-		</div>
-	{/each}
+		{/each}
+	</div>
 </div>
 
 <style>
@@ -67,8 +65,23 @@
 		font-weight: 700;
 	}
 	.il-rows {
+		overflow: hidden;
+	}
+	.il-track {
 		display: flex;
 		flex-direction: column;
+		transform: translateY(-60px);
+		transition: transform 0.5s cubic-bezier(0.45, 0, 0.1, 1);
+	}
+	.il-new {
+		opacity: 0;
+		transition: opacity 0.4s ease 0.1s, background 0.2s ease, color 0.2s ease;
+	}
+	.il-in {
+		transform: translateY(0);
+	}
+	.il-in .il-new {
+		opacity: 1;
 	}
 	.il-row {
 		display: flex;
@@ -126,6 +139,10 @@
 		height: 8px;
 		border-radius: 999px;
 		background: var(--color-fc-accent);
+		transition: opacity 0.2s ease;
+	}
+	.il-gone {
+		opacity: 0;
 	}
 	.il-avatar {
 		flex: none;

@@ -7,6 +7,7 @@ import { common } from './common';
 import { compose } from './compose';
 import { ideas } from './ideas';
 import { landing } from './landing';
+import { landingDemo } from './landingDemo';
 import { mail } from './mail';
 import { onboarding } from './onboarding';
 import { pending } from './pending';
@@ -20,6 +21,7 @@ const rows = {
 	...common,
 	...auth,
 	...landing,
+	...landingDemo,
 	...onboarding,
 	...preferences,
 	...accounts,

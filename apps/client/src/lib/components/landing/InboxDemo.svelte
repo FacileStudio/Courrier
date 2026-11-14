@@ -10,11 +10,14 @@
 
 	let arrived = $state(false);
 	let opened = $state(false);
+	let summarizing = $state(false);
+	let summary = $state(false);
 	let replying = $state(false);
 	let draft = $state('');
 	let sent = $state(false);
 	let cursor = $state(cursorAt());
 	let row = $state<HTMLElement>();
+	let summarizeButton = $state<HTMLElement>();
 	let replyButton = $state<HTMLElement>();
 	let sendButton = $state<HTMLElement>();
 
@@ -23,6 +26,8 @@
 	function reset() {
 		arrived = false;
 		opened = false;
+		summarizing = false;
+		summary = false;
 		replying = false;
 		draft = '';
 		sent = false;
@@ -32,6 +37,7 @@
 	function poster() {
 		arrived = true;
 		opened = true;
+		summary = true;
 		sent = true;
 	}
 
@@ -47,7 +53,12 @@
 		await act.wait(900);
 		cursor.visible = true;
 		await press(act, row, () => (opened = true));
-		await act.wait(700);
+		await act.wait(800);
+		await press(act, summarizeButton, () => (summarizing = true));
+		await act.wait(450);
+		summary = true;
+		summarizing = false;
+		await act.wait(2000);
 		await press(act, replyButton, () => (replying = true));
 		await act.wait(250);
 		await act.type(t('landing.demoReply'), (v) => (draft = v), 38);
@@ -67,13 +78,24 @@
 {/snippet}
 
 {#snippet thread()}
-	<InboxThread sender={SENDER} {opened} {replying} {draft} {sent} bind:replyButton bind:sendButton />
+	<InboxThread
+		sender={SENDER}
+		{opened}
+		{summarizing}
+		{summary}
+		{replying}
+		{draft}
+		{sent}
+		bind:summarizeButton
+		bind:replyButton
+		bind:sendButton
+	/>
 {/snippet}
 
 <Stage
 	width={960}
-	height={500}
-	compact={{ below: 640, width: 358, height: 430 }}
+	height={490}
+	compact={{ below: 640, width: 358, height: 488 }}
 	{script}
 	{reset}
 	{poster}
@@ -81,13 +103,13 @@
 >
 	{#snippet children({ compact })}
 		{#if compact}
-			<Window style="top:12px;left:12px;width:334px;height:376px">
+			<Window style="top:12px;left:12px;width:334px;height:446px">
 				<div class="id-compact">
 					{#if opened}{@render thread()}{:else}{@render list()}{/if}
 				</div>
 			</Window>
 		{:else}
-			<Window style="top:16px;left:40px;width:880px;height:430px">
+			<Window style="top:16px;left:40px;width:880px;height:452px">
 				{#snippet sidebar()}
 					<div class="id-folders">
 						<div class="id-folder id-active">

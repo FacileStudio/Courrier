@@ -1,7 +1,7 @@
 {
   "name": "Courrier",
   "short_name": "Courrier",
-  "description": "Native IMAP and SMTP, several accounts in one place, and a calm inbox without ads or distractions.",
+  "description": "All your email addresses in one calm inbox.",
   "icons": [
     {
       "src": "/icon-192.png",
