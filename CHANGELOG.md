@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.21.3] - 2026-11-14
+
+### Fixed
+
+- fix(api): AI follows the personal or the space plan. For a space mailbox, the writing helper and the inbox triage run when the person's own plan or the space's plan has `ai.access`, and Courrier sends the space's Registre id as `space_id` on Bulle's `/api/ai/complete` (Bulle v3.55.0 applies the same rule and checks membership). Personal mailboxes send none. `POST /api/assist` and `GET /api/assist` take an optional `account_id`, checked like every mail route (404 for a mailbox the caller cannot use, 403 after leaving its space); the composer and the thread summary send it.
+
 ## [0.21.2] - 2026-11-14
 
 ### Security
