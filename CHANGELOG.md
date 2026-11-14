@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.19.7] - 2026-11-14
+
+### Added
+
+- feat(client): the web client loads Vision's tracker (`https://vision.facile.studio/s.js`, with `data-mask`) on `courrier.facile.studio` only. The API adds `https://vision.facile.studio` to `script-src`; the loader's hash comes with the other inline scripts of the build.
+
 ## [0.19.6] - 2026-11-14
 
 ### Fixed
