@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-14
+
 ### Changed
 
 - fix(api): the writing helper calls Bulle's `/api/ai/complete` through `tronc/bulle` on the token exchange the Ideas routes use. `internal/bulle`, its second RFC 8693 exchange and the `/api/llm` proxy calls are gone. The helper checks `ai.access` on the personal plan: `GET /api/assist` answers `plan_required` with `upgrade_url`, and a Bulle 402 is a 402 with the upgrade link instead of "Bulle did not answer". The `no_key` and `unsupported` reasons are gone. Bulle's persona no longer prefixes the helper's prompt.
