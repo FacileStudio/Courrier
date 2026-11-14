@@ -10,6 +10,7 @@ import (
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/push"
 	"github.com/FacileStudio/Courrier/apps/api/schemas"
+	"github.com/FacileStudio/tronc/joblock"
 )
 
 const (
@@ -40,8 +41,27 @@ func (s *Service) lockFolder(folderID int64) func() {
 // WatchInboxes syncs, every interval, the inbox of each account whose owner
 // has a device registered for push or a desktop app listening, and notifies the owner of the mail it
 // finds. A sync the web app already ran wins: mail it cached is not new here.
-// It returns when ctx ends.
+// Only the replica holding the Postgres advisory lock "courrier-inbox-watch"
+// polls, so two instances never announce the same mail twice. It returns when
+// ctx ends.
 func (s *Service) WatchInboxes(ctx context.Context, interval time.Duration, logger *slog.Logger) {
+	sqlDB, err := s.orm.DB()
+	if err != nil {
+		logger.Error("inbox watcher not started", slog.Any("error", err))
+		return
+	}
+	_ = joblock.Hold(ctx, sqlDB, "courrier-inbox-watch", func(ctx context.Context) {
+		s.watch(ctx, interval, logger)
+	}, joblock.WithOnError(func(err error) {
+		logger.Warn("inbox watcher lock", slog.Any("error", err))
+	}))
+}
+
+func (s *Service) watch(ctx context.Context, interval time.Duration, logger *slog.Logger) {
+	poll := s.poll
+	if poll == nil {
+		poll = s.pollInboxes
+	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
@@ -49,7 +69,7 @@ func (s *Service) WatchInboxes(ctx context.Context, interval time.Duration, logg
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.pollInboxes(ctx, logger)
+			poll(ctx, logger)
 		}
 	}
 }

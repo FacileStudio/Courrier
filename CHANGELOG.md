@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.22.4] - 2026-11-14
+
+### Fixed
+
+- The inbox watcher polls on one replica only. Each instance takes a Postgres advisory lock (tronc `joblock`, key `courrier-inbox-watch`), so a rolling deploy with two copies up no longer announces the same mail twice. tronc v0.24.0.
+
 ## [0.22.3] - 2026-11-14
 
 ### Fixed
