@@ -4,6 +4,17 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-11-14
+
+### Fixed
+
+- fix(client): the sign-in page no longer says "Votre courrier. Votre serveur."; it shows the landing tagline "Toutes vos adresses mail dans une seule boîte, au calme." in the visitor's language.
+
+### Changed
+
+- feat(client): the "Pour les développeurs" block links to the Suite self-hosting page, in the visitor's language.
+- build(client): muse v0.25.1, the regenerated link preview image and a manifest description that matches the landing.
+
 ## [0.22.0] - 2026-11-14
 
 ### Changed
