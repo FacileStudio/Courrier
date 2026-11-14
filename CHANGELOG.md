@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.21.4] - 2026-11-14
+
+### Fixed
+
+- fix(client): the confirm page asks to sign in again only for porte's own-session refusal (403 `permission_denied`, "only the person's own session can confirm actions"). Any other 403, such as a mailbox or space right the confirmed run checks, now shows the server's message instead of a sign-in notice that cannot fix it.
+
 ## [0.21.3] - 2026-11-14
 
 ### Fixed
