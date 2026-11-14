@@ -4,6 +4,15 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-14
+
+### Changed
+
+- feat(client): the landing leads with the hosted offer. New slogan "Tous vos e-mails, dans une boîte au calme." and subtitle in fr, en, es and de; "Créer un compte gratuit" comes first and "Se connecter avec Facile" second. "Votre serveur", the "Auto-hébergé" card and "La messagerie auto-hébergée" are gone, and the link preview image, title and meta description carry the new copy.
+- feat(client): the hero demo adds a Bulle summary beat (the long thread becomes three lines before the reply) and animates transform and opacity only. Three demo tiles show your addresses, people-first tabs and a shared team inbox.
+- feat(client): a "Fonctionne avec" row lists Bulle and Glouton, the plan block shows unlimited mailboxes and the Pro AI line with a link to the suite pricing, and the CLI, the MCP server and the source code move into a "Pour les développeurs" block near the bottom. The landing's download section no longer shows the terminal install; /downloads still does.
+- build(client): muse v0.24.0, mise-en-scene v0.2.2.
+
 ## [0.21.4] - 2026-11-14
 
 ### Fixed
