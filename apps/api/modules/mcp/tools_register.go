@@ -45,7 +45,7 @@ func (t *toolset) writes() []mcpkit.Tool {
 			Name: toolDraft, Title: "Write a draft",
 			Description: "Create a draft, or replace one by draft_id. Set reply_to_message_id to answer a message. " +
 				"Nothing is sent: the draft waits in Drafts, and review_url opens it in Courrier.",
-			Annotations: &mcpkit.Annotations{},
+			Annotations: &mcpkit.Annotations{Destructive: true},
 		}, t.draft),
 		mcpkit.NewTool(mcpkit.ToolSpec{
 			Name: toolSend, Title: "Send mail",

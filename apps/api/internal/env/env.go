@@ -1,13 +1,13 @@
 package env
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"slices"
 	"strings"
 	"time"
 
 	troncenv "github.com/FacileStudio/tronc/env"
+	mcpkit "github.com/FacileStudio/tronc/mcp"
 
 	"github.com/FacileStudio/porte"
 
@@ -112,7 +112,7 @@ func Load() (Config, error) {
 
 	cfg.BulleURL = troncenv.String("BULLE_URL", "")
 	cfg.Admins = troncenv.List("COURRIER_ADMINS")
-	cfg.MCP = MCP{Resource: troncenv.String("MCP_RESOURCE", ""), StateKey: deriveStateKey(encryptionKey)}
+	cfg.MCP = MCP{Resource: troncenv.String("MCP_RESOURCE", ""), StateKey: mcpkit.StateKey("courrier", encryptionKey)}
 	if issuer := troncenv.String("OIDC_ISSUER", ""); issuer != "" {
 		clientID := troncenv.String("OIDC_CLIENT_ID", "")
 		clientSecret := troncenv.String("OIDC_CLIENT_SECRET", "")
@@ -148,13 +148,6 @@ func Load() (Config, error) {
 	}
 
 	return cfg, nil
-}
-
-// deriveStateKey derives the MCP confirmation key from the app's encryption
-// passphrase, namespaced so it collides with no other key.
-func deriveStateKey(encryptionKey string) []byte {
-	sum := sha256.Sum256([]byte("courrier-mcp-state:" + encryptionKey))
-	return sum[:]
 }
 
 // withAppOrigins adds the origins the installed apps serve their pages from to

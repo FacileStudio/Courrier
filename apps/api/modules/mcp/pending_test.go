@@ -32,12 +32,17 @@ func confirmOnPage(f *fixture, confirmURL, actor string) *httptest.ResponseRecor
 	return onPage(f, http.MethodPost, "/"+id+"/confirm", actor)
 }
 
-// onPage serves one confirm page request as the signed-in person, or as a
-// delegated token when actor is set.
+// onPage serves one confirm page request from the person's own browser
+// session, or as a delegated token when actor is set.
 func onPage(f *fixture, method, path, actor string) *httptest.ResponseRecorder {
+	return asIdentity(f, method, path, porte.Identity{UserID: f.userID, SessionID: 1, BrowserSession: actor == "", Actor: actor})
+}
+
+// asIdentity serves one confirm page request as identity.
+func asIdentity(f *fixture, method, path string, identity porte.Identity) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, nil)
 	ctx := kit.WithIdentity(req.Context(), kit.Identity{UserID: f.userID})
-	ctx = porte.WithIdentity(ctx, porte.Identity{UserID: f.userID, Actor: actor})
+	ctx = porte.WithIdentity(ctx, identity)
 	router := chi.NewRouter()
 	f.service.page.Routes(router)
 	recorder := httptest.NewRecorder()
@@ -74,6 +79,18 @@ func TestAgentCannotConfirmItself(t *testing.T) {
 	})
 	if err != nil || !forged.IsError || f.mail.sentCount() != 0 {
 		t.Fatalf("a forged confirmation must fail and send nothing, got %v %+v and %d sent", err, forged, f.mail.sentCount())
+	}
+}
+
+// TestOnlyTheBrowserSessionConfirms checks a CLI or API session, which is
+// not the person's own browser session, is refused on the confirm page.
+func TestOnlyTheBrowserSessionConfirms(t *testing.T) {
+	f := newFixture(t)
+	out := pendingSend(t, f)
+	id := out.ConfirmURL[strings.LastIndex(out.ConfirmURL, "=")+1:]
+	cli := porte.Identity{UserID: f.userID, SessionID: 1}
+	if got := asIdentity(f, http.MethodPost, "/"+id+"/confirm", cli); got.Code != http.StatusForbidden || f.mail.sentCount() != 0 {
+		t.Fatalf("a CLI session must not confirm, got %d and %d sent", got.Code, f.mail.sentCount())
 	}
 }
 

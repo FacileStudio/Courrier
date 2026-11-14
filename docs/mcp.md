@@ -35,7 +35,7 @@ The person revokes a client in Registre under Account, Connected apps.
 | `courrier_list_accounts` | The accounts the person can use, with folders in detailed format | read-only |
 | `courrier_search_mail` | Messages newest first, across accounts or one, by words, folder, unread, date; cursor pages | read-only, open world |
 | `courrier_read_thread` | A conversation, oldest first; concise trims quotes and long bodies | read-only, open world |
-| `courrier_draft` | Create or replace a draft, optionally as a reply | write |
+| `courrier_draft` | Create or replace a draft, optionally as a reply | destructive (replacing overwrites the draft) |
 | `courrier_send` | Send a draft, or compose and send; always confirmed by the person | destructive, open world |
 | `courrier_organize` | Read, unread, star, unstar, archive, inbox, trash, move; never a permanent delete | write, idempotent |
 | `courrier_delete_draft` | Delete a draft for good; always confirmed by the person | destructive |
@@ -58,10 +58,13 @@ continue. Business errors are `isError` results that name the tool or argument t
    confirms on that page. The link stays open for 7 days.
 
 Either way the action runs once: the first confirmation claims it. If the draft changed after
-the request, nothing is sent and the action closes. A delegated (Bulle) token cannot use the
-confirm page.
+the request, nothing is sent and the action closes. Only the person's own browser session can
+use the confirm page: a bearer token, a CLI or API token and a delegated (Bulle) token are
+refused, so an agent never confirms its own request. A browser session from before porte v0.20.0
+must sign in again once before it can confirm. Resolved and expired actions older than 30 days
+are pruned hourly.
 
 The transport, Origin check, scope gate, paging helpers and the whole confirmation flow come
-from `github.com/FacileStudio/tronc/mcp` (v0.21.0); `apps/api/modules/mcp` keeps only the mail
+from `github.com/FacileStudio/tronc/mcp` (v0.23.0); `apps/api/modules/mcp` keeps only the mail
 tools, what a send or a draft delete runs, and the confirm page's routes. Its
 `TestConformance` runs tronc's `mcptest` kit against the endpoint.
