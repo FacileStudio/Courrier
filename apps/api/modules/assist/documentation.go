@@ -8,7 +8,8 @@ var unauthenticated = documentation.Error{Status: 401, Code: "unauthenticated", 
 var Documentation = documentation.Module{
 	Name: "assist",
 	Description: "The Bulle writing helper. Courrier trades the user's Registre session for a Bulle token and calls " +
-		"Bulle's /api/ai/complete as the user; Courrier holds no model key. It needs a personal plan with ai.access. " +
+		"Bulle's /api/ai/complete as the user; Courrier holds no model key. It needs ai.access on the user's own plan, " +
+		"or, for a space mailbox named by account_id, on the space's plan; Courrier then sends Bulle the space's Registre id. " +
 		"Off until BULLE_URL and OIDC are set.",
 	Routes: []documentation.Route{
 		{
@@ -18,6 +19,7 @@ var Documentation = documentation.Module{
 			Description: "available is false with reason off (not configured), plan_required (the plan has no ai.access; " +
 				"upgrade_url says where to get it), not_linked (no Registre session or no exchange grant) or unreachable.",
 			Auth:         "session cookie or bearer token",
+			QueryParams:  []documentation.Field{{Name: "account_id", Type: "integer", Description: "Mail account the helper works for; a space mailbox also checks the space's plan"}},
 			ResponseBody: Status{},
 			Errors:       []documentation.Error{unauthenticated},
 		},
@@ -34,6 +36,8 @@ var Documentation = documentation.Module{
 			Errors: []documentation.Error{
 				{Status: 400, Code: "invalid_argument", Description: "Unknown action, empty text, or missing language or context."},
 				unauthenticated,
+				{Status: 403, Code: "forbidden", Description: "account_id is a space mailbox of a space the caller left."},
+				{Status: 404, Code: "not_found", Description: "account_id is not a mail account the caller can use."},
 				{Status: 402, Code: "payment_required", Description: "The plan has no ai.access; upgrade_url says where to get it."},
 				{Status: 412, Code: "failed_precondition", Description: "The helper is off, or the account is not linked."},
 				{Status: 413, Code: "resource_exhausted", Description: "Text or context too long."},

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { Blob } from '@facile/blob';
 	import { Button, Spinner, toast } from '@facile/muse';
 	import { backend, type EmailMessage } from '$lib/backend';
@@ -16,8 +15,8 @@
 	const available = $derived(status?.available ?? false);
 	const upgrade = $derived(upgradeLink(status));
 
-	onMount(() => {
-		void assistStatus.load();
+	$effect(() => {
+		void assistStatus.load(accountId);
 	});
 
 	async function withBody(msg: EmailMessage): Promise<EmailMessage> {
@@ -40,7 +39,7 @@
 	async function summarize() {
 		busy = true;
 		try {
-			summary = (await backend.assist({ action: 'summarize', context: await threadText() })).text;
+			summary = (await backend.assist({ action: 'summarize', account_id: accountId, context: await threadText() })).text;
 		} catch (err) {
 			assistStatus.refused(err);
 			toast.danger(err instanceof Error ? err.message : t('assist.failed'));

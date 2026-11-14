@@ -63,9 +63,9 @@ func buildServices(ctx context.Context, db *gorm.DB, appEnv env.Config, appLogge
 		return services{}, err
 	}
 	svc.ideas = link.ideas
-	svc.assist = newAssist(db, appEnv, link, svc.plans)
+	svc.assist = newAssist(db, appEnv, link, svc.plans, svc.mail)
 	if link.client != nil {
-		svc.mail.WithTriage(mail.Triage{Bulle: link.client, AIAccess: personalAIAccess(db, svc.plans)})
+		svc.mail.WithTriage(mail.Triage{Bulle: link.client, AIAccess: aiAccess(db, svc.plans)})
 	}
 	reportSpaceIDs(db, appLogger)
 	return svc, nil

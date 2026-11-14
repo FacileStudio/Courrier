@@ -55,10 +55,12 @@ type Completer interface {
 }
 
 // Triage sorts the inbox mail the headers could not classify through Bulle,
-// for owners whose plan includes ai.access. AIAccess reads that plan.
+// for owners whose plan, or whose mailbox's space plan, includes ai.access.
+// AIAccess reads those plans; link is the space's Registre id, empty for a
+// personal mailbox.
 type Triage struct {
 	Bulle    Completer
-	AIAccess func(ctx context.Context, userID int64) (bool, error)
+	AIAccess func(ctx context.Context, userID int64, link string) (bool, error)
 }
 
 // WithTriage turns on the AI triage after inbox syncs and returns the
@@ -103,7 +105,7 @@ func (s *Service) judgeGrayZone(folderID int64) {
 	defer s.judging.Delete(folderID)
 	ctx, cancel := context.WithTimeout(context.Background(), grayPassTime)
 	defer cancel()
-	owner, ok := s.triageOwner(ctx, folderID)
+	owner, link, ok := s.triageOwner(ctx, folderID)
 	if !ok {
 		return
 	}
@@ -111,7 +113,7 @@ func (s *Service) judgeGrayZone(folderID int64) {
 	if len(emails) == 0 || !s.gate.take(owner) {
 		return
 	}
-	verdicts, err := s.askBulle(porte.WithIdentity(ctx, porte.Identity{UserID: owner}), emails)
+	verdicts, err := s.askBulle(porte.WithIdentity(ctx, porte.Identity{UserID: owner}), emails, link)
 	s.gate.settle(owner, err)
 	if err != nil {
 		slog.Warn("bulle inbox triage", "folder", folderID, "error", err)
@@ -133,39 +135,41 @@ func (s *Service) fileVerdicts(ctx context.Context, emails []schemas.Email, verd
 	}
 }
 
-// triageOwner is the user the folder's mail account belongs to, when their
-// plan includes ai.access and, for a space mailbox, they are still a member
-// of the space.
-func (s *Service) triageOwner(ctx context.Context, folderID int64) (int64, bool) {
+// triageOwner is the user the folder's mail account belongs to and, for a
+// space mailbox, the space's Registre id, when the owner is still a member
+// of the space and their plan or the space's includes ai.access.
+func (s *Service) triageOwner(ctx context.Context, folderID int64) (int64, string, bool) {
 	var owners []struct {
 		UserID  int64
 		SpaceID *string
+		Link    string
 	}
-	if err := s.orm.WithContext(ctx).Raw(`SELECT a.user_id, a.space_id FROM folders f JOIN accounts a ON a.id = f.account_id
+	if err := s.orm.WithContext(ctx).Raw(`SELECT a.user_id, a.space_id, coalesce(sp.registre_space_id, '') AS link
+		FROM folders f JOIN accounts a ON a.id = f.account_id LEFT JOIN spaces sp ON sp.id::text = a.space_id
 		WHERE f.id = ?`, folderID).Scan(&owners).Error; err != nil || len(owners) == 0 {
-		return 0, false
+		return 0, "", false
 	}
 	owner := owners[0]
 	if owner.SpaceID != nil && *owner.SpaceID != "" && s.requireSpaceMember(ctx, *owner.SpaceID, owner.UserID) != nil {
-		return 0, false
+		return 0, "", false
 	}
-	allowed, err := s.triage.AIAccess(ctx, owner.UserID)
+	allowed, err := s.triage.AIAccess(ctx, owner.UserID, owner.Link)
 	if err != nil {
 		slog.Warn("bulle inbox triage: plan check", "folder", folderID, "error", err)
-		return 0, false
+		return 0, "", false
 	}
-	return owner.UserID, allowed
+	return owner.UserID, owner.Link, allowed
 }
 
-// askBulle classifies emails in one completion and returns the verdicts by
-// position in emails.
-func (s *Service) askBulle(ctx context.Context, emails []schemas.Email) (map[int]grayVerdict, error) {
+// askBulle classifies emails in one completion, for the Registre space link
+// when the mailbox has one, and returns the verdicts by position in emails.
+func (s *Service) askBulle(ctx context.Context, emails []schemas.Email, link string) (map[int]grayVerdict, error) {
 	input, err := grayInput(emails)
 	if err != nil {
 		return nil, err
 	}
 	out, err := s.triage.Bulle.Complete(ctx, bulle.CompleteRequest{
-		System: graySystem, Prompt: grayPrompt, Input: input, Schema: graySchema, MaxTokens: grayTokens,
+		System: graySystem, Prompt: grayPrompt, Input: input, Schema: graySchema, MaxTokens: grayTokens, SpaceID: link,
 	})
 	if err != nil {
 		return nil, err

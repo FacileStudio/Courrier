@@ -13,13 +13,15 @@ import (
 )
 
 type fakeBulle struct {
-	calls  int
-	userID int64
-	err    error
+	calls   int
+	userID  int64
+	spaceID string
+	err     error
 }
 
 func (f *fakeBulle) Complete(ctx context.Context, req bulle.CompleteRequest) (bulle.Completion, error) {
 	f.calls++
+	f.spaceID = req.SpaceID
 	if identity, ok := porte.From(ctx); ok {
 		f.userID = identity.UserID
 	}
@@ -73,7 +75,7 @@ func TestGrayZoneMovesOnlyConfidentStrangers(t *testing.T) {
 	env := newTriageEnv(t)
 	seedGray(t, env)
 	fake := &fakeBulle{}
-	env.svc.WithTriage(Triage{Bulle: fake, AIAccess: func(context.Context, int64) (bool, error) { return true, nil }})
+	env.svc.WithTriage(Triage{Bulle: fake, AIAccess: func(context.Context, int64, string) (bool, error) { return true, nil }})
 	env.svc.judgeGrayZone(env.inboxA)
 
 	got := grayState(env)
@@ -88,8 +90,8 @@ func TestGrayZoneMovesOnlyConfidentStrangers(t *testing.T) {
 			t.Errorf("%s = %q, want %q", subject, got[subject], w)
 		}
 	}
-	if fake.calls != 1 || fake.userID != env.a.UserID {
-		t.Errorf("calls = %d as user %d, want one call as user %d", fake.calls, fake.userID, env.a.UserID)
+	if fake.calls != 1 || fake.userID != env.a.UserID || fake.spaceID != "" {
+		t.Errorf("calls = %d as user %d in space %q, want one personal call as user %d", fake.calls, fake.userID, fake.spaceID, env.a.UserID)
 	}
 }
 
@@ -97,13 +99,13 @@ func TestGrayZoneSkipsWithoutAIAccessOrAnswer(t *testing.T) {
 	env := newTriageEnv(t)
 	seedGray(t, env)
 	free := &fakeBulle{}
-	env.svc.WithTriage(Triage{Bulle: free, AIAccess: func(context.Context, int64) (bool, error) { return false, nil }})
+	env.svc.WithTriage(Triage{Bulle: free, AIAccess: func(context.Context, int64, string) (bool, error) { return false, nil }})
 	env.svc.judgeGrayZone(env.inboxA)
 	if free.calls != 0 {
 		t.Fatalf("a free plan reached Bulle %d times", free.calls)
 	}
 	down := &fakeBulle{err: &bulle.PlanRequired{Message: "no"}}
-	env.svc.WithTriage(Triage{Bulle: down, AIAccess: func(context.Context, int64) (bool, error) { return true, nil }})
+	env.svc.WithTriage(Triage{Bulle: down, AIAccess: func(context.Context, int64, string) (bool, error) { return true, nil }})
 	env.svc.judgeGrayZone(env.inboxA)
 	for subject, state := range grayState(env) {
 		if state != "/none" {

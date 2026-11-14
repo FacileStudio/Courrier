@@ -24,6 +24,7 @@ export type AssistAction =
 	| 'summarize';
 
 export type AssistRequest = {
+	account_id?: number;
 	action: AssistAction;
 	text?: string;
 	context?: string;
@@ -431,8 +432,8 @@ export const backend = {
 			`/api/accounts/${accountId}/mail/folders/${folderType}/emails?${params}`
 		);
 	},
-	assistStatus() {
-		return apiFetch<AssistStatus>('/api/assist');
+	assistStatus(accountId?: number) {
+		return apiFetch<AssistStatus>(accountId ? `/api/assist?account_id=${accountId}` : '/api/assist');
 	},
 	assist(request: AssistRequest) {
 		return apiFetch<{ text: string }>('/api/assist', { method: 'POST', body: JSON.stringify(request) });

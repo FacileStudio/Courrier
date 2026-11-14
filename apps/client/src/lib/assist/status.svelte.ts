@@ -2,22 +2,30 @@ import { ApiError, backend, type AssistStatus } from '$lib/backend';
 
 let status = $state<AssistStatus | null>(null);
 let pending: Promise<void> | null = null;
+let loadedFor: number | undefined;
 
-/** The helper's availability, fetched once per page load and shared by every blob. */
+/**
+ * The helper's availability for one mailbox, shared by every blob: a space
+ * mailbox may get AI from the space's plan. Fetched again only when the
+ * mailbox changes.
+ */
 export const assistStatus = {
 	get current() {
 		return status;
 	},
-	load(): Promise<void> {
-		pending ??= backend.assistStatus().then(
-			(next) => {
-				status = next;
+	load(accountId?: number): Promise<void> {
+		if (pending && loadedFor === accountId) return pending;
+		loadedFor = accountId;
+		const next = backend.assistStatus(accountId).then(
+			(answer) => {
+				if (loadedFor === accountId) status = answer;
 			},
 			() => {
-				status = { available: false, reason: 'unreachable', actions: [] };
+				if (loadedFor === accountId) status = { available: false, reason: 'unreachable', actions: [] };
 			}
 		);
-		return pending;
+		pending = next;
+		return next;
 	},
 	/** Records a helper run refused for the plan, so every blob shows the upgrade link. */
 	refused(err: unknown): void {

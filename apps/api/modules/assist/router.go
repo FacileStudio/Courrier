@@ -2,9 +2,11 @@ package assist
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/FacileStudio/Courrier/apps/api/internal/middleware"
+	troncerrors "github.com/FacileStudio/tronc/errors"
 	"github.com/FacileStudio/tronc/httpjson"
 	"github.com/go-chi/chi/v5"
 )
@@ -20,7 +22,12 @@ func RegisterRoutes(router chi.Router, service *Service, authenticator middlewar
 
 func (s *Service) handleStatus(w http.ResponseWriter, req *http.Request) {
 	uid := middleware.UserID(req)
-	httpjson.WriteJSON(w, http.StatusOK, s.Status(req.Context(), uid))
+	accountID, err := strconv.ParseInt(req.URL.Query().Get("account_id"), 10, 64)
+	if err != nil && req.URL.Query().Has("account_id") {
+		httpjson.WriteError(w, troncerrors.Invalid("account_id must be a number"))
+		return
+	}
+	httpjson.WriteJSON(w, http.StatusOK, s.Status(req.Context(), uid, accountID))
 }
 
 // writeBudget outlasts Bulle's 90 s completion, which the server's 15 s
