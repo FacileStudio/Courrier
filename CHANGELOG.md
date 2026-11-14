@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-11-14
+
 ### Changed
 
 - build(api): tronc v0.23.1 (was v0.23.0). An MCP confirmation repeat now matches only when the OAuth client id is the same too, and Bulle errors carry `Retry-After`.
