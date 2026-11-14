@@ -4,6 +4,16 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.22.3] - 2026-11-14
+
+### Fixed
+
+- fix(client): every pricing button on the landing opens the Facile sign-up page in the visitor's language instead of the spaces page, which asked a signed-out visitor to sign in.
+
+### Changed
+
+- muse v0.26.0.
+
 ## [0.22.2] - 2026-11-14
 
 ### Fixed
