@@ -77,6 +77,12 @@ export const landing = {
 		'Tus primeros mensajes a clientes potenciales salen de Courrier.',
 		'Ihre ersten Nachrichten an Interessenten gehen über Courrier raus.'
 	],
+	'landing.withCapsule': [
+		'Puts a secret in a mail as a link that opens once.',
+		'Glisse un secret dans un mail, en lien lisible une seule fois.',
+		'Pone un secreto en un correo como enlace que se abre una vez.',
+		'Legt ein Geheimnis als einmal lesbaren Link in eine Mail.'
+	],
 	'landing.withLine': [
 		'The same Facile account opens them. Bulle needs the Pro plan.',
 		'Le même compte Facile les ouvre. Bulle demande l’offre Pro.',
