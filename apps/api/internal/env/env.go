@@ -73,6 +73,7 @@ type Config struct {
 	EncryptionKey       []byte
 	Push                Push
 	BulleURL            string
+	CapsuleURL          string
 	MCP                 MCP
 	Admins              []string
 }
@@ -111,6 +112,7 @@ func Load() (Config, error) {
 	cfg.EncryptionKey = crypto.DeriveKey(encryptionKey)
 
 	cfg.BulleURL = troncenv.String("BULLE_URL", "")
+	cfg.CapsuleURL = strings.TrimRight(troncenv.String("CAPSULE_URL", "https://capsule.facile.studio"), "/")
 	cfg.Admins = troncenv.List("COURRIER_ADMINS")
 	cfg.MCP = MCP{Resource: troncenv.String("MCP_RESOURCE", ""), StateKey: mcpkit.StateKey("courrier", encryptionKey)}
 	if issuer := troncenv.String("OIDC_ISSUER", ""); issuer != "" {

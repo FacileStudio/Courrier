@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Avatar, Badge, Checkbox, Divider, icons } from '@facile/muse';
+	import { Avatar, Badge, Checkbox, ContextMenu, icons, type MenuEntry } from '@facile/muse';
 	import type { EmailMessage } from '$lib/backend';
 	import { formatListDate } from '$lib/i18n/format';
 	import { t } from '$lib/i18n/index.svelte';
@@ -41,13 +41,6 @@
 		ontogglestar?: () => void;
 	} = $props();
 
-	const MENU_WIDTH = 224;
-	const MENU_HEIGHT = 260;
-
-	let menuOpen = $state(false);
-	let menuX = $state(0);
-	let menuY = $state(0);
-
 	const sender = $derived(email.from_name || email.from_address);
 
 	function handleClick() {
@@ -63,32 +56,33 @@
 		ontogglecheck();
 	}
 
-	function openMenu(e: MouseEvent) {
-		e.preventDefault();
-		menuX = Math.min(e.clientX, Math.max(8, window.innerWidth - MENU_WIDTH - 8));
-		menuY = Math.min(e.clientY, Math.max(8, window.innerHeight - MENU_HEIGHT - 8));
-		menuOpen = true;
-	}
-
-	function run(action?: () => void) {
-		menuOpen = false;
-		action?.();
-	}
+	const menuItems = $derived.by(() => {
+		const groups: MenuEntry[][] = [
+			[
+				...(onreply ? [{ label: t('mail.reply'), icon: mailIcons.reply, onselect: onreply }] : []),
+				...(onforward ? [{ label: t('mail.forward'), icon: mailIcons.forward, onselect: onforward }] : [])
+			],
+			[
+				...(ontoggleread
+					? [{ label: email.is_read ? t('mail.markUnread') : t('mail.markRead'), icon: email.is_read ? icons.mail : mailIcons.mailOpen, onselect: ontoggleread }]
+					: []),
+				...(ontogglestar ? [{ label: email.is_starred ? t('mail.unstar') : t('mail.star'), icon: mailIcons.star, onselect: ontogglestar }] : [])
+			],
+			[
+				...(onarchive ? [{ label: t('mail.archive'), icon: mailIcons.archive, onselect: onarchive }] : []),
+				...(ondelete ? [{ label: t('mail.delete'), icon: icons.remove, tone: 'danger' as const, onselect: ondelete }] : [])
+			]
+		];
+		return groups.filter((g) => g.length > 0).flatMap((g, i) => (i === 0 ? g : [{ separator: true } as const, ...g]));
+	});
 </script>
 
-<svelte:window
-	onkeydown={(e) => {
-		if (menuOpen && e.key === 'Escape') menuOpen = false;
-	}}
-/>
-
-<div class="relative">
+<ContextMenu label={t('mail.rowActions')} items={menuItems} class="relative">
 	<button
 		type="button"
 		class="group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fc-ring
 			{selected ? 'bg-fc-accent text-fc-accent-fg' : checked ? 'bg-fc-surface text-fc-fg' : 'text-fc-fg hover:bg-fc-surface'}"
 		onclick={handleClick}
-		oncontextmenu={openMenu}
 	>
 		<span class="flex size-8 shrink-0 items-center justify-center">
 			{#if selectionActive || checked}
@@ -151,71 +145,4 @@
 			></span>
 		{/if}
 	</button>
-</div>
-
-<!--
-	muse ships no menu primitive (no DropdownMenu, ContextMenu or Popover), so the row menu is
-	local: a floating surface on muse tokens, dismissed by Escape, by a click anywhere else and
-	by a second right-click. Everything inside it is a muse component.
--->
-{#if menuOpen}
-	<div
-		class="fixed inset-0 z-40"
-		role="presentation"
-		onclick={() => (menuOpen = false)}
-		oncontextmenu={(e) => {
-			e.preventDefault();
-			menuOpen = false;
-		}}
-	></div>
-	<div
-		class="fixed z-50 w-56 rounded-fc-md bg-fc-component p-1 shadow-lg"
-		style="left: {menuX}px; top: {menuY}px"
-		role="menu"
-		tabindex="-1"
-	>
-		{#snippet item(label: string, icon: string, action: () => void, danger = false)}
-			<button
-				type="button"
-				role="menuitem"
-				class="flex w-full items-center gap-2.5 rounded-fc-sm px-2.5 py-2 text-left text-fc-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fc-ring
-					{danger
-					? 'text-fc-danger hover:bg-fc-danger/10'
-					: 'text-fc-fg-muted hover:bg-fc-surface hover:text-fc-fg'}"
-				onclick={() => run(action)}
-			>
-				<iconify-icon {icon} width="16" height="16" class="block size-4 shrink-0"></iconify-icon>
-				{label}
-			</button>
-		{/snippet}
-
-		{#if onreply}
-			{@render item(t('mail.reply'), mailIcons.reply, onreply)}
-		{/if}
-		{#if onforward}
-			{@render item(t('mail.forward'), mailIcons.forward, onforward)}
-		{/if}
-		{#if onreply || onforward}
-			<Divider class="my-1" />
-		{/if}
-		{#if ontoggleread}
-			{@render item(
-				email.is_read ? t('mail.markUnread') : t('mail.markRead'),
-				email.is_read ? icons.mail : mailIcons.mailOpen,
-				ontoggleread
-			)}
-		{/if}
-		{#if ontogglestar}
-			{@render item(email.is_starred ? t('mail.unstar') : t('mail.star'), mailIcons.star, ontogglestar)}
-		{/if}
-		{#if onarchive || ondelete}
-			<Divider class="my-1" />
-		{/if}
-		{#if onarchive}
-			{@render item(t('mail.archive'), mailIcons.archive, onarchive)}
-		{/if}
-		{#if ondelete}
-			{@render item(t('mail.delete'), icons.remove, ondelete, true)}
-		{/if}
-	</div>
-{/if}
+</ContextMenu>

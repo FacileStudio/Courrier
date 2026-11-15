@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/FacileStudio/Courrier/apps/api/internal/capsule"
 	"github.com/FacileStudio/Courrier/apps/api/internal/crypto"
 	"github.com/FacileStudio/Courrier/apps/api/internal/database"
 	documentation "github.com/FacileStudio/Courrier/apps/api/internal/documentation"
@@ -22,6 +23,7 @@ import (
 	"github.com/FacileStudio/Courrier/apps/api/modules/accounts"
 	"github.com/FacileStudio/Courrier/apps/api/modules/assist"
 	"github.com/FacileStudio/Courrier/apps/api/modules/auth"
+	"github.com/FacileStudio/Courrier/apps/api/modules/capsules"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mail"
 	"github.com/FacileStudio/Courrier/apps/api/modules/mcp"
 	pushmodule "github.com/FacileStudio/Courrier/apps/api/modules/push"
@@ -71,6 +73,7 @@ func referenceConfig() apiref.Config {
 				spaces.Documentation,
 				pushmodule.Documentation,
 				assist.Documentation,
+				capsules.Documentation(),
 				mcp.Documentation,
 				ideas.Documentation,
 			},
@@ -158,6 +161,7 @@ func buildRouter(db *gorm.DB, dbCheck health.Check, appEnv env.Config, appLogger
 		mail.RegisterRoutes(r, svc.mail, authService, appEnv.ResourceTokenSecret)
 		pushmodule.RegisterRoutes(r, svc.push, authService)
 		assist.RegisterRoutes(r, svc.assist, authService)
+		capsules.RegisterRoutes(r, capsules.NewService(capsule.New(appEnv.CapsuleURL), appLogger), authService)
 		users.RegisterRoutes(r, userService, authService)
 		settings.RegisterRoutes(r, settingsService, authService)
 		registerSpaces(r, db, appEnv, svc.directory, svc.deletions, authService)

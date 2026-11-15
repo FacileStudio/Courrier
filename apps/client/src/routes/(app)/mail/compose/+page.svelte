@@ -9,14 +9,16 @@
 		Button,
 		EmptyState,
 		Field,
+		Icon,
 		IconButton,
 		Input,
-		Modal,
+		Menu,
 		Select,
 		Textarea,
 		Tooltip,
 		icons,
-		toast
+		toast,
+		type MenuEntry
 	} from '@facile/muse';
 	import type { EmailTemplate } from '$lib/backend';
 	import { plainOf } from '$lib/assist/text';
@@ -24,6 +26,8 @@
 	import AddressInput from '$lib/components/AddressInput.svelte';
 	import { formatBytes, formatDate, formatTime } from '$lib/i18n/format';
 	import { t } from '$lib/i18n/index.svelte';
+	import { capsuleHtml, capsuleText } from '$lib/capsule';
+	import CapsuleDialog from '$lib/components/CapsuleDialog.svelte';
 
 	/* Glyphs an email client needs that muse's `icons` map has no key for yet. */
 	const mailIcons = {
@@ -31,7 +35,8 @@
 		send: 'solar:plain-linear',
 		template: 'solar:document-text-linear',
 		richText: 'solar:text-square-linear',
-		plainText: 'solar:text-linear'
+		plainText: 'solar:text-linear',
+		capsule: 'solar:pill-linear'
 	};
 
 	const app = getContext<{
@@ -63,7 +68,15 @@
 
 	let plainTextMode = $state(false);
 	let templates = $state<EmailTemplate[]>([]);
-	let templatesOpen = $state(false);
+
+	let editorRef = $state<TiptapEditor | undefined>();
+	let plainCaret = $state<number | null>(null);
+	let capsuleOpen = $state(false);
+	const insertItems = $derived<MenuEntry[]>([
+		{ label: t('compose.capsule'), icon: mailIcons.capsule, onselect: () => (capsuleOpen = true) },
+		...(templates.length > 0 ? [{ separator: true } as const] : []),
+		...templates.map((tmpl) => ({ label: tmpl.name, icon: mailIcons.template, onselect: () => applyTemplate(tmpl) }))
+	]);
 
 	let draftId = $state<number | null>(null);
 	let draftAccountId: number | null = null;
@@ -107,6 +120,23 @@
 			bodyPlainText = bodyHtml.replace(/<[^>]*>/g, '');
 		}
 		plainTextMode = !plainTextMode;
+	}
+
+	function trackCaret(e: Event) {
+		plainCaret = (e.currentTarget as HTMLTextAreaElement).selectionStart;
+	}
+
+	function insertCapsule(link: string) {
+		const label = t('compose.capsuleLine');
+		if (plainTextMode) {
+			const at = plainCaret ?? bodyPlainText.length;
+			const line = capsuleText(label, link);
+			bodyPlainText = `${bodyPlainText.slice(0, at)}${line}\n${bodyPlainText.slice(at)}`;
+			plainCaret = at + line.length + 1;
+		} else {
+			editorRef?.insertHtml(capsuleHtml(label, link));
+		}
+		scheduleDraftSave();
 	}
 
 	function scheduleDraftSave() {
@@ -158,7 +188,6 @@
 			initialContent = paragraphs;
 		}
 		bodyPlainText = tmpl.body_text || tmpl.body_html?.replace(/<[^>]*>/g, '') || '';
-		templatesOpen = false;
 	}
 
 	$effect(() => {
@@ -331,16 +360,12 @@
 			{/if}
 		</div>
 		<div class="flex shrink-0 items-center gap-1">
-			{#if templates.length > 0}
-				<IconButton
-					variant="ghost"
-					aria-label={t('compose.useTemplate')}
-					onclick={() => (templatesOpen = true)}
-				>
-					<iconify-icon icon={mailIcons.template} width="18" height="18" class="block size-4.5"
-					></iconify-icon>
-				</IconButton>
-			{/if}
+			<Menu label={t('compose.insert')} items={insertItems} class="mr-1">
+				{#snippet trigger()}
+					<Icon icon={icons.plus} size={18} />
+					<span class="hidden sm:inline">{t('compose.insert')}</span>
+				{/snippet}
+			</Menu>
 			<IconButton
 				variant="ghost"
 				aria-label={plainTextMode ? t('compose.toRich') : t('compose.toPlain')}
@@ -456,7 +481,13 @@
 				<div class="flex-1 overflow-auto px-4 py-4 pb-24 sm:px-6 md:pb-4">
 					<Textarea
 						bind:value={bodyPlainText}
-						oninput={scheduleDraftSave}
+						oninput={(e) => {
+							trackCaret(e);
+							scheduleDraftSave();
+						}}
+						onkeyup={trackCaret}
+						onclick={trackCaret}
+						onselect={trackCaret}
 						placeholder={t('editor.placeholder')}
 						aria-label={t('compose.bodyLabel')}
 						class="h-full resize-none text-fc-sm"
@@ -464,6 +495,7 @@
 				</div>
 			{:else}
 				<TiptapEditor
+					bind:this={editorRef}
 					assist
 					{assistContext}
 					accountId={fromId ?? undefined}
@@ -478,19 +510,4 @@
 	{/if}
 </div>
 
-<Modal bind:open={templatesOpen} title={t('compose.templates')} showClose>
-	<div class="flex flex-col gap-1">
-		{#each templates as tmpl (tmpl.id)}
-			<button
-				type="button"
-				class="flex w-full flex-col items-start gap-0.5 rounded-fc-sm px-3 py-2.5 text-left transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fc-ring"
-				onclick={() => applyTemplate(tmpl)}
-			>
-				<span class="text-fc-sm font-medium text-fc-fg">{tmpl.name}</span>
-				{#if tmpl.subject}
-					<span class="truncate text-fc-xs text-fc-fg-muted">{tmpl.subject}</span>
-				{/if}
-			</button>
-		{/each}
-	</div>
-</Modal>
+<CapsuleDialog bind:open={capsuleOpen} icon={mailIcons.capsule} oninsert={insertCapsule} />

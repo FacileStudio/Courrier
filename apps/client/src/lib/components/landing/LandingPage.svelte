@@ -45,7 +45,8 @@
 	]);
 	const apps: WorksWithApp[] = $derived([
 		{ name: 'Bulle', icon: 'solar:smile-circle-bold-duotone', line: t('landing.withBulle'), href: 'https://bulle.facile.studio' },
-		{ name: 'Glouton', icon: 'solar:magnet-wave-bold-duotone', line: t('landing.withGlouton'), href: 'https://glouton.facile.studio' }
+		{ name: 'Glouton', icon: 'solar:magnet-wave-bold-duotone', line: t('landing.withGlouton'), href: 'https://glouton.facile.studio' },
+		{ name: 'Capsule', icon: 'solar:pill-bold-duotone', line: t('landing.withCapsule'), href: 'https://capsule.facile.studio' }
 	]);
 	const developer: DeveloperRow[] = $derived([
 		{ kind: 'cli', text: t('landing.devCli'), command: CLI_COMMANDS[0].command },

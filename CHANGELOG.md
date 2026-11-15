@@ -4,6 +4,17 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- The composer can add a Capsule: a secret sealed in the browser and inserted as a link that opens once. Courrier relays only ciphertext through `POST /api/capsules`; the key stays in the link fragment. `CAPSULE_URL` defaults to `https://capsule.facile.studio`.
+- The landing lists Capsule under the apps Courrier works with.
+- Right-click menus with icons on a message row, a message in a thread and an attachment, also opened by Shift+F10, the Menu key or a long press. Delete is red.
+
+### Changed
+
+- The composer's inserts (a capsule, a template) sit in one Insert menu; templates no longer open a dialog.
+- muse v0.27.0 (ContextMenu). The message row drops its hand-built menu.
+
 ## [0.22.4] - 2026-11-14
 
 ### Fixed

@@ -68,6 +68,13 @@ export const mail = {
 		'Wähle links eine Nachricht aus, um sie hier zu lesen.'
 	],
 	'mail.reply': ['Reply', 'Répondre', 'Responder', 'Antworten'],
+	'mail.rowActions': ['Message actions', 'Actions du message', 'Acciones del mensaje', 'Nachrichtenaktionen'],
+	'mail.attachmentActions': ['Attachment actions', 'Actions de la pièce jointe', 'Acciones del adjunto', 'Anhangaktionen'],
+	'mail.download': ['Download', 'Télécharger', 'Descargar', 'Herunterladen'],
+	'mail.copyAddress': ['Copy sender address', 'Copier l’adresse de l’expéditeur', 'Copiar la dirección del remitente', 'Absenderadresse kopieren'],
+	'mail.copyName': ['Copy file name', 'Copier le nom du fichier', 'Copiar el nombre del archivo', 'Dateinamen kopieren'],
+	'mail.copied': ['Copied', 'Copié', 'Copiado', 'Kopiert'],
+	'mail.copyFailed': ['Could not copy', 'Copie impossible', 'No se pudo copiar', 'Kopieren fehlgeschlagen'],
 	'mail.replyAll': ['Reply all', 'Répondre à tous', 'Responder a todos', 'Allen antworten'],
 	'mail.forward': ['Forward', 'Transférer', 'Reenviar', 'Weiterleiten'],
 	'mail.archive': ['Archive', 'Archiver', 'Archivar', 'Archivieren'],
