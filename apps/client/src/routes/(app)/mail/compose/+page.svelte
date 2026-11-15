@@ -9,6 +9,7 @@
 		Button,
 		EmptyState,
 		Field,
+		Icon,
 		IconButton,
 		Input,
 		Menu,
@@ -359,7 +360,12 @@
 			{/if}
 		</div>
 		<div class="flex shrink-0 items-center gap-1">
-			<Menu label={t('compose.insert')} items={insertItems} align="end" class="mr-1" />
+			<Menu label={t('compose.insert')} items={insertItems} class="mr-1">
+				{#snippet trigger()}
+					<Icon icon={icons.plus} size={18} />
+					<span class="hidden sm:inline">{t('compose.insert')}</span>
+				{/snippet}
+			</Menu>
 			<IconButton
 				variant="ghost"
 				aria-label={plainTextMode ? t('compose.toRich') : t('compose.toPlain')}
