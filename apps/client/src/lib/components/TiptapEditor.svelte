@@ -51,6 +51,11 @@
 		editor?.destroy();
 	});
 
+	/** Inserts HTML at the caret, or where the caret last was before focus moved away. */
+	export function insertHtml(html: string) {
+		editor?.chain().focus().insertContent(html).run();
+	}
+
 	function setLink() {
 		if (!editor) return;
 		const previousUrl = editor.getAttributes('link').href;

@@ -442,6 +442,12 @@ export const backend = {
 	assist(request: AssistRequest) {
 		return apiFetch<{ text: string }>('/api/assist', { method: 'POST', body: JSON.stringify(request) });
 	},
+	sealCapsule(ciphertext: string, expiresIn: string) {
+		return apiFetch<{ id: string; url: string; expires_at?: string }>('/api/capsules', {
+			method: 'POST',
+			body: JSON.stringify({ ciphertext, expires_in: expiresIn })
+		});
+	},
 	setSenderRule(accountId: number, address: string, tab: InboxTab | 'auto') {
 		return apiFetch<void>(`/api/accounts/${accountId}/mail/sender-rules`, {
 			method: 'PUT',

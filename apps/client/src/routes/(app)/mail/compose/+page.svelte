@@ -24,6 +24,8 @@
 	import AddressInput from '$lib/components/AddressInput.svelte';
 	import { formatBytes, formatDate, formatTime } from '$lib/i18n/format';
 	import { t } from '$lib/i18n/index.svelte';
+	import { capsuleHtml, capsuleText } from '$lib/capsule';
+	import CapsuleDialog from '$lib/components/CapsuleDialog.svelte';
 
 	/* Glyphs an email client needs that muse's `icons` map has no key for yet. */
 	const mailIcons = {
@@ -31,7 +33,8 @@
 		send: 'solar:plain-linear',
 		template: 'solar:document-text-linear',
 		richText: 'solar:text-square-linear',
-		plainText: 'solar:text-linear'
+		plainText: 'solar:text-linear',
+		capsule: 'solar:pill-linear'
 	};
 
 	const app = getContext<{
@@ -64,6 +67,10 @@
 	let plainTextMode = $state(false);
 	let templates = $state<EmailTemplate[]>([]);
 	let templatesOpen = $state(false);
+
+	let editorRef = $state<TiptapEditor | undefined>();
+	let plainCaret = $state<number | null>(null);
+	let capsuleOpen = $state(false);
 
 	let draftId = $state<number | null>(null);
 	let draftAccountId: number | null = null;
@@ -107,6 +114,23 @@
 			bodyPlainText = bodyHtml.replace(/<[^>]*>/g, '');
 		}
 		plainTextMode = !plainTextMode;
+	}
+
+	function trackCaret(e: Event) {
+		plainCaret = (e.currentTarget as HTMLTextAreaElement).selectionStart;
+	}
+
+	function insertCapsule(link: string) {
+		const label = t('compose.capsuleLine');
+		if (plainTextMode) {
+			const at = plainCaret ?? bodyPlainText.length;
+			const line = capsuleText(label, link);
+			bodyPlainText = `${bodyPlainText.slice(0, at)}${line}\n${bodyPlainText.slice(at)}`;
+			plainCaret = at + line.length + 1;
+		} else {
+			editorRef?.insertHtml(capsuleHtml(label, link));
+		}
+		scheduleDraftSave();
 	}
 
 	function scheduleDraftSave() {
@@ -361,6 +385,10 @@
 				<iconify-icon icon={mailIcons.paperclip} width="18" height="18" class="block size-4.5"
 				></iconify-icon>
 			</IconButton>
+			<IconButton variant="ghost" aria-label={t('compose.capsule')} onclick={() => (capsuleOpen = true)}>
+				<iconify-icon icon={mailIcons.capsule} width="18" height="18" class="block size-4.5"
+				></iconify-icon>
+			</IconButton>
 			<span class="mx-1 h-5 w-px shrink-0 bg-fc-surface"></span>
 			<Button variant="ghost" size="sm" icon={icons.close} onclick={() => goto('/mail')}>{t('common.cancel')}</Button>
 			<Button
@@ -456,7 +484,13 @@
 				<div class="flex-1 overflow-auto px-4 py-4 pb-24 sm:px-6 md:pb-4">
 					<Textarea
 						bind:value={bodyPlainText}
-						oninput={scheduleDraftSave}
+						oninput={(e) => {
+							trackCaret(e);
+							scheduleDraftSave();
+						}}
+						onkeyup={trackCaret}
+						onclick={trackCaret}
+						onselect={trackCaret}
 						placeholder={t('editor.placeholder')}
 						aria-label={t('compose.bodyLabel')}
 						class="h-full resize-none text-fc-sm"
@@ -464,6 +498,7 @@
 				</div>
 			{:else}
 				<TiptapEditor
+					bind:this={editorRef}
 					assist
 					{assistContext}
 					accountId={fromId ?? undefined}
@@ -494,3 +529,5 @@
 		{/each}
 	</div>
 </Modal>
+
+<CapsuleDialog bind:open={capsuleOpen} icon={mailIcons.capsule} oninsert={insertCapsule} />
