@@ -5,7 +5,6 @@ export const compose = {
 	'compose.title': ['Compose — Courrier', 'Écrire — Courrier', 'Redactar — Courrier', 'Verfassen — Courrier'],
 	'compose.heading': ['New message', 'Nouveau message', 'Mensaje nuevo', 'Neue Nachricht'],
 	'compose.draftSaved': ['Draft saved {time}', 'Brouillon enregistré à {time}', 'Borrador guardado a las {time}', 'Entwurf gespeichert um {time}'],
-	'compose.useTemplate': ['Use template', 'Utiliser un modèle', 'Usar plantilla', 'Vorlage verwenden'],
 	'compose.toRich': ['Switch to rich text', 'Passer au texte enrichi', 'Cambiar a texto enriquecido', 'Zu formatiertem Text wechseln'],
 	'compose.toPlain': ['Switch to plain text', 'Passer au texte brut', 'Cambiar a texto sin formato', 'Zu reinem Text wechseln'],
 	'compose.attach': ['Attach files', 'Joindre des fichiers', 'Adjuntar archivos', 'Dateien anhängen'],
@@ -32,7 +31,6 @@ export const compose = {
 	'compose.ccPlaceholder': ['cc@example.com', 'cc@exemple.fr', 'cc@ejemplo.com', 'cc@beispiel.de'],
 	'compose.removeFile': ['Remove {name}', 'Retirer {name}', 'Quitar {name}', '{name} entfernen'],
 	'compose.bodyLabel': ['Message body', 'Corps du message', 'Cuerpo del mensaje', 'Nachrichtentext'],
-	'compose.templates': ['Templates', 'Modèles', 'Plantillas', 'Vorlagen'],
 	'compose.draftFailed': [
 		'Failed to load draft',
 		'Impossible de charger le brouillon',
@@ -63,6 +61,7 @@ export const compose = {
 	'compose.fwdDate': ['Date', 'Date', 'Fecha', 'Datum'],
 	'compose.fwdSubject': ['Subject', 'Objet', 'Asunto', 'Betreff'],
 	'compose.fwdTo': ['To', 'À', 'Para', 'An'],
+	'compose.insert': ['Insert', 'Insérer', 'Insertar', 'Einfügen'],
 	'compose.capsule': ['Add a capsule', 'Ajouter une capsule', 'Añadir una cápsula', 'Kapsel hinzufügen'],
 	'compose.capsuleTitle': ['Add a secret link', 'Ajouter un lien secret', 'Añadir un enlace secreto', 'Geheimen Link hinzufügen'],
 	'compose.capsuleBody': [
