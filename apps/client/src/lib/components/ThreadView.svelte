@@ -2,7 +2,8 @@
 	import DOMPurify from 'dompurify';
 	import MailBody from './MailBody.svelte';
 	import { backend, type EmailMessage, type EmailAttachment } from '$lib/backend';
-	import { Avatar, Button, Spinner, icons } from '@facile/muse';
+	import { Avatar, Button, ContextMenu, Spinner, icons } from '@facile/muse';
+	import { attachmentMenu, messageMenu } from '$lib/thread-menu';
 	import { formatBytes, formatThreadDate } from '$lib/i18n/format';
 	import { t } from '$lib/i18n/index.svelte';
 	import { isApp } from '$lib/platform';
@@ -18,9 +19,7 @@
 	} = $props();
 
 	/* Glyphs an email client needs that muse's `icons` map has no key for yet. */
-	const mailIcons = {
-		paperclip: 'solar:paperclip-linear'
-	};
+	const mailIcons = { paperclip: 'solar:paperclip-linear' };
 
 	let messages = $state<EmailMessage[]>([]);
 	let expanded = $state<Set<number>>(new Set());
@@ -144,7 +143,8 @@
 <div class="flex flex-col">
 	{#each messages as msg (msg.id)}
 		{@const isOpen = expanded.has(msg.id)}
-		<div class="">
+		<div>
+			<ContextMenu label={t('mail.rowActions')} items={messageMenu(msg, accountId)}>
 			<button
 				type="button"
 				class="flex w-full items-center gap-3 px-4 py-3 text-left text-fc-fg transition-colors hover:bg-fc-surface focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fc-ring sm:px-6"
@@ -192,6 +192,7 @@
 					{/if}
 				</span>
 			</button>
+			</ContextMenu>
 
 			{#if isOpen}
 				<div class="px-4 pb-5 sm:px-6">
@@ -207,6 +208,7 @@
 								{t('mail.attachments', { count: msg.attachments.length })}
 							</span>
 							{#each msg.attachments as attachment (attachment.id)}
+								<ContextMenu label={t('mail.attachmentActions')} items={attachmentMenu(attachment, () => downloadAttachment(msg, attachment))} class="contents">
 								<Button
 									variant="secondary"
 									size="sm"
@@ -216,6 +218,7 @@
 									<span class="max-w-48 truncate">{attachment.filename}</span>
 									<span class="text-fc-fg-muted">({formatBytes(attachment.size)})</span>
 								</Button>
+								</ContextMenu>
 							{/each}
 						</div>
 					{/if}
