@@ -94,6 +94,7 @@ Client dev only (in `apps/client/.env`):
 - Mail: `/api/accounts/{id}/mail/sync`, `/api/accounts/{id}/mail/folders`, `/api/accounts/{id}/mail/folders/{type}/emails`, `/api/accounts/{id}/mail/emails/{id}`, `/api/accounts/{id}/mail/send`, `/api/accounts/{id}/mail/drafts[/{id}]`, `/api/accounts/{id}/mail/emails/move`, `/api/accounts/{id}/mail/folders[/{id}]` (create, rename, delete)
 - Push: `/api/push`, `/api/push/test`, `/api/push/devices`, `/api/push/stream` (desktop SSE)
 - Connection test: `POST /api/mail/test-connection`
+- Capsules: `POST /api/capsules` relays browser-encrypted ciphertext to Capsule (`CAPSULE_URL`, default `https://capsule.facile.studio`) as a burn-after-read capsule; the key stays in the link fragment and never reaches Courrier
 - Users: `/api/users/me`, `/api/users`
 - Settings: `/api/settings/`
 - Spaces: `/api/spaces` (CRUD), `/api/spaces/{id}/members` (member management), `/api/spaces/{id}/leave`

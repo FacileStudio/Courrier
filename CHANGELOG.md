@@ -4,6 +4,11 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- The composer can add a Capsule: a secret sealed in the browser and inserted as a link that opens once. Courrier relays only ciphertext through `POST /api/capsules`; the key stays in the link fragment. `CAPSULE_URL` defaults to `https://capsule.facile.studio`.
+- The landing lists Capsule under the apps Courrier works with.
+
 ## [0.22.4] - 2026-11-14
 
 ### Fixed
