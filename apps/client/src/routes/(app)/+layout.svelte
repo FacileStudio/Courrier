@@ -5,7 +5,6 @@
 	import { page } from '$app/state';
 	import { MobileNav, SideBar, SpaceSwitcher, Topbar, getI18n, icons, ideasNavItem } from '@facile/muse';
 	import { backend, ApiError, type UserProfile, type MailAccount, type Folder, type Space } from '$lib/backend';
-	import { SPACES_URL } from '$lib/plan-limit';
 	import { MAIL_FOLDERS } from '$lib/mail-folders';
 	import { spaceStore } from '$lib/stores/space.svelte';
 	import { activeAccountStore } from '$lib/stores/account.svelte';
@@ -15,8 +14,7 @@
 		import { syncDevice } from '$lib/notifications';
 	import { needsOnboarding, onboardingSeen } from '$lib/onboarding/steps';
 	import { isApp, isNative } from '$lib/platform';
-	import { rememberLocale, t } from '$lib/i18n/index.svelte';
-	import { theme, type ThemePreference } from '$lib/theme.svelte';
+	import { t } from '$lib/i18n/index.svelte';
 
 	let { children } = $props();
 
@@ -187,7 +185,10 @@
 				icon: folder.icon,
 				active: path === folder.href
 			};
-		})
+		}),
+		...(isApp()
+			? []
+			: [{ href: '/downloads', label: t('shell.desktopApp'), icon: icons.download, active: path === '/downloads' }])
 	]);
 
 	const navUser = $derived(
@@ -207,13 +208,8 @@
 	}
 
 	const userMenu = $derived({
-		items: isApp() ? [] : [{ label: t('shell.desktopApp'), icon: icons.download, href: '/downloads' }],
-		subscription: { href: SPACES_URL },
 		helpHref: 'https://facile.studio/docs/courrier',
 		onSignOut: signOut,
-		theme: theme.mode,
-		onThemeChange: (next: ThemePreference) => theme.set(next),
-		onLocaleChange: rememberLocale,
 		invitations
 	});
 
