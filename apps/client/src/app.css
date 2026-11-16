@@ -58,3 +58,20 @@ html[data-desktop] .min-h-screen {
 html[data-desktop] .fixed.inset-0 {
 	top: var(--titlebar-h);
 }
+
+/*
+ * muse's menus, context menus and select lists mount without an enter. They fade and
+ * settle in on muse's ease; the global reduced-motion rule in muse collapses it to instant.
+ */
+[popover][role='menu'],
+[popover][role='listbox'] {
+	transition:
+		opacity 160ms var(--ease-fc),
+		transform 160ms var(--ease-fc);
+	transform-origin: top;
+
+	@starting-style {
+		opacity: 0;
+		transform: translateY(-4px) scale(0.98);
+	}
+}

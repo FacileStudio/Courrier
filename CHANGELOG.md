@@ -14,6 +14,7 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 - The composer's inserts (a capsule, a template) sit in one Insert menu; templates no longer open a dialog.
 - muse v0.27.0 (ContextMenu). The message row drops its hand-built menu.
+- Menus, context menus and select lists fade and settle in on muse's ease; reduced motion makes it instant.
 
 ## [0.22.4] - 2026-11-14
 
