@@ -4,6 +4,8 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.22.5] - 2026-11-16
+
 ### Security
 
 - The Vision tracker is served from Courrier's own origin as `/vision-tracker.js`, and the content security policy no longer lets `script-src` load scripts from `vision.facile.studio`. A script from another app can no longer run inside the signed-in session.
