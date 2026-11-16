@@ -2,7 +2,7 @@
 	"name": "courrier-client",
 	"license": "AGPL-3.0-only",
 	"private": true,
-	"version": "0.22.5",
+	"version": "0.22.6",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",

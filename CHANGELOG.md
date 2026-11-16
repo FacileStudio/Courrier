@@ -4,6 +4,12 @@ All notable changes to Courrier are listed here. The format follows Keep a Chang
 
 ## [Unreleased]
 
+## [0.22.6] - 2026-11-16
+
+### Changed
+
+- The client uses muse v0.32.0.
+
 ## [0.22.5] - 2026-11-16
 
 ### Security
