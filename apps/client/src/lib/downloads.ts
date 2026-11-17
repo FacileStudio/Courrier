@@ -18,5 +18,5 @@ export const DOWNLOADS: readonly DownloadEntry[] = [
 
 export const CLI_COMMANDS: readonly CliCommand[] = [
 	{ label: 'install.sh', command: 'curl -fsSL https://raw.githubusercontent.com/FacileStudio/courrier-cli/main/install.sh | bash' },
-	{ label: 'facile', command: 'facile install courrier' }
+	{ label: 'kit', command: 'kit add courrier' }
 ];
