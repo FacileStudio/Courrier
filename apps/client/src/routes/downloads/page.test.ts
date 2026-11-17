@@ -11,6 +11,6 @@ describe('downloads page', () => {
 			expect(html).toContain(`href="${url}"`);
 		}
 		for (const entry of DOWNLOADS) expect(html).toContain(`href="${entry.href}"`);
-		expect(html).toContain('facile install courrier');
+		expect(html).toContain('kit add courrier');
 	});
 });
